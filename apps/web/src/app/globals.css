@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+:root {
+  --cf-void: #050609;
+  --cf-stage: #0a0d14;
+  --cf-surface: rgba(17, 21, 32, 0.72);
+  --cf-border: rgba(255, 255, 255, 0.08);
+  --cf-specular: rgba(255, 255, 255, 0.18);
+  --cf-emerald: #00f59b;
+  --cf-violet: #8b5cf6;
+  --cf-cyan: #00d4ff;
+  --cf-amber: #ffb020;
+  --cf-danger: #ff4560;
+  --cf-text: #f8fafc;
+  --cf-muted: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--cf-void);
+  color: var(--cf-text);
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+.font-display {
+  font-family: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+.font-mono,
+.tabular-nums {
+  font-family: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.cf-glass {
+  background: rgba(17, 21, 32, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.18),
+    0 24px 64px -16px rgba(0, 0, 0, 0.68);
+}
+
+.cf-glass-subtle {
+  background: rgba(10, 13, 20, 0.78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+}
+
+.cf-cartridge-shell {
+  background: linear-gradient(180deg, rgba(22, 27, 40, 0.94) 0%, rgba(10, 13, 20, 0.98) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    inset 0 -2px 0 0 rgba(0, 0, 0, 0.65),
+    0 20px 44px -12px rgba(0, 0, 0, 0.72);
+}
+
+.cf-flip-stage {
+  perspective: 1200px;
+}
+
+.cf-flip-inner {
+  transform-style: preserve-3d;
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cf-flip-inner[data-unsealed="true"] {
+  transform: rotateY(180deg);
+}
+
+.cf-flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.cf-flip-back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: rotateY(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-flip-inner {
+    transition-duration: 0.01ms !important;
+  }
+}

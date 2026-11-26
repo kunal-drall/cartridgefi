@@ -1,0 +1,99 @@
+{
+  "$schema": "https://spec.cartridgefi.com/v2/cartridge-manifest.schema.json",
+  "manifestVersion": "2.0.0",
+  "metadata": {
+    "slug": "pulse-runner-nvda-sol",
+    "title": "Pulse Runner: 3-Lane Volatility Sprint",
+    "subtitle": "60fps 3-lane arcade reflex runner where Left=Short, Center=USDC Shield, Right=Long on the exact same CartridgeFi ER contract.",
+    "genre": "ARCADE_RUNNER",
+    "engineTarget": "PHASER_3",
+    "creatorHandle": "@cartridgefi-studio",
+    "creatorWallet": "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1",
+    "creatorFeeShareBps": 5000
+  },
+  "onboardingAndSession": {
+    "allowPaperMode": true,
+    "allowLiveMode": true,
+    "supportedDepositChains": [
+      "solana",
+      "base",
+      "ethereum",
+      "arbitrum",
+      "bnb",
+      "monad",
+      "polygon"
+    ],
+    "applePayEnabled": true,
+    "liveSessionEnvelopeUsdc": {
+      "minUsdc": 10,
+      "maxUsdc": 150,
+      "maxLeverage": 3
+    }
+  },
+  "magicblockRoomConfig": {
+    "tickIntervalMs": 10,
+    "durationSecs": 90,
+    "shardCapacity": 200,
+    "privacyMode": "PRIVATE_TEE_FOG_OF_WAR",
+    "fogOfWarBps": 7500,
+    "showdownUnsealSecs": 15,
+    "vrfUsage": "PROCEDURAL_TRACK_SEED_AND_TIEBREAK"
+  },
+  "marketUniverse": [
+    {
+      "alias": "PRIMARY_PERP",
+      "venue": "PHOENIX_PERP",
+      "symbol": "SOL-PERP",
+      "pythFeedId": "0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d"
+    },
+    {
+      "alias": "TECH_EQUITY",
+      "venue": "JUPITER_XSTOCKS",
+      "symbol": "NVDAx",
+      "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+      "pythFeedId": "0xb1073854ed24cbc755dc527418f52b7d271f6cc967bbf8d8129112b18860a593"
+    },
+    {
+      "alias": "MACRO_GATE",
+      "venue": "DFLOW_KALSHI",
+      "symbol": "KALSHI-FED-CUT",
+      "marketId": "KALSHI-FED-DEC26-CUT"
+    }
+  ],
+  "actionBindings": [
+    {
+      "gameEvent": "PLAYER_LANE_SWITCH",
+      "bindingType": "CONTINUOUS_STANCE_VECTOR",
+      "mapping": {
+        "LANE_LEFT": {
+          "asset": "PRIMARY_PERP",
+          "weightBps": -10000
+        },
+        "LANE_CENTER": {
+          "asset": "USDC_SHIELD",
+          "weightBps": 0
+        },
+        "LANE_RIGHT": {
+          "asset": "PRIMARY_PERP",
+          "weightBps": 10000
+        }
+      },
+      "nettingPolicy": "NET_AT_CHECKPOINTS_30S"
+    },
+    {
+      "gameEvent": "PORTAL_GATE_PASS",
+      "bindingType": "BINARY_OUTCOME_CALL",
+      "asset": "MACRO_GATE",
+      "scoreCarryMultiplierBps": 15000
+    }
+  ],
+  "scoringAndPrizes": {
+    "primaryFormula": "DIRECTION_NEUTRAL_SHARPE_PLUS_SURVIVAL",
+    "prizeCurve": "TOP_20_PERCENT_SHAPLEY",
+    "claimMenuAssets": [
+      "NVDAx",
+      "SPYx",
+      "USDC"
+    ]
+  }
+}

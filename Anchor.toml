@@ -1,0 +1,36 @@
+[toolchain]
+anchor_version = "1.0.2"
+solana_version = "3.1.10"
+package_manager = "pnpm"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+cartridge_registry = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+cartridge_er_room = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
+cartridge_vault_router = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"
+cartridge_passport = "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr"
+
+[programs.devnet]
+cartridge_registry = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+cartridge_er_room = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
+cartridge_vault_router = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"
+cartridge_passport = "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr"
+
+[programs.mainnet]
+cartridge_registry = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+cartridge_er_room = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
+cartridge_vault_router = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"
+cartridge_passport = "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test --manifest-path tests/onchain/Cargo.toml"

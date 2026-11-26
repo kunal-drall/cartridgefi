@@ -1,0 +1,17 @@
+{
+  "name": "@cartridgefi/skill",
+  "version": "2.0.0",
+  "private": false,
+  "description": "Distributable CartridgeFi Agent Skill (SKILL.md + genre reference guides + manifest v2.0 templates)",
+  "files": [
+    "SKILL.md",
+    "references",
+    "templates"
+  ],
+  "scripts": {
+    "build": "node -e \"console.log('@cartridgefi/skill ready')\"",
+    "typecheck": "node -e \"console.log('@cartridgefi/skill ok')\"",
+    "lint": "node -e \"console.log('@cartridgefi/skill lint ok')\"",
+    "test": "node test/verify-skill.mjs"
+  }
+}

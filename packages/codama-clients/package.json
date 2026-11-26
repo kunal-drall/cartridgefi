@@ -1,0 +1,33 @@
+{
+  "name": "@cartridgefi/codama-clients",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Codama-generated zero-dependency @solana/kit clients for CartridgeFi Anchor programs",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "idl"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "node -e \"import('./dist/index.js').then((m) => { if (!m.cartridgeErRoom || !m.cartridgeRegistry) process.exit(1); console.log('codama-clients verified'); })\""
+  },
+  "dependencies": {
+    "@cartridgefi/shared-types": "workspace:*",
+    "@solana/kit": "^8.6.0",
+    "@solana/program-client-core": "^8.6.0"
+  },
+  "devDependencies": {
+    "@codama/nodes-from-anchor": "^1.5.6",
+    "@codama/renderers-js": "^2.9.1",
+    "@types/node": "^22.15.0",
+    "codama": "^1.11.0",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,38 @@
+[workspace]
+members = [
+    "core-api",
+    "ws-mesh",
+    "keeper-bots",
+]
+resolver = "2"
+
+[workspace.package]
+version = "2.0.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.85"
+
+[workspace.dependencies]
+tokio = { version = "1.44", features = ["full"] }
+axum = { version = "0.8", features = ["ws", "macros"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
+futures-util = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+thiserror = "2.0"
+anyhow = "1.0"
+sha2 = "0.10"
+hmac = "0.12"
+hex = "0.4"
+bs58 = "0.5"
+base64 = "0.22"
+borsh = { version = "1.5", features = ["derive"] }
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+rand = "0.8"
+cartridge-core-api = { path = "core-api" }
+
+

@@ -1,0 +1,892 @@
+{
+  "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr",
+  "metadata": {
+    "name": "cartridge_registry",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "CartridgeFi Global Engine Config & Parameterized Game Cartridge Registry"
+  },
+  "instructions": [
+    {
+      "name": "initialize_engine_config",
+      "discriminator": [
+        11,
+        246,
+        107,
+        243,
+        38,
+        233,
+        54,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "admin_multisig",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "platform_fee_account"
+        },
+        {
+          "name": "engine_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "private_beta_mode",
+          "type": "bool"
+        },
+        {
+          "name": "max_room_pool_usdc",
+          "type": "u64"
+        },
+        {
+          "name": "max_global_tvl_usdc",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "record_room_created",
+      "discriminator": [
+        109,
+        224,
+        192,
+        101,
+        205,
+        132,
+        226,
+        145
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "engine_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "cartridge_manifest",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  114,
+                  116,
+                  114,
+                  105,
+                  100,
+                  103,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cartridge_manifest.slug_hash",
+                "account": "CartridgeManifestAccount"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "register_cartridge",
+      "discriminator": [
+        175,
+        220,
+        50,
+        139,
+        85,
+        162,
+        240,
+        97
+      ],
+      "accounts": [
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "creator_fee_vault"
+        },
+        {
+          "name": "engine_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "cartridge_manifest",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  114,
+                  116,
+                  114,
+                  105,
+                  100,
+                  103,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "args.slug_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "RegisterCartridgeArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "sync_global_tvl",
+      "discriminator": [
+        75,
+        95,
+        66,
+        213,
+        231,
+        228,
+        78,
+        240
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "engine_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "delta_usdc",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "update_engine_config",
+      "discriminator": [
+        62,
+        159,
+        32,
+        233,
+        137,
+        163,
+        225,
+        42
+      ],
+      "accounts": [
+        {
+          "name": "admin_multisig",
+          "signer": true,
+          "relations": [
+            "engine_config"
+          ]
+        },
+        {
+          "name": "engine_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "UpdateEngineConfigArgs"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "CartridgeManifestAccount",
+      "discriminator": [
+        198,
+        110,
+        245,
+        249,
+        188,
+        90,
+        111,
+        172
+      ]
+    },
+    {
+      "name": "EngineConfig",
+      "discriminator": [
+        10,
+        197,
+        172,
+        236,
+        51,
+        169,
+        22,
+        207
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "CartridgeRegistered",
+      "discriminator": [
+        147,
+        26,
+        223,
+        48,
+        162,
+        222,
+        119,
+        132
+      ]
+    },
+    {
+      "name": "EngineConfigUpdated",
+      "discriminator": [
+        205,
+        85,
+        87,
+        38,
+        237,
+        177,
+        30,
+        9
+      ]
+    },
+    {
+      "name": "GlobalTvlSynced",
+      "discriminator": [
+        200,
+        4,
+        206,
+        68,
+        160,
+        189,
+        98,
+        107
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "UnauthorizedAdmin",
+      "msg": "Caller is not the authorized admin multisig"
+    },
+    {
+      "code": 6001,
+      "name": "UnauthorizedTvlSync",
+      "msg": "Caller is not authorized to synchronize global TVL"
+    },
+    {
+      "code": 6002,
+      "name": "UnauthorizedRoomRecorder",
+      "msg": "Caller is not authorized to record room creation"
+    },
+    {
+      "code": 6003,
+      "name": "EnginePaused",
+      "msg": "Engine is currently paused"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidAdmin",
+      "msg": "Invalid default admin pubkey"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidFeeAccount",
+      "msg": "Invalid default fee account pubkey"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidTvlCapConfiguration",
+      "msg": "Invalid TVL cap configuration"
+    },
+    {
+      "code": 6007,
+      "name": "BetaRoomCapConfigurationExceeded",
+      "msg": "Private beta room pool cap cannot exceed 500 USDC (500_000_000)"
+    },
+    {
+      "code": 6008,
+      "name": "BetaGlobalTvlCapExceeded",
+      "msg": "Private beta global TVL cap cannot exceed 5,000 USDC (5_000_000_000)"
+    },
+    {
+      "code": 6009,
+      "name": "GlobalTvlCapExceeded",
+      "msg": "Global TVL cap exceeded"
+    },
+    {
+      "code": 6010,
+      "name": "TvlUnderflow",
+      "msg": "Global TVL underflow"
+    },
+    {
+      "code": 6011,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6012,
+      "name": "InvalidSlugHash",
+      "msg": "Slug hash cannot be all zeroes"
+    },
+    {
+      "code": 6013,
+      "name": "CreatorShareExceedsCap",
+      "msg": "Creator share cannot exceed 5000 bps (50%)"
+    },
+    {
+      "code": 6014,
+      "name": "FogOfWarExceedsCap",
+      "msg": "Fog of war duration ratio cannot exceed 9000 bps (90%)"
+    },
+    {
+      "code": 6015,
+      "name": "DurationTooShort",
+      "msg": "Cartridge duration must be at least 30 seconds"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidMaxRebalances",
+      "msg": "Max rebalances must be between 1 and 1000"
+    }
+  ],
+  "types": [
+    {
+      "name": "ActionBindingMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ConvictionWeights"
+          },
+          {
+            "name": "ThreeLaneStance"
+          },
+          {
+            "name": "SectorTurf"
+          },
+          {
+            "name": "MultiStageCarry"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CartridgeManifestAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slug_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator_fee_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator_share_bps",
+            "type": "u16"
+          },
+          {
+            "name": "genre_code",
+            "type": "u8"
+          },
+          {
+            "name": "duration_secs",
+            "type": "u32"
+          },
+          {
+            "name": "fog_of_war_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_rebalances",
+            "type": "u16"
+          },
+          {
+            "name": "scoring_formula",
+            "type": {
+              "defined": {
+                "name": "ScoringFormula"
+              }
+            }
+          },
+          {
+            "name": "action_binding_mode",
+            "type": {
+              "defined": {
+                "name": "ActionBindingMode"
+              }
+            }
+          },
+          {
+            "name": "allowed_feeds_merkle_root",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "manifest_uri",
+            "type": {
+              "array": [
+                "u8",
+                96
+              ]
+            }
+          },
+          {
+            "name": "total_rooms_created",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CartridgeRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cartridge_manifest",
+            "type": "pubkey"
+          },
+          {
+            "name": "slug_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator_share_bps",
+            "type": "u16"
+          },
+          {
+            "name": "duration_secs",
+            "type": "u32"
+          },
+          {
+            "name": "fog_of_war_bps",
+            "type": "u16"
+          },
+          {
+            "name": "scoring_formula",
+            "type": {
+              "defined": {
+                "name": "ScoringFormula"
+              }
+            }
+          },
+          {
+            "name": "action_binding_mode",
+            "type": {
+              "defined": {
+                "name": "ActionBindingMode"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "EngineConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin_multisig",
+            "type": "pubkey"
+          },
+          {
+            "name": "platform_fee_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "private_beta_mode",
+            "type": "bool"
+          },
+          {
+            "name": "max_room_pool_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "max_global_tvl_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "current_global_tvl_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EngineConfigUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin_multisig",
+            "type": "pubkey"
+          },
+          {
+            "name": "platform_fee_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "private_beta_mode",
+            "type": "bool"
+          },
+          {
+            "name": "max_room_pool_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "max_global_tvl_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GlobalTvlSynced",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "delta_usdc",
+            "type": "i64"
+          },
+          {
+            "name": "current_global_tvl_usdc",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RegisterCartridgeArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slug_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "creator_share_bps",
+            "type": "u16"
+          },
+          {
+            "name": "genre_code",
+            "type": "u8"
+          },
+          {
+            "name": "duration_secs",
+            "type": "u32"
+          },
+          {
+            "name": "fog_of_war_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_rebalances",
+            "type": "u16"
+          },
+          {
+            "name": "scoring_formula",
+            "type": {
+              "defined": {
+                "name": "ScoringFormula"
+              }
+            }
+          },
+          {
+            "name": "action_binding_mode",
+            "type": {
+              "defined": {
+                "name": "ActionBindingMode"
+              }
+            }
+          },
+          {
+            "name": "allowed_feeds_merkle_root",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "manifest_uri",
+            "type": {
+              "array": [
+                "u8",
+                96
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ScoringFormula",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "DirectionNeutralRelReturn"
+          },
+          {
+            "name": "DrawdownPenalizedSharpe"
+          },
+          {
+            "name": "KalshiBrierCalibration"
+          },
+          {
+            "name": "MultiStageCarryComposite"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UpdateEngineConfigArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "new_admin_multisig",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "new_platform_fee_account",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "private_beta_mode",
+            "type": {
+              "option": "bool"
+            }
+          },
+          {
+            "name": "max_room_pool_usdc",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "max_global_tvl_usdc",
+            "type": {
+              "option": "u64"
+            }
+          },
+          {
+            "name": "paused",
+            "type": {
+              "option": "bool"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

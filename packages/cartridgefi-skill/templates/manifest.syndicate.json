@@ -1,0 +1,84 @@
+{
+  "$schema": "https://spec.cartridgefi.com/v2/cartridge-manifest.schema.json",
+  "manifestVersion": "2.0.0",
+  "metadata": {
+    "slug": "vice-bourse-syndicate",
+    "title": "Vice Bourse: Sector Turf Wars",
+    "subtitle": "District control & 10-minute Private TEE Vault Heists backed by tokenized tech & index equities.",
+    "genre": "SYNDICATE_TURF",
+    "engineTarget": "THREE_JS",
+    "creatorHandle": "@vice-labs",
+    "creatorWallet": "FRLBDfWhskqdGsoNkBMsnxHtQTy6Bkm25NEvsVncGAay",
+    "creatorFeeShareBps": 5000
+  },
+  "onboardingAndSession": {
+    "allowPaperMode": true,
+    "allowLiveMode": true,
+    "supportedDepositChains": [
+      "solana",
+      "base",
+      "ethereum",
+      "arbitrum",
+      "bnb",
+      "monad",
+      "polygon"
+    ],
+    "applePayEnabled": true,
+    "liveSessionEnvelopeUsdc": {
+      "minUsdc": 15,
+      "maxUsdc": 250,
+      "maxLeverage": 3
+    }
+  },
+  "magicblockRoomConfig": {
+    "tickIntervalMs": 25,
+    "durationSecs": 600,
+    "shardCapacity": 200,
+    "privacyMode": "PRIVATE_TEE_FOG_OF_WAR",
+    "fogOfWarBps": 8000,
+    "showdownUnsealSecs": 30,
+    "vrfUsage": "TIEBREAK_AND_FREE_BONUS_DROP"
+  },
+  "marketUniverse": [
+    {
+      "alias": "SILICON_COAST",
+      "venue": "JUPITER_XSTOCKS",
+      "symbol": "NVDAx",
+      "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+      "pythFeedId": "0xb1073854ed24cbc755dc527418f52b7d271f6cc967bbf8d8129112b18860a593"
+    },
+    {
+      "alias": "ANTHROPIC_TOWER",
+      "venue": "JUPITER_XSTOCKS",
+      "symbol": "ANTx",
+      "mint": "XsaQTCgebC2KPbf27KUhdv5JFvHhQ4GDAPURwrEhAzb"
+    },
+    {
+      "alias": "FED_PLAZA",
+      "venue": "DFLOW_KALSHI",
+      "symbol": "KALSHI-FED-CUT",
+      "marketId": "KALSHI-FED-DEC26-CUT"
+    }
+  ],
+  "actionBindings": [
+    {
+      "gameEvent": "CLAIM_DISTRICT_TURF",
+      "bindingType": "SECTOR_TURF_CAPTURE",
+      "districtAssets": [
+        "SILICON_COAST",
+        "ANTHROPIC_TOWER"
+      ],
+      "heistDurationSecs": 600,
+      "nettingPolicy": "NET_ON_ENTRY_AND_SETTLEMENT"
+    }
+  ],
+  "scoringAndPrizes": {
+    "primaryFormula": "MULTI_STAGE_CARRY_COMPOSITE",
+    "prizeCurve": "TOP_20_PERCENT_SHAPLEY",
+    "claimMenuAssets": [
+      "NVDAx",
+      "ANTx",
+      "USDC"
+    ]
+  }
+}

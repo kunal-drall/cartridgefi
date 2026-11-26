@@ -1,0 +1,30 @@
+{
+  "name": "@cartridgefi/shared-types",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "CartridgeManifest v2.0 Zod v4 schemas, deterministic 10^9 bigint fixed-point scoring & ELO math, Anchor account layouts, and binary WS frames",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test dist/test/shared-types.test.js"
+  },
+  "dependencies": {
+    "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.3"
+  }
+}

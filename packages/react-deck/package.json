@@ -1,0 +1,33 @@
+{
+  "name": "@cartridgefi/react",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Drop-in <CartridgeDeck/> and <BorelArena/> 15-line React & Wallet Embed SDK with 40% partner fee split",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@cartridgefi/sdk": "workspace:*",
+    "@cartridgefi/shared-types": "workspace:*",
+    "@cartridgefi/ui-system": "workspace:*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.8.3"
+  }
+}

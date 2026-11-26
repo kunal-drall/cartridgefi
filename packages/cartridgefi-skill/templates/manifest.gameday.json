@@ -1,0 +1,99 @@
+{
+  "$schema": "https://spec.cartridgefi.com/v2/cartridge-manifest.schema.json",
+  "manifestVersion": "2.0.0",
+  "metadata": {
+    "slug": "borel-macro-blitz-001",
+    "title": "Borel: Game-Day Conviction Arena",
+    "subtitle": "60s & Game-Day multiplayer arena uniting Kalshi predictions, Solana perps, and xStocks inside Private ER TEE Fog-of-War.",
+    "genre": "BOREL_GAMEDAY",
+    "engineTarget": "NEXT_REACT",
+    "creatorHandle": "@cartridgefi-studio",
+    "creatorWallet": "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1",
+    "creatorFeeShareBps": 5000
+  },
+  "onboardingAndSession": {
+    "allowPaperMode": true,
+    "allowLiveMode": true,
+    "supportedDepositChains": [
+      "solana",
+      "base",
+      "ethereum",
+      "arbitrum",
+      "bnb",
+      "monad",
+      "polygon"
+    ],
+    "applePayEnabled": true,
+    "liveSessionEnvelopeUsdc": {
+      "minUsdc": 10,
+      "maxUsdc": 250,
+      "maxLeverage": 5
+    }
+  },
+  "magicblockRoomConfig": {
+    "tickIntervalMs": 10,
+    "durationSecs": 60,
+    "shardCapacity": 200,
+    "privacyMode": "PRIVATE_TEE_FOG_OF_WAR",
+    "fogOfWarBps": 7500,
+    "showdownUnsealSecs": 15,
+    "vrfUsage": "TIEBREAK_AND_FREE_BONUS_DROP"
+  },
+  "marketUniverse": [
+    {
+      "alias": "SOL_PERP",
+      "venue": "PHOENIX_PERP",
+      "symbol": "SOL-PERP",
+      "pythFeedId": "0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d"
+    },
+    {
+      "alias": "NVDA_XSTOCK",
+      "venue": "JUPITER_XSTOCKS",
+      "symbol": "NVDAx",
+      "mint": "Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh",
+      "pythFeedId": "0xb1073854ed24cbc755dc527418f52b7d271f6cc967bbf8d8129112b18860a593"
+    },
+    {
+      "alias": "SPY_XSTOCK",
+      "venue": "JUPITER_XSTOCKS",
+      "symbol": "SPYx",
+      "mint": "XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W",
+      "pythFeedId": "0x19e09bb805456ada3979a7d1cbb4b6d63babc3a0f8e8a9509f68afa5c4c11cd5"
+    },
+    {
+      "alias": "FED_CUT_GATE",
+      "venue": "DFLOW_KALSHI",
+      "symbol": "KALSHI-FED-CUT",
+      "marketId": "KALSHI-FED-DEC26-CUT"
+    }
+  ],
+  "actionBindings": [
+    {
+      "gameEvent": "SUBMIT_CONVICTION_WEIGHTS",
+      "bindingType": "CONVICTION_WEIGHT_VECTOR",
+      "maxRebalances": 3,
+      "allowedAssets": [
+        "SOL_PERP",
+        "NVDA_XSTOCK",
+        "SPY_XSTOCK"
+      ],
+      "nettingPolicy": "NET_ON_ENTRY_AND_SETTLEMENT"
+    },
+    {
+      "gameEvent": "CALL_KALSHI_CATALYST",
+      "bindingType": "BINARY_OUTCOME_CALL",
+      "asset": "FED_CUT_GATE",
+      "scoreCarryMultiplierBps": 13500
+    }
+  ],
+  "scoringAndPrizes": {
+    "primaryFormula": "DIRECTION_NEUTRAL_REL_RETURN",
+    "prizeCurve": "TOP_20_PERCENT_SHAPLEY",
+    "claimMenuAssets": [
+      "NVDAx",
+      "ANTx",
+      "SPYx",
+      "USDC"
+    ]
+  }
+}

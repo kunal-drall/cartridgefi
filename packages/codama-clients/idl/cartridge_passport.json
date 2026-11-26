@@ -1,0 +1,605 @@
+{
+  "address": "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr",
+  "metadata": {
+    "name": "cartridge_passport",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "CartridgeFi Cross-Game Market ELO & Earned Stock Vault Passport"
+  },
+  "instructions": [
+    {
+      "name": "initialize_passport",
+      "discriminator": [
+        61,
+        77,
+        198,
+        139,
+        101,
+        90,
+        68,
+        137
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner",
+          "signer": true
+        },
+        {
+          "name": "passport",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  115,
+                  115,
+                  112,
+                  111,
+                  114,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_passport_config",
+      "discriminator": [
+        11,
+        31,
+        19,
+        17,
+        160,
+        40,
+        47,
+        165
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "passport_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  115,
+                  115,
+                  112,
+                  111,
+                  114,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "keeper_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "record_elo_and_vault_credit",
+      "discriminator": [
+        34,
+        124,
+        131,
+        231,
+        250,
+        129,
+        185,
+        30
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "passport_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  115,
+                  115,
+                  112,
+                  111,
+                  114,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "passport",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  115,
+                  115,
+                  112,
+                  111,
+                  114,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "passport.owner",
+                "account": "MarketPassport"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "RecordEloArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_eligibility_bitmask",
+      "discriminator": [
+        254,
+        82,
+        142,
+        81,
+        178,
+        45,
+        196,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "passport_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  115,
+                  115,
+                  112,
+                  111,
+                  114,
+                  116,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "passport",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  97,
+                  115,
+                  115,
+                  112,
+                  111,
+                  114,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "passport.owner",
+                "account": "MarketPassport"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "eligibility_bitmask",
+          "type": "u8"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "MarketPassport",
+      "discriminator": [
+        234,
+        136,
+        92,
+        194,
+        46,
+        240,
+        253,
+        8
+      ]
+    },
+    {
+      "name": "PassportConfig",
+      "discriminator": [
+        247,
+        219,
+        200,
+        32,
+        96,
+        189,
+        165,
+        250
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "EligibilityUpdated",
+      "discriminator": [
+        127,
+        138,
+        171,
+        143,
+        122,
+        5,
+        217,
+        178
+      ]
+    },
+    {
+      "name": "PassportEloUpdated",
+      "discriminator": [
+        50,
+        18,
+        134,
+        160,
+        141,
+        111,
+        132,
+        160
+      ]
+    },
+    {
+      "name": "PassportInitialized",
+      "discriminator": [
+        231,
+        242,
+        181,
+        232,
+        74,
+        20,
+        32,
+        137
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAuthority",
+      "msg": "Invalid default authority pubkey"
+    },
+    {
+      "code": 6001,
+      "name": "UnauthorizedAuthority",
+      "msg": "Caller is not authorized to update passport state"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidEligibilityBits",
+      "msg": "Eligibility bitmask contains unsupported flag bits"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidMeanElo",
+      "msg": "Room mean ELO must be at least 100.0"
+    },
+    {
+      "code": 6004,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "AssetCreditKind",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Usdc"
+          },
+          {
+            "name": "Nvdax"
+          },
+          {
+            "name": "Spyx"
+          },
+          {
+            "name": "Antx"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EligibilityUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "eligibility_bitmask",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MarketPassport",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "elo_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "eligibility_bitmask",
+            "type": "u8"
+          },
+          {
+            "name": "matches_played",
+            "type": "u32"
+          },
+          {
+            "name": "wins_count",
+            "type": "u32"
+          },
+          {
+            "name": "best_sharpe_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "best_brier_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "earned_nvda_units",
+            "type": "u64"
+          },
+          {
+            "name": "earned_spy_units",
+            "type": "u64"
+          },
+          {
+            "name": "earned_ant_units",
+            "type": "u64"
+          },
+          {
+            "name": "earned_usdc_units",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PassportConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "keeper_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PassportEloUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "next_elo_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "delta_elo_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "expected_score_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "matches_played",
+            "type": "u32"
+          },
+          {
+            "name": "wins_count",
+            "type": "u32"
+          },
+          {
+            "name": "asset_credit_kind",
+            "type": {
+              "defined": {
+                "name": "AssetCreditKind"
+              }
+            }
+          },
+          {
+            "name": "asset_credit_units",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PassportInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "passport",
+            "type": "pubkey"
+          },
+          {
+            "name": "elo_scaled",
+            "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RecordEloArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_mean_elo_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "placement_score_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "is_live_mode",
+            "type": "bool"
+          },
+          {
+            "name": "is_win",
+            "type": "bool"
+          },
+          {
+            "name": "sharpe_score_scaled",
+            "type": {
+              "option": "i128"
+            }
+          },
+          {
+            "name": "brier_score_scaled",
+            "type": {
+              "option": "i128"
+            }
+          },
+          {
+            "name": "asset_credit_kind",
+            "type": {
+              "defined": {
+                "name": "AssetCreditKind"
+              }
+            }
+          },
+          {
+            "name": "asset_credit_units",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ]
+}

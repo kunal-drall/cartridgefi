@@ -1,0 +1,236 @@
+# Debugging Ephemeral Rollups
+
+Use this when an Ephemeral Rollups transaction fails, an account appears delegated
+but is rejected as writable, the app might be using the wrong ER endpoint, or a
+private/eATA flow returns a misleading balance or validator-mismatch error, or
+commit tracking (`GetCommitmentSignature`) stopped working.
+
+## Contents
+
+- [Endpoint Selection](#endpoint-selection)
+- [Router `getDelegationStatus`](#router-getdelegationstatus)
+- [Healthy Delegation Shape](#healthy-delegation-shape)
+- [Fast Investigation Runbook](#fast-investigation-runbook)
+- [Common Failure Patterns](#common-failure-patterns)
+- [Reference Repos](#reference-repos)
+
+## Endpoint Selection
+
+Use the MagicBlock RPCs as the base Solana RPCs:
+
+| Network | Base RPC |
+| ------- | -------- |
+| Devnet | `https://rpc.magicblock.app/devnet` |
+| Mainnet | `https://rpc.magicblock.app/mainnet` |
+
+Use the router to discover where the account is delegated:
+
+| Network | Router API |
+| ------- | ---------- |
+| Devnet | `https://devnet-router.magicblock.app/` |
+| Mainnet | `https://router.magicblock.app/` |
+
+For ER transactions and ER-local account reads, use `result.fqdn` returned by
+router `getDelegationStatus` for the specific account. Do not hardcode the old
+generic ER endpoint when the router returns a region/TEE endpoint such as
+`https://devnet-as.magicblock.app/` or `https://devnet-tee.magicblock.app/`.
+
+## Router `getDelegationStatus`
+
+The router method is a JSON-RPC POST with exactly one account in `params`:
+
+```bash
+ACCOUNT="<account_pubkey>"
+ROUTER="https://devnet-router.magicblock.app/"
+
+curl -sS --request POST \
+  --url "$ROUTER" \
+  --header "Content-Type: application/json" \
+  --data "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getDelegationStatus\",\"params\":[\"$ACCOUNT\"]}"
+```
+
+A delegated result includes:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "isDelegated": true,
+    "fqdn": "https://devnet-as.magicblock.app/",
+    "delegationRecord": {
+      "authority": "<validator_identity>",
+      "owner": "<original_program_id>",
+      "delegationSlot": 388473478,
+      "lamports": 15144960
+    }
+  }
+}
+```
+
+Interpretation:
+
+- `isDelegated: false`: the account is not currently delegated according to the
+  router. Check whether the app used the wrong account, the account was already
+  undelegated, or the delegation transaction never landed on the base RPC.
+- `isDelegated: true`: `fqdn` is the ER RPC endpoint to use for that account.
+  `delegationRecord.authority` is the validator identity. `delegationRecord.owner`
+  is the account's original owner program before delegation.
+- JSON-RPC error `-32604` `account has been delegated to unknown ER node: <identity>`: the account
+  is delegated, but its `authority` is not a validator the router knows. The account may be
+  delegated to another operator's validator, to a localnet identity, or to an identity that is not
+  a validator at all. Inspect the base-layer delegation record before retrying.
+
+Two more router-only methods help with routing questions (verified on the devnet router,
+2026-11-13):
+
+- `getRoutes` (no params) lists the validators the router knows, each with `identity`, `fqdn`,
+  `baseFee`, `blockTimeMs`, and `countryCode`.
+- `getBlockhashForAccounts` (params: one array of pubkeys) returns a `blockhash` and
+  `lastValidBlockHeight` from the ER that holds those accounts. It fails with `-32604`
+  `transaction contains accounts that were delegated to different ER nodes` when the accounts are
+  split across validators, which one transaction cannot use.
+
+## Healthy Delegation Shape
+
+For a properly delegated account, expect this cross-chain shape:
+
+- On base RPC (`https://rpc.magicblock.app/devnet` or `mainnet`), `getAccountInfo`
+  shows the account owned by the delegation program
+  `DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh`. This is expected.
+- Router `getDelegationStatus` returns `isDelegated: true`, an `fqdn`, and a
+  delegation record whose `owner` is the original program.
+- On the ER RPC returned in `fqdn`, `getAccountInfo` shows the account owned by
+  the original program, not by the delegation program.
+- The ER's own clone is marked delegated. Observe this by sending the same
+  `getDelegationStatus` request to the ER RPC in `fqdn` (not the router): it
+  returns only `{"isDelegated": true | false}`, read from the ER's local copy.
+  The ER sets the original owner even on a clone delegated to another
+  validator, so ER ownership alone does not prove this. If the router says
+  delegated but the ER says `isDelegated: false`, the ER cloned the account as
+  non-delegated (wrong ER, or a stale clone) and writable use there fails.
+
+Base ownership by the delegation program is expected. Investigate a mismatch when the router reports
+delegation but the selected ER endpoint lacks a delegated, mutable clone.
+
+## Fast Investigation Runbook
+
+1. Start from the exact failing signature or account pubkey. Request one before diagnosing a generic
+   delegation failure.
+2. Fetch router status with `getDelegationStatus`; save `isDelegated`,
+   `fqdn`, `authority`, `owner`, and `delegationSlot`.
+3. Query the base account on the MagicBlock base RPC:
+
+   ```bash
+   solana --url https://rpc.magicblock.app/devnet account "$ACCOUNT" --output json
+   ```
+
+4. Query the account and its ER-side delegation flag on the ER endpoint returned by the router:
+
+   ```bash
+   ER_RPC="<result.fqdn from getDelegationStatus>"
+   solana --url "$ER_RPC" account "$ACCOUNT" --output json
+   curl -sS "$ER_RPC" \
+     --header "Content-Type: application/json" \
+     --data "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getDelegationStatus\",\"params\":[\"$ACCOUNT\"]}"
+   ```
+
+5. If the question is about failed ER transactions, inspect recent ER activity
+   for the account on that same `ER_RPC`:
+
+   ```bash
+   curl -sS "$ER_RPC" \
+     --header "Content-Type: application/json" \
+     --data "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getSignaturesForAddress\",\"params\":[\"$ACCOUNT\",{\"limit\":20}]}"
+   ```
+
+   Then fetch the failing transaction:
+
+   ```bash
+   SIG="<signature>"
+   curl -sS "$ER_RPC" \
+     --header "Content-Type: application/json" \
+     --data "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"getTransaction\",\"params\":[\"$SIG\",{\"encoding\":\"json\",\"maxSupportedTransactionVersion\":0}]}"
+   ```
+
+   `maxSupportedTransactionVersion: 0` is enough for ER transactions. Base-layer settlement
+   transactions sent by the validator are v1 transactions (devnet and mainnet, checked 2026-11-13),
+   so fetch those from the base RPC with `"maxSupportedTransactionVersion":1`; with `0` the RPC
+   answers `Transaction version (1) is not supported by the requesting client`.
+
+6. Read `meta.err`, the failing instruction index, and `logMessages` before
+   reading code. For custom program errors, map the numeric error into the local
+   error enum first.
+
+## Common Failure Patterns
+
+- `InvalidWritableAccount`: this commonly appears only in `meta.err`; do not expect a fabricated
+  account-index log line. Inspect the real `logMessages` and failing instruction index. A confined
+  schedule-commit path may log
+  `ScheduleCommit ERR: account <pubkey> is confined and cannot be committed`. Then compare
+  router status, base ownership, ER ownership, and ER-local delegated state.
+  Router `isDelegated: true` alone does not prove the ER bank has synchronized
+  mutability for that account.
+- Router delegated, ER local status false: likely wrong ER endpoint, missing or
+  stale clone, or a router/ER synchronization issue. Use the router `fqdn`, then
+  inspect recent ER signatures and clone logs.
+- Base owner is the delegation program: expected for a delegated account. Do not
+  treat this as proof the app lost ownership; the ER side should expose the
+  original owner program.
+- eATA already delegated elsewhere: in `ephemeral-spl-token`, error code `0x7`
+  maps to `EphemeralAtaValidatorMismatch`. Do not chase later transfer paths if
+  the transaction failed at the delegate-eATA instruction.
+- Private balance returns `0`: this can happen before ER auth if delegation is
+  missing or points at a different validator. Keep undelegated `0` distinct from
+  delegated-to-another-validator errors.
+- Router 504 on `getDelegationStatus`: this may be a router backend
+  accept/connect problem below the JSON-RPC method handler. Check router
+  liveness and logs before assuming the method implementation is broken.
+- Commit tracking stopped working: `GetCommitmentSignature` throws although the ER transaction
+  succeeded. Validator 2.0 logs `Outbox for scheduled intent: <address>` where 1.x logged
+  `ScheduledCommitSent signature: <sig>`, and each SDK line reads only some of these logs. Two
+  messages mean the TS SDK line does not match the ER's validator version:
+  - `ScheduledCommitSent signature not found` on a 2.0 ER: SDK 0.17.x.
+  - `Settlement outbox address not found in scheduling logs` on a 1.x ER: SDK 0.20.x.
+
+  On an ER whose version matches the SDK line, the same messages mean the transaction scheduled no
+  commit; check that the signature is the one that scheduled it.
+  `@magicblock-labs/ephemeral-rollups-kit` throws the same messages. Run `getVersion` on the ER from
+  the router's `fqdn`: 2.0 reports `core`, 1.x reports `magicblock-core`.
+
+  ```bash
+  curl -sS "$ER_RPC" --header "Content-Type: application/json" \
+    --data '{"jsonrpc":"2.0","id":1,"method":"getVersion"}'
+  ```
+
+  Fix for a mismatch: move to `0.18.0` (npm dist-tag `legacy`) to keep older Anchor/Solana
+  dependencies, or when any ER the app uses still runs 1.x. It reads both log formats. Move to
+  `0.20.0` (`latest`) for a new integration that only uses 2.0 ERs. 0.17.x can upgrade to 0.20.0
+  directly, with no 0.18 step. The npm packages of both lines have the same dependencies; the Rust
+  crate 0.20 needs anchor-lang ≥ 1.2.2 and drops `anchor-compat`. See [resources.md](resources.md#sdk-lines).
+
+  Other `GetCommitmentSignature` errors are not a version mismatch, and changing the SDK line does
+  not fix them. `Scheduling transaction created multiple intents` (0.18.x and 0.20.x, on a 2.0 ER)
+  means one transaction scheduled several commits and this helper returns only one signature. On
+  0.20.x, `waitForSettlement(schedulingSignature, erConnection)` (kit: `connection.waitForSettlement`)
+  returns a receipt for each intent; 0.18.x exports no such helper, so schedule one intent per
+  transaction. `Timed out waiting for settlement ...` means the settlement has not landed within
+  the timeout.
+- Commit or undelegate rejected while scheduling: check the log for
+  `is too large to be committed` (account data over 10,240 bytes), a Magic ATA rejection, or custom
+  errors `0xA0000000`–`0xA0000002`. See the
+  [fees failure map](fees-and-commit-economics.md#failure-map).
+- Undelegation fails or hangs and the ER cannot run `commit_and_undelegate`: see the base-layer
+  request and timeout rollback in [delegation.md](delegation.md#exit-paths-and-recovery).
+
+## Reference Repos
+
+When the failure cannot be resolved from live RPC/log evidence, use these repos
+for current patterns and code-path checks:
+
+- `https://github.com/magicblock-labs/magicblock-engine-examples` for app-level
+  ER/delegation integration patterns.
+- `https://github.com/magicblock-labs/ephemeral-spl-token` for eATA,
+  delegated-token, private-balance, and endpoint-routing behavior.
+- `https://github.com/magicblock-labs/magicblock-validator` for router,
+  aperture, account cloning, SVM access checks, and committor behavior.

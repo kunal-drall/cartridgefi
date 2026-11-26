@@ -1,0 +1,2393 @@
+{
+  "address": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR",
+  "metadata": {
+    "name": "cartridge_er_room",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "CartridgeFi MagicBlock Private ER TEE Multiplayer Room & VRF Settlement Engine"
+  },
+  "instructions": [
+    {
+      "name": "callback_settlement_vrf",
+      "discriminator": [
+        237,
+        207,
+        68,
+        80,
+        247,
+        4,
+        109,
+        36
+      ],
+      "accounts": [
+        {
+          "name": "vrf_program_identity",
+          "docs": [
+            "Scoped VRF identity PDA, bound to this program. Its presence as a signer proves",
+            "the callback was issued by the VRF program for this program."
+          ],
+          "signer": true
+        },
+        {
+          "name": "room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.event_id",
+                "account": "RoomShard"
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.shard_index",
+                "account": "RoomShard"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "randomness",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "request_nonce",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "crank_tick_room",
+      "discriminator": [
+        195,
+        30,
+        84,
+        55,
+        1,
+        230,
+        163,
+        197
+      ],
+      "accounts": [
+        {
+          "name": "crank_signer",
+          "signer": true
+        },
+        {
+          "name": "room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.event_id",
+                "account": "RoomShard"
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.shard_index",
+                "account": "RoomShard"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "delegate_room_shard",
+      "discriminator": [
+        178,
+        99,
+        56,
+        42,
+        224,
+        225,
+        170,
+        24
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "buffer_room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                250,
+                53,
+                81,
+                100,
+                228,
+                169,
+                53,
+                252,
+                113,
+                237,
+                84,
+                15,
+                244,
+                26,
+                114,
+                41,
+                216,
+                186,
+                220,
+                94,
+                123,
+                249,
+                193,
+                102,
+                244,
+                77,
+                218,
+                170,
+                185,
+                188,
+                195,
+                40
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "event_id"
+              },
+              {
+                "kind": "arg",
+                "path": "shard_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "validator",
+          "optional": true
+        },
+        {
+          "name": "owner_program",
+          "address": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
+        },
+        {
+          "name": "delegation_program",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "event_id",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "shard_index",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "evaluate_player_score",
+      "discriminator": [
+        193,
+        195,
+        12,
+        48,
+        146,
+        147,
+        205,
+        241
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "room_shard"
+          ]
+        },
+        {
+          "name": "room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.event_id",
+                "account": "RoomShard"
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.shard_index",
+                "account": "RoomShard"
+              }
+            ]
+          },
+          "relations": [
+            "player_stance"
+          ]
+        },
+        {
+          "name": "player_stance",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  110,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              },
+              {
+                "kind": "account",
+                "path": "player_stance.player",
+                "account": "PlayerStance"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_feed"
+        },
+        {
+          "name": "permission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  58
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_stance"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "permission_program"
+            }
+          }
+        },
+        {
+          "name": "permission_program",
+          "address": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1"
+        },
+        {
+          "name": "ephemeral_vault",
+          "writable": true,
+          "address": "MagicVau1t999999999999999999999999999999999"
+        },
+        {
+          "name": "magic_program",
+          "address": "Magic11111111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "EvaluateScoreArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "init_stance_and_delegate",
+      "discriminator": [
+        116,
+        163,
+        238,
+        141,
+        193,
+        254,
+        49,
+        199
+      ],
+      "accounts": [
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "room_shard"
+        },
+        {
+          "name": "buffer_player_stance",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_stance"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                250,
+                53,
+                81,
+                100,
+                228,
+                169,
+                53,
+                252,
+                113,
+                237,
+                84,
+                15,
+                244,
+                26,
+                114,
+                41,
+                216,
+                186,
+                220,
+                94,
+                123,
+                249,
+                193,
+                102,
+                244,
+                77,
+                218,
+                170,
+                185,
+                188,
+                195,
+                40
+              ]
+            }
+          }
+        },
+        {
+          "name": "delegation_record_player_stance",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_stance"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "delegation_metadata_player_stance",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110,
+                  45,
+                  109,
+                  101,
+                  116,
+                  97,
+                  100,
+                  97,
+                  116,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_stance"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "delegation_program"
+            }
+          }
+        },
+        {
+          "name": "player_stance",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  110,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ]
+          }
+        },
+        {
+          "name": "validator",
+          "optional": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "owner_program",
+          "address": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
+        },
+        {
+          "name": "delegation_program",
+          "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+        }
+      ],
+      "args": [
+        {
+          "name": "ephemeral_session_key",
+          "type": "pubkey"
+        },
+        {
+          "name": "session_expiry_ts",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_room_shard",
+      "discriminator": [
+        77,
+        255,
+        40,
+        97,
+        31,
+        223,
+        165,
+        93
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "cartridge_manifest"
+        },
+        {
+          "name": "room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "args.event_id"
+              },
+              {
+                "kind": "arg",
+                "path": "args.shard_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "InitializeRoomShardArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "join_room_and_init_permission",
+      "discriminator": [
+        0,
+        19,
+        68,
+        139,
+        94,
+        212,
+        215,
+        195
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.event_id",
+                "account": "RoomShard"
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.shard_index",
+                "account": "RoomShard"
+              }
+            ]
+          },
+          "relations": [
+            "player_stance"
+          ]
+        },
+        {
+          "name": "player_stance",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  110,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              },
+              {
+                "kind": "account",
+                "path": "player_stance.player",
+                "account": "PlayerStance"
+              }
+            ]
+          }
+        },
+        {
+          "name": "permission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  58
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_stance"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "permission_program"
+            }
+          }
+        },
+        {
+          "name": "permission_program",
+          "address": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1"
+        },
+        {
+          "name": "ephemeral_vault",
+          "writable": true,
+          "address": "MagicVau1t999999999999999999999999999999999"
+        },
+        {
+          "name": "magic_program",
+          "address": "Magic11111111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "process_undelegation",
+      "discriminator": [
+        196,
+        28,
+        41,
+        206,
+        48,
+        37,
+        51,
+        167
+      ],
+      "accounts": [
+        {
+          "name": "base_account",
+          "writable": true
+        },
+        {
+          "name": "buffer",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  101,
+                  45,
+                  98,
+                  117,
+                  102,
+                  102,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "base_account"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                181,
+                183,
+                0,
+                225,
+                242,
+                87,
+                58,
+                192,
+                204,
+                6,
+                34,
+                1,
+                52,
+                74,
+                207,
+                151,
+                184,
+                53,
+                6,
+                235,
+                140,
+                229,
+                25,
+                152,
+                204,
+                98,
+                126,
+                24,
+                147,
+                128,
+                167,
+                62
+              ]
+            }
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "account_seeds",
+          "type": {
+            "vec": "bytes"
+          }
+        }
+      ]
+    },
+    {
+      "name": "request_settlement_vrf",
+      "discriminator": [
+        38,
+        226,
+        18,
+        30,
+        221,
+        181,
+        150,
+        87
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "room_shard"
+          ]
+        },
+        {
+          "name": "room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.event_id",
+                "account": "RoomShard"
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.shard_index",
+                "account": "RoomShard"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_queue",
+          "writable": true
+        },
+        {
+          "name": "program_identity",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  100,
+                  101,
+                  110,
+                  116,
+                  105,
+                  116,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vrf_program",
+          "address": "Vrf1RNUjXmQGjmQrQLvJHs9SNkvDJEsRVFPkfSQUwGz"
+        },
+        {
+          "name": "slot_hashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "client_seed",
+          "type": "u8"
+        }
+      ]
+    },
+    {
+      "name": "schedule_room_crank",
+      "discriminator": [
+        147,
+        107,
+        37,
+        122,
+        81,
+        16,
+        135,
+        97
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "room_shard"
+          ]
+        },
+        {
+          "name": "room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.event_id",
+                "account": "RoomShard"
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.shard_index",
+                "account": "RoomShard"
+              }
+            ]
+          }
+        },
+        {
+          "name": "crank_signer"
+        },
+        {
+          "name": "magic_program",
+          "address": "Magic11111111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "task_id",
+          "type": "i64"
+        },
+        {
+          "name": "execution_interval_millis",
+          "type": "i64"
+        },
+        {
+          "name": "iterations",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "settle_and_commit_shard",
+      "discriminator": [
+        72,
+        113,
+        141,
+        76,
+        52,
+        134,
+        207,
+        229
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "room_shard",
+          "writable": true
+        },
+        {
+          "name": "oracle_feed"
+        },
+        {
+          "name": "permission",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  58
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "permission_program"
+            }
+          }
+        },
+        {
+          "name": "permission_program",
+          "address": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1"
+        },
+        {
+          "name": "ephemeral_vault",
+          "address": "MagicVau1t999999999999999999999999999999999"
+        },
+        {
+          "name": "vault_router_program",
+          "address": "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"
+        },
+        {
+          "name": "magic_program",
+          "address": "Magic11111111111111111111111111111111111111"
+        },
+        {
+          "name": "magic_context",
+          "writable": true,
+          "address": "MagicContext1111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "SettleShardArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "submit_stance",
+      "discriminator": [
+        74,
+        241,
+        27,
+        127,
+        1,
+        156,
+        130,
+        9
+      ],
+      "accounts": [
+        {
+          "name": "session_signer",
+          "signer": true
+        },
+        {
+          "name": "room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.event_id",
+                "account": "RoomShard"
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.shard_index",
+                "account": "RoomShard"
+              }
+            ]
+          },
+          "relations": [
+            "player_stance"
+          ]
+        },
+        {
+          "name": "player_stance",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  110,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              },
+              {
+                "kind": "account",
+                "path": "player_stance.player",
+                "account": "PlayerStance"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_feed"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "SubmitStanceArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "trigger_showdown_unseal",
+      "discriminator": [
+        24,
+        192,
+        190,
+        54,
+        178,
+        143,
+        228,
+        66
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "room_shard"
+          ]
+        },
+        {
+          "name": "room_shard",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.event_id",
+                "account": "RoomShard"
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.shard_index",
+                "account": "RoomShard"
+              }
+            ]
+          },
+          "relations": [
+            "player_stance"
+          ]
+        },
+        {
+          "name": "player_stance",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  110,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              },
+              {
+                "kind": "account",
+                "path": "player_stance.player",
+                "account": "PlayerStance"
+              }
+            ]
+          }
+        },
+        {
+          "name": "permission",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  101,
+                  114,
+                  109,
+                  105,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  58
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "player_stance"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "permission_program"
+            }
+          }
+        },
+        {
+          "name": "permission_program",
+          "address": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1"
+        },
+        {
+          "name": "ephemeral_vault",
+          "writable": true,
+          "address": "MagicVau1t999999999999999999999999999999999"
+        },
+        {
+          "name": "magic_program",
+          "address": "Magic11111111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "undelegate_player_stance",
+      "discriminator": [
+        75,
+        165,
+        141,
+        232,
+        132,
+        6,
+        230,
+        69
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "room_shard"
+          ]
+        },
+        {
+          "name": "room_shard",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  115,
+                  104,
+                  97,
+                  114,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.event_id",
+                "account": "RoomShard"
+              },
+              {
+                "kind": "account",
+                "path": "room_shard.shard_index",
+                "account": "RoomShard"
+              }
+            ]
+          },
+          "relations": [
+            "player_stance"
+          ]
+        },
+        {
+          "name": "player_stance",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  121,
+                  101,
+                  114,
+                  95,
+                  115,
+                  116,
+                  97,
+                  110,
+                  99,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              },
+              {
+                "kind": "account",
+                "path": "player_stance.player",
+                "account": "PlayerStance"
+              }
+            ]
+          }
+        },
+        {
+          "name": "magic_program",
+          "address": "Magic11111111111111111111111111111111111111"
+        },
+        {
+          "name": "magic_context",
+          "writable": true,
+          "address": "MagicContext1111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "PlayerStance",
+      "discriminator": [
+        34,
+        31,
+        241,
+        244,
+        80,
+        163,
+        83,
+        43
+      ]
+    },
+    {
+      "name": "RoomShard",
+      "discriminator": [
+        70,
+        160,
+        74,
+        220,
+        13,
+        131,
+        93,
+        108
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "RoomEnteredRetryGrace",
+      "discriminator": [
+        16,
+        72,
+        208,
+        226,
+        121,
+        71,
+        247,
+        104
+      ]
+    },
+    {
+      "name": "RoomShardInitialized",
+      "discriminator": [
+        37,
+        200,
+        144,
+        223,
+        252,
+        121,
+        134,
+        161
+      ]
+    },
+    {
+      "name": "RoomShowdownUnsealed",
+      "discriminator": [
+        34,
+        226,
+        44,
+        2,
+        28,
+        172,
+        189,
+        5
+      ]
+    },
+    {
+      "name": "SettlementVrfFulfilled",
+      "discriminator": [
+        169,
+        193,
+        117,
+        123,
+        8,
+        105,
+        235,
+        59
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidEventId",
+      "msg": "Event ID cannot be all zeroes"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidManifestOwner",
+      "msg": "Cartridge manifest account has invalid program owner"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidManifestData",
+      "msg": "Cartridge manifest account data is malformed"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidManifestDuration",
+      "msg": "Cartridge duration must be at least 30 seconds"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidShardOwner",
+      "msg": "Room shard has invalid program owner"
+    },
+    {
+      "code": 6005,
+      "name": "UnauthorizedAuthority",
+      "msg": "Caller is not the authorized room authority"
+    },
+    {
+      "code": 6006,
+      "name": "UnauthorizedCrankSigner",
+      "msg": "Caller is not the authorized crank executor PDA"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidCrankSchedule",
+      "msg": "Invalid crank interval or iteration count"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidSessionKey",
+      "msg": "Invalid ephemeral session key"
+    },
+    {
+      "code": 6009,
+      "name": "SessionExpiryExceedsRoomEnd",
+      "msg": "Session key expiry must fall within room start and end bounds"
+    },
+    {
+      "code": 6010,
+      "name": "UnauthorizedPlayer",
+      "msg": "Caller is not authorized for this player stance"
+    },
+    {
+      "code": 6011,
+      "name": "ShardMismatch",
+      "msg": "Player stance does not belong to this room shard"
+    },
+    {
+      "code": 6012,
+      "name": "ShardFull",
+      "msg": "Room shard is full (MAX_PLAYERS_PER_SHARD = 200)"
+    },
+    {
+      "code": 6013,
+      "name": "TooManyPermissionMembers",
+      "msg": "Permission member count exceeds funded capacity"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidRoomPhase",
+      "msg": "Operation not permitted in current room phase"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidSessionSigner",
+      "msg": "Signer does not match bound ephemeral session key"
+    },
+    {
+      "code": 6016,
+      "name": "SessionExpired",
+      "msg": "Session key or room submission window has expired"
+    },
+    {
+      "code": 6017,
+      "name": "PlayerNotJoined",
+      "msg": "Player has not joined the ER room"
+    },
+    {
+      "code": 6018,
+      "name": "MaxRebalancesExceeded",
+      "msg": "Maximum rebalances exceeded for this room"
+    },
+    {
+      "code": 6019,
+      "name": "LaneCheckpointCooldownActive",
+      "msg": "Three-lane stance checkpoint cooldown is active"
+    },
+    {
+      "code": 6020,
+      "name": "GrossWeightExceedsCap",
+      "msg": "Gross conviction weight sum(|w_i|) exceeds 10,000 bps"
+    },
+    {
+      "code": 6021,
+      "name": "InvalidKalshiForecast",
+      "msg": "Invalid Kalshi binary call or probability bounds"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidOracleOwner",
+      "msg": "Oracle feed has an untrusted owner program"
+    },
+    {
+      "code": 6023,
+      "name": "InvalidOracleData",
+      "msg": "Oracle feed data is malformed or uninitialized"
+    },
+    {
+      "code": 6024,
+      "name": "StaleOraclePrice",
+      "msg": "Pyth oracle tick is older than 15 seconds"
+    },
+    {
+      "code": 6025,
+      "name": "OracleConfidenceTooWide",
+      "msg": "Pyth oracle confidence width exceeds 150 bps (1.50%)"
+    },
+    {
+      "code": 6026,
+      "name": "UnsealTimestampNotReached",
+      "msg": "Showdown unseal timestamp has not been reached"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidVrfQueue",
+      "msg": "Unsupported VRF oracle queue"
+    },
+    {
+      "code": 6028,
+      "name": "SupersededVrfCallback",
+      "msg": "VRF callback nonce does not match active request"
+    },
+    {
+      "code": 6029,
+      "name": "VrfNotFulfilled",
+      "msg": "VRF randomness has not been fulfilled for settlement"
+    },
+    {
+      "code": 6030,
+      "name": "SettlementBeforeRoomEnd",
+      "msg": "Cannot settle room before end timestamp"
+    },
+    {
+      "code": 6031,
+      "name": "PendingPlayerEvaluations",
+      "msg": "All joined player stances must be evaluated before shard commit"
+    },
+    {
+      "code": 6032,
+      "name": "PlayerNotEvaluated",
+      "msg": "Player stance must be evaluated before undelegation"
+    },
+    {
+      "code": 6033,
+      "name": "DivisionByZero",
+      "msg": "Division by zero in fixed-point math"
+    },
+    {
+      "code": 6034,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "ActionAccountSpec",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_writable",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EvaluateScoreArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "secondary_exit_prices_8",
+            "type": {
+              "array": [
+                "i64",
+                3
+              ]
+            }
+          },
+          {
+            "name": "beta_bench_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "lambda_dd_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "kalshi_outcome_yes",
+            "type": "u8"
+          },
+          {
+            "name": "max_multiplier_scaled",
+            "type": "i128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializeRoomShardArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "event_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "shard_index",
+            "type": "u16"
+          },
+          {
+            "name": "start_ts",
+            "type": "i64"
+          },
+          {
+            "name": "room_pool_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "crank_task_id",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PlayerStance",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "ephemeral_session_key",
+            "type": "pubkey"
+          },
+          {
+            "name": "session_expiry_ts",
+            "type": "i64"
+          },
+          {
+            "name": "last_move_ts",
+            "type": "i64"
+          },
+          {
+            "name": "move_count",
+            "type": "u16"
+          },
+          {
+            "name": "weights_bps",
+            "type": {
+              "array": [
+                "i16",
+                4
+              ]
+            }
+          },
+          {
+            "name": "kalshi_binary_call",
+            "type": "u8"
+          },
+          {
+            "name": "kalshi_prob_bps",
+            "type": "u16"
+          },
+          {
+            "name": "entry_prices_8",
+            "type": {
+              "array": [
+                "i64",
+                4
+              ]
+            }
+          },
+          {
+            "name": "step_returns_scaled",
+            "type": {
+              "array": [
+                "i64",
+                8
+              ]
+            }
+          },
+          {
+            "name": "step_count",
+            "type": "u8"
+          },
+          {
+            "name": "max_drawdown_scaled",
+            "type": "i64"
+          },
+          {
+            "name": "stage1_score_scaled",
+            "type": "i64"
+          },
+          {
+            "name": "final_score_scaled",
+            "type": "i128"
+          },
+          {
+            "name": "joined_er",
+            "type": "bool"
+          },
+          {
+            "name": "evaluated",
+            "type": "bool"
+          },
+          {
+            "name": "rank",
+            "type": "u16"
+          },
+          {
+            "name": "claimed",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomEnteredRetryGrace",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "reason_code",
+            "type": "u8"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomPhase",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "LobbyOpen"
+          },
+          {
+            "name": "FogOfWar"
+          },
+          {
+            "name": "Showdown"
+          },
+          {
+            "name": "SettledCommitted"
+          },
+          {
+            "name": "RetryGrace"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomShard",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "event_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "shard_index",
+            "type": "u16"
+          },
+          {
+            "name": "cartridge_manifest",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "phase",
+            "type": {
+              "defined": {
+                "name": "RoomPhase"
+              }
+            }
+          },
+          {
+            "name": "scoring_formula",
+            "type": "u8"
+          },
+          {
+            "name": "action_binding_mode",
+            "type": "u8"
+          },
+          {
+            "name": "max_rebalances",
+            "type": "u16"
+          },
+          {
+            "name": "is_private_fog",
+            "type": "bool"
+          },
+          {
+            "name": "player_count",
+            "type": "u16"
+          },
+          {
+            "name": "evaluated_count",
+            "type": "u16"
+          },
+          {
+            "name": "start_ts",
+            "type": "i64"
+          },
+          {
+            "name": "unseal_ts",
+            "type": "i64"
+          },
+          {
+            "name": "end_ts",
+            "type": "i64"
+          },
+          {
+            "name": "room_pool_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "crank_task_id",
+            "type": "i64"
+          },
+          {
+            "name": "vrf_request_nonce",
+            "type": "u64"
+          },
+          {
+            "name": "vrf_seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "vrf_fulfilled",
+            "type": "bool"
+          },
+          {
+            "name": "kalshi_outcome_yes",
+            "type": "u8"
+          },
+          {
+            "name": "settlement_prices_8",
+            "type": {
+              "array": [
+                "i64",
+                4
+              ]
+            }
+          },
+          {
+            "name": "public_rank_digest",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomShardInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "event_id",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "shard_index",
+            "type": "u16"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "start_ts",
+            "type": "i64"
+          },
+          {
+            "name": "unseal_ts",
+            "type": "i64"
+          },
+          {
+            "name": "end_ts",
+            "type": "i64"
+          },
+          {
+            "name": "is_private_fog",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomShowdownUnsealed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SettleShardArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "schedule_vault_action",
+            "type": "bool"
+          },
+          {
+            "name": "vault_action_accounts",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "ActionAccountSpec"
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SettlementVrfFulfilled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "request_nonce",
+            "type": "u64"
+          },
+          {
+            "name": "vrf_seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SubmitStanceArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "weights_bps",
+            "type": {
+              "array": [
+                "i16",
+                4
+              ]
+            }
+          },
+          {
+            "name": "kalshi_binary_call",
+            "type": "u8"
+          },
+          {
+            "name": "kalshi_prob_bps",
+            "type": "u16"
+          },
+          {
+            "name": "secondary_prices_8",
+            "type": {
+              "array": [
+                "i64",
+                3
+              ]
+            }
+          },
+          {
+            "name": "stage1_score_scaled",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "name": "cartridgefi-monorepo",
+  "version": "2.0.0",
+  "private": true,
+  "description": "CartridgeFi — Universal Entertainment Finance Game Engine on Solana & MagicBlock Private Ephemeral Rollups, featuring Borel (#001) and Pulse Runner (#002)",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=22.20.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" -r run build",
+    "dev": "CARTRIDGEFI_STANDALONE_DEV=true pnpm --filter @cartridgefi/web dev",
+    "start": "pnpm --filter @cartridgefi/web start",
+    "lint": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" -r run lint",
+    "typecheck": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" -r run typecheck",
+    "test": "pnpm --filter \"./packages/*\" -r run test",
+    "test:litesvm": "cargo test --manifest-path tests/onchain/Cargo.toml -- --nocapture",
+    "test:services": "cargo test --manifest-path services/Cargo.toml",
+    "test:e2e": "pnpm --filter @cartridgefi/e2e test",
+    "anchor:build": "NO_DNA=1 anchor build --ignore-keys",
+    "clippy:programs": "cargo clippy --all-targets -- -D warnings",
+    "clippy:services": "cargo clippy --manifest-path services/Cargo.toml --all-targets -- -D warnings",
+    "skills:check": "npx skills check",
+    "prove:devnet": "CARTRIDGEFI_STANDALONE_DEV=false node scripts/prove-devnet-live.ts"
+  },
+  "devDependencies": {
+    "@cartridgefi/codama-clients": "workspace:*",
+    "@cartridgefi/shared-types": "workspace:*",
+    "@magicblock-labs/ephemeral-rollups-kit": "0.18.0",
+    "@solana/kit": "^8.6.0",
+    "@types/node": "^22.15.0",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  }
+}

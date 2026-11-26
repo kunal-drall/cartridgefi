@@ -1,0 +1,32 @@
+{
+  "name": "@cartridgefi/sdk",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "CartridgeFi Core TypeScript Engine — Session Signer, Stance Netting, 7-Chain Cashier, and MagicBlock PER/ER Router",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test dist/test/*.test.js"
+  },
+  "dependencies": {
+    "@cartridgefi/codama-clients": "workspace:*",
+    "@cartridgefi/shared-types": "workspace:*",
+    "@magicblock-labs/ephemeral-rollups-kit": "0.18.0",
+    "@solana/kit": "^8.6.0",
+    "zod": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.3"
+  }
+}

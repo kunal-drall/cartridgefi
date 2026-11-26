@@ -1,0 +1,26 @@
+[package]
+name = "cartridge-vault-router"
+version = "0.1.0"
+description = "CartridgeFi Bounded Risk Envelope, Harmonic Shapley Pool Router & xStocks Prize Vault"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "cartridge_vault_router"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build", "cartridge-registry/idl-build"]
+anchor-debug = []
+custom-heap = []
+custom-panic = []
+
+[dependencies]
+anchor-lang = { version = "=1.0.2", features = ["init-if-needed"] }
+anchor-spl = "=1.0.2"
+ephemeral-rollups-sdk = { version = "=0.18.0", features = ["anchor"] }
+cartridge-registry = { path = "../cartridge-registry", features = ["cpi"] }

@@ -1,0 +1,1487 @@
+{
+  "address": "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT",
+  "metadata": {
+    "name": "cartridge_vault_router",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "CartridgeFi Bounded Risk Envelope, Harmonic Shapley Pool Router & xStocks Prize Vault"
+  },
+  "instructions": [
+    {
+      "name": "claim_prize",
+      "discriminator": [
+        157,
+        233,
+        139,
+        121,
+        246,
+        62,
+        234,
+        235
+      ],
+      "accounts": [
+        {
+          "name": "player",
+          "signer": true,
+          "relations": [
+            "session_envelope"
+          ]
+        },
+        {
+          "name": "room_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_vault.room_shard",
+                "account": "RoomVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "session_envelope",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  95,
+                  101,
+                  110,
+                  118,
+                  101,
+                  108,
+                  111,
+                  112,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_vault.room_shard",
+                "account": "RoomVault"
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "desired_mint"
+        },
+        {
+          "name": "vault_usdc_token",
+          "writable": true
+        },
+        {
+          "name": "player_destination_ata",
+          "writable": true
+        },
+        {
+          "name": "xstock_reserve_token",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "settlement_usdc_ata",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "market_passport",
+          "optional": true
+        },
+        {
+          "name": "engine_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "registry_program"
+            }
+          }
+        },
+        {
+          "name": "vault_router_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  114,
+                  111,
+                  117,
+                  116,
+                  101,
+                  114,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_program",
+          "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "xstock_units_out",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "distribute_pool_action",
+      "discriminator": [
+        16,
+        109,
+        100,
+        180,
+        13,
+        102,
+        33,
+        9
+      ],
+      "accounts": [
+        {
+          "name": "room_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_vault.room_shard",
+                "account": "RoomVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "room_shard"
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "vault_usdc_token",
+          "writable": true
+        },
+        {
+          "name": "platform_fee_account",
+          "writable": true
+        },
+        {
+          "name": "creator_fee_vault",
+          "writable": true
+        },
+        {
+          "name": "partner_fee_vault",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "engine_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "registry_program"
+            }
+          }
+        },
+        {
+          "name": "vault_router_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  114,
+                  111,
+                  117,
+                  116,
+                  101,
+                  114,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_program",
+          "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "source_program",
+          "address": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
+        },
+        {
+          "name": "escrow_auth"
+        },
+        {
+          "name": "escrow",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "distribute_pool_and_fees",
+      "discriminator": [
+        94,
+        4,
+        217,
+        49,
+        39,
+        55,
+        204,
+        144
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "room_vault"
+          ]
+        },
+        {
+          "name": "room_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_vault.room_shard",
+                "account": "RoomVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "room_shard"
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "vault_usdc_token",
+          "writable": true
+        },
+        {
+          "name": "platform_fee_account",
+          "writable": true
+        },
+        {
+          "name": "creator_fee_vault",
+          "writable": true
+        },
+        {
+          "name": "partner_fee_vault",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "engine_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "registry_program"
+            }
+          }
+        },
+        {
+          "name": "vault_router_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  114,
+                  111,
+                  117,
+                  116,
+                  101,
+                  114,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_program",
+          "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_room_vault",
+      "discriminator": [
+        242,
+        104,
+        178,
+        206,
+        237,
+        167,
+        220,
+        242
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "room_shard"
+        },
+        {
+          "name": "engine_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "registry_program"
+            }
+          }
+        },
+        {
+          "name": "cartridge_manifest",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  97,
+                  114,
+                  116,
+                  114,
+                  105,
+                  100,
+                  103,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "cartridge_manifest.slug_hash",
+                "account": "CartridgeManifestAccount"
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "registry_program"
+            }
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "room_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_usdc_token",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_shard"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platform_fee_account"
+        },
+        {
+          "name": "creator_fee_vault"
+        },
+        {
+          "name": "partner_fee_vault",
+          "optional": true
+        },
+        {
+          "name": "registry_program",
+          "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "total_fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "partner_wallet_active",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "open_session_envelope",
+      "discriminator": [
+        96,
+        79,
+        136,
+        179,
+        93,
+        222,
+        96,
+        41
+      ],
+      "accounts": [
+        {
+          "name": "player",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "engine_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "registry_program"
+            }
+          }
+        },
+        {
+          "name": "room_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_vault.room_shard",
+                "account": "RoomVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "vault_usdc_token",
+          "writable": true
+        },
+        {
+          "name": "player_usdc_ata",
+          "writable": true
+        },
+        {
+          "name": "session_envelope",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  101,
+                  115,
+                  115,
+                  105,
+                  111,
+                  110,
+                  95,
+                  101,
+                  110,
+                  118,
+                  101,
+                  108,
+                  111,
+                  112,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_vault.room_shard",
+                "account": "RoomVault"
+              },
+              {
+                "kind": "account",
+                "path": "player"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_router_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  114,
+                  111,
+                  117,
+                  116,
+                  101,
+                  114,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_program",
+          "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "principal_usdc",
+          "type": "u64"
+        },
+        {
+          "name": "leverage",
+          "type": "u8"
+        },
+        {
+          "name": "ephemeral_session_key",
+          "type": "pubkey"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "RoomVault",
+      "discriminator": [
+        221,
+        6,
+        59,
+        198,
+        253,
+        46,
+        109,
+        59
+      ]
+    },
+    {
+      "name": "SessionRiskEnvelope",
+      "discriminator": [
+        233,
+        175,
+        165,
+        23,
+        85,
+        100,
+        175,
+        229
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "PoolDistributed",
+      "discriminator": [
+        200,
+        124,
+        21,
+        220,
+        63,
+        174,
+        13,
+        70
+      ]
+    },
+    {
+      "name": "PrizeClaimed",
+      "discriminator": [
+        213,
+        150,
+        192,
+        76,
+        199,
+        33,
+        212,
+        38
+      ]
+    },
+    {
+      "name": "SessionEnvelopeOpened",
+      "discriminator": [
+        189,
+        177,
+        228,
+        100,
+        234,
+        90,
+        162,
+        86
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "EnginePaused",
+      "msg": "Engine is currently paused"
+    },
+    {
+      "code": 6001,
+      "name": "Unauthorized",
+      "msg": "Caller is not authorized"
+    },
+    {
+      "code": 6002,
+      "name": "SessionKeyPrivilegeEscalation",
+      "msg": "Ephemeral session key is forbidden from signing vault, deposit, or claim instructions"
+    },
+    {
+      "code": 6003,
+      "name": "LeverageExceedsCap",
+      "msg": "Leverage must be between 1x and 5x"
+    },
+    {
+      "code": 6004,
+      "name": "ZeroPrincipal",
+      "msg": "Principal deposit must be greater than zero"
+    },
+    {
+      "code": 6005,
+      "name": "FeeBpsExceedsCap",
+      "msg": "Total fee bps cannot exceed 1000 bps (10%)"
+    },
+    {
+      "code": 6006,
+      "name": "CreatorShareExceedsCap",
+      "msg": "Creator share bps cannot exceed 5000 bps (50%)"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidFeeDestination",
+      "msg": "Fee destination does not match registered protocol/creator/partner account"
+    },
+    {
+      "code": 6008,
+      "name": "MissingPartnerFeeVault",
+      "msg": "Partner fee vault required when partner_wallet_active is true"
+    },
+    {
+      "code": 6009,
+      "name": "MintMismatch",
+      "msg": "Token mint mismatch"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidVaultTokenAccount",
+      "msg": "Invalid vault token account"
+    },
+    {
+      "code": 6011,
+      "name": "DuplicateTokenAccounts",
+      "msg": "Duplicate mutable token accounts are not permitted"
+    },
+    {
+      "code": 6012,
+      "name": "BetaRoomPoolCapExceeded",
+      "msg": "Private beta room pool cap (500 USDC) exceeded"
+    },
+    {
+      "code": 6013,
+      "name": "BetaGlobalTvlCapExceeded",
+      "msg": "Private beta global TVL cap (5,000 USDC) exceeded"
+    },
+    {
+      "code": 6014,
+      "name": "RoomPoolCapExceeded",
+      "msg": "Configured room pool cap exceeded"
+    },
+    {
+      "code": 6015,
+      "name": "GlobalTvlCapExceeded",
+      "msg": "Configured global TVL cap exceeded"
+    },
+    {
+      "code": 6016,
+      "name": "VaultAlreadySettled",
+      "msg": "Vault has already been settled"
+    },
+    {
+      "code": 6017,
+      "name": "VaultNotYetSettled",
+      "msg": "Vault and envelope must be settled before claiming"
+    },
+    {
+      "code": 6018,
+      "name": "PrizeAlreadyClaimed",
+      "msg": "Prize has already been claimed"
+    },
+    {
+      "code": 6019,
+      "name": "ZeroPrizePayout",
+      "msg": "Envelope payout is zero"
+    },
+    {
+      "code": 6020,
+      "name": "RoomShardNotCommittedToL1",
+      "msg": "Room shard has not been committed and undelegated back to L1"
+    },
+    {
+      "code": 6021,
+      "name": "RoomShardNotSettled",
+      "msg": "Room shard is not in SettledCommitted phase"
+    },
+    {
+      "code": 6022,
+      "name": "InvalidRoomShardData",
+      "msg": "Malformed RoomShard account data"
+    },
+    {
+      "code": 6023,
+      "name": "ShardMismatch",
+      "msg": "Room shard key mismatch"
+    },
+    {
+      "code": 6024,
+      "name": "InvalidSettlementAccountPairs",
+      "msg": "Settlement remaining_accounts must contain exact (PlayerStance, SessionRiskEnvelope) pairs"
+    },
+    {
+      "code": 6025,
+      "name": "InvalidStanceAccount",
+      "msg": "Invalid PlayerStance account owner or data"
+    },
+    {
+      "code": 6026,
+      "name": "StanceNotEvaluated",
+      "msg": "PlayerStance has not been evaluated"
+    },
+    {
+      "code": 6027,
+      "name": "InvalidEnvelopeAccount",
+      "msg": "Invalid SessionRiskEnvelope PDA or mutability"
+    },
+    {
+      "code": 6028,
+      "name": "DuplicatePlayerInSettlement",
+      "msg": "Duplicate player in settlement pairs"
+    },
+    {
+      "code": 6029,
+      "name": "SolvencyInvariantViolated",
+      "msg": "Solvency invariant violated: distributed exceeds room pool"
+    },
+    {
+      "code": 6030,
+      "name": "MissingPassportForXStocks",
+      "msg": "MarketPassport account required when claiming xStocks"
+    },
+    {
+      "code": 6031,
+      "name": "InvalidPassportOwner",
+      "msg": "MarketPassport has invalid program owner"
+    },
+    {
+      "code": 6032,
+      "name": "InvalidPassportPda",
+      "msg": "MarketPassport PDA derivation mismatch"
+    },
+    {
+      "code": 6033,
+      "name": "InvalidPassportData",
+      "msg": "MarketPassport data is malformed"
+    },
+    {
+      "code": 6034,
+      "name": "XStocksIneligible",
+      "msg": "MarketPassport lacks BIT_CAN_CLAIM_XSTOCKS eligibility"
+    },
+    {
+      "code": 6035,
+      "name": "MissingXStockReserve",
+      "msg": "xStock reserve and settlement USDC accounts required for tokenized stock payout"
+    },
+    {
+      "code": 6036,
+      "name": "InvalidXStockUnits",
+      "msg": "xStock payout units must be greater than zero"
+    },
+    {
+      "code": 6037,
+      "name": "UnsupportedPayoutMint",
+      "msg": "Unsupported payout token mint"
+    },
+    {
+      "code": 6038,
+      "name": "MathOverflow",
+      "msg": "Arithmetic overflow"
+    }
+  ],
+  "types": [
+    {
+      "name": "ActionBindingMode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "ConvictionWeights"
+          },
+          {
+            "name": "ThreeLaneStance"
+          },
+          {
+            "name": "SectorTurf"
+          },
+          {
+            "name": "MultiStageCarry"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CartridgeManifestAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slug_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator_fee_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator_share_bps",
+            "type": "u16"
+          },
+          {
+            "name": "genre_code",
+            "type": "u8"
+          },
+          {
+            "name": "duration_secs",
+            "type": "u32"
+          },
+          {
+            "name": "fog_of_war_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_rebalances",
+            "type": "u16"
+          },
+          {
+            "name": "scoring_formula",
+            "type": {
+              "defined": {
+                "name": "ScoringFormula"
+              }
+            }
+          },
+          {
+            "name": "action_binding_mode",
+            "type": {
+              "defined": {
+                "name": "ActionBindingMode"
+              }
+            }
+          },
+          {
+            "name": "allowed_feeds_merkle_root",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "manifest_uri",
+            "type": {
+              "array": [
+                "u8",
+                96
+              ]
+            }
+          },
+          {
+            "name": "total_rooms_created",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EngineConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin_multisig",
+            "type": "pubkey"
+          },
+          {
+            "name": "platform_fee_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "private_beta_mode",
+            "type": "bool"
+          },
+          {
+            "name": "max_room_pool_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "max_global_tvl_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "current_global_tvl_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PoolDistributed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "room_pool_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "platform_fee_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "creator_fee_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "partner_fee_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "total_distributed_usdc",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PrizeClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "payout_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "claimed_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "xstock_units_out",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomVault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "usdc_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_usdc_token",
+            "type": "pubkey"
+          },
+          {
+            "name": "cartridge_manifest",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator_fee_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "platform_fee_account",
+            "type": "pubkey"
+          },
+          {
+            "name": "partner_fee_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "partner_wallet_active",
+            "type": "bool"
+          },
+          {
+            "name": "creator_share_bps",
+            "type": "u16"
+          },
+          {
+            "name": "total_fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "room_pool_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "total_distributed_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "total_claimed_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "settled",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ScoringFormula",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "DirectionNeutralRelReturn"
+          },
+          {
+            "name": "DrawdownPenalizedSharpe"
+          },
+          {
+            "name": "KalshiBrierCalibration"
+          },
+          {
+            "name": "MultiStageCarryComposite"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionEnvelopeOpened",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "principal_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "leverage",
+            "type": "u8"
+          },
+          {
+            "name": "room_pool_usdc",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SessionRiskEnvelope",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "ephemeral_session_key",
+            "type": "pubkey"
+          },
+          {
+            "name": "principal_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "leverage",
+            "type": "u8"
+          },
+          {
+            "name": "payout_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "rank",
+            "type": "u16"
+          },
+          {
+            "name": "settled",
+            "type": "bool"
+          },
+          {
+            "name": "claimed",
+            "type": "bool"
+          },
+          {
+            "name": "claimed_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

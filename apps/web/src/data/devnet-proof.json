@@ -1,0 +1,379 @@
+{
+  "protocolVersion": "0.1.0-blitz-protocol",
+  "executionMode": "CARTRIDGEFI_STANDALONE_DEV=false",
+  "startedAtUtc": "2026-11-26T15:49:47.323Z",
+  "verifiedAtUtc": "2026-11-26T15:50:50.174Z",
+  "clusters": {
+    "solanaDevnetRpc": "https://api.devnet.solana.com",
+    "magicblockRouterRpc": "https://devnet-router.magicblock.app",
+    "magicblockPublicErRpc": "https://devnet-us.magicblock.app",
+    "magicblockPublicErValidator": "MUS3hc9TCw4cGC12vHNoYcCGzJG1txjgQLZWVoeNHNd",
+    "magicblockPrivateTeeRpc": "https://devnet-tee.magicblock.app",
+    "magicblockPrivateTeeValidator": "MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo",
+    "magicblockPaymentsApi": "https://payments.magicblock.app"
+  },
+  "programs": {
+    "cartridgeErRoom": {
+      "programId": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR",
+      "priority": 1,
+      "binaryBytes": 435080,
+      "minRentSol": "2.21085664",
+      "solscanUrl": "https://solscan.io/account/Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR?cluster=devnet"
+    },
+    "cartridgeVaultRouter": {
+      "programId": "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT",
+      "priority": 2,
+      "binaryBytes": 373232,
+      "minRentSol": "1.89666880",
+      "solscanUrl": "https://solscan.io/account/6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT?cluster=devnet"
+    },
+    "cartridgeRegistry": {
+      "programId": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr",
+      "priority": 3,
+      "binaryBytes": 188752,
+      "minRentSol": "0.95951040",
+      "solscanUrl": "https://solscan.io/account/5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr?cluster=devnet"
+    },
+    "cartridgePassport": {
+      "programId": "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr",
+      "priority": 4,
+      "binaryBytes": 182040,
+      "minRentSol": "0.92541344",
+      "solscanUrl": "https://solscan.io/account/5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr?cluster=devnet"
+    },
+    "magicblockDelegation": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh",
+    "magicblockPermission": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1",
+    "magicblockVrf": "Vrf1RNUjXmQGjmQrQLvJHs9SNkvDJEsRVFPkfSQUwGz",
+    "magicblockEsplToken": "SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2"
+  },
+  "accounts": {
+    "relayerWallet": "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1",
+    "relayerCanonicalAta": "5utFSmRYYepNJWj4Uuz7AYLey5CFqMSAQ1MF1mBhj3QU",
+    "splMint": "F6chXtYN1UUtxY1eNcbjnRDqnMWVYNUtqUqiy52pzWm1",
+    "platformFeeOwner": "Giyjg9VusfUXJbNYT2W3gRHpfFPez1kPAE5YcWsmNjPd",
+    "platformFeeAccountAta": "6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir",
+    "creatorFeeVault": "Hrsv3zoNvPQi3kTMuy4KByWVx9d3NQdevTcxTdMZ68sB",
+    "engineConfigPda": "Aeat6EKd8c6hp6unEB73VxBTRRp6cU87Eh6Y8jJChcGj",
+    "passportConfigPda": "FE1CJpug9TyoTju4sjX2jFrNzL4wXopcVWUya77ZY96M",
+    "referenceHarness001ManifestPda": "64RnhRaWoy6aSE9bxE5oUtjbrLkEeRjqrim6x15WQwpF",
+    "referenceHarness002ManifestPda": "EibkQeJ8ZZSeWgJKnsopCCr2r3vXuZDv2xScMqsPx24s",
+    "settledRoomShardPda": "8weMvjPkTajFRoWfokrBd3U5qi7sZQbZSvA4G2Ram9tE",
+    "settledRoomVaultPda": "5yX7EtH26t8uc1UuuzbvQ9KCV7Mo8kyLQ7TcFAA8RKRD",
+    "globalEsplVaultPda": "DQXB3giWy64aRTW8oDMwoUkjq8X8zkfsA6Eewy1uzXEE",
+    "relayerEataPda": "784FCP5xbPJ1hoFeYxmXAJajnNxFeuvZgNyk46drXTd1"
+  },
+  "metrics": {
+    "erSessionStateUpdatesCount": 6,
+    "vrfFulfilled": true,
+    "vrfQueue": "5hBR571xnXppuCPveTrctfTU7tJLSN94nq7kv7FRK5Tc",
+    "vrfSeedHex": "0xbf045a4c5d10a34e728c51e2d05e1bd82e444fc73e1c2356ba26d0061895d428",
+    "privateTransfersCount": 4,
+    "relayerFeePaidTransfersCount": 3,
+    "relayerPlatformFeeBps": 100,
+    "arenaPlatformFeeUnits": "5000000",
+    "arenaCreatorFeeUnits": "5000000",
+    "privateRelayerFeeUnits": "60000",
+    "totalRunPlatformFeeUnits": "5060000",
+    "platformFeeAccountFinalBalanceUnits": "15070000",
+    "winnerPayoutUnits": "126666667"
+  },
+  "transactions": [
+    {
+      "step": "1d. Initialize ArenaShard & RoomVault on L1",
+      "category": "delegation_and_vrf",
+      "layer": "Solana Devnet L1",
+      "signature": "SEXNey74rZfL2T6DAT4Dzh1Q3mc3UQZaisVznzEENXcMwdUcpvK7sC9b3YztS6ZXdHktNTDWQk3osqJcwebnM59",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/SEXNey74rZfL2T6DAT4Dzh1Q3mc3UQZaisVznzEENXcMwdUcpvK7sC9b3YztS6ZXdHktNTDWQk3osqJcwebnM59?cluster=devnet",
+      "notes": "RoomShard 8weMvjPkTajFRoWfokrBd3U5qi7sZQbZSvA4G2Ram9tE bound to canonical platformFeeAccount 6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir"
+    },
+    {
+      "step": "1e. Fund 2 Players & Mint 100 USDC Principal Each",
+      "category": "delegation_and_vrf",
+      "layer": "Solana Devnet L1",
+      "signature": "e3UZ9e6ehe89pbkjELx8uCvWCKw8qpyQnZRsjnAPgjm95Zcku5yXFZJwRxgZNif9bHfBWmhCYfB2Q7UBgCQ7Y8M",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/e3UZ9e6ehe89pbkjELx8uCvWCKw8qpyQnZRsjnAPgjm95Zcku5yXFZJwRxgZNif9bHfBWmhCYfB2Q7UBgCQ7Y8M?cluster=devnet",
+      "notes": "Player1=D8yuJCu6XuRTWgxKo3JcWQEcskiEKHckeT8ZuUziDGG4, Player2=s8rVWMf8S6uxnDVfnPQDKE28GLuvUK5ymYtY7aNWRi5"
+    },
+    {
+      "step": "1f. Participant A (Long Conviction) Open SessionRiskEnvelope",
+      "category": "delegation_and_vrf",
+      "layer": "Solana Devnet L1",
+      "signature": "1cRGKVJ8StmvAYYnLKFPcQFhdC4Kjk4bCXtBQBthboNZQHMd7u5YFkXX6uEsq9Puesediv7ZEukem187qLUTUxb",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/1cRGKVJ8StmvAYYnLKFPcQFhdC4Kjk4bCXtBQBthboNZQHMd7u5YFkXX6uEsq9Puesediv7ZEukem187qLUTUxb?cluster=devnet",
+      "notes": "Envelope HmyAkaxUvEm7NUmXZAxyx1F5czjbUeNqhPhnpLrff2qN -> SessionKey 7hBwEGSRhX4AZwSypUs4iRhXstmfY6FYDkFcs6Mb5g5e"
+    },
+    {
+      "step": "1f. Participant B (Short Conviction) Open SessionRiskEnvelope",
+      "category": "delegation_and_vrf",
+      "layer": "Solana Devnet L1",
+      "signature": "2HrCcb15B2h5vNYWNgFqw9yqMncUba7VvSmu9v5fo5J5C6vE7A9yMpg5uYdD81oebL5Ha6RyKE9jW1vsPLMBgbdb",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/2HrCcb15B2h5vNYWNgFqw9yqMncUba7VvSmu9v5fo5J5C6vE7A9yMpg5uYdD81oebL5Ha6RyKE9jW1vsPLMBgbdb?cluster=devnet",
+      "notes": "Envelope HsLnUJK1X9EeEedTgHvBP2UErVn8VtKcpsTizdB3wyST -> SessionKey BvemA3bvHt6mmcrQcgBjbzDbitVXdkgpbhLaEDM6fMsZ"
+    },
+    {
+      "step": "1g. Delegate ArenaShard to MagicBlock Delegation Program",
+      "category": "delegation_and_vrf",
+      "layer": "Solana Devnet L1",
+      "signature": "2zBDRUDSBmZLXb1Hxd5ueF4T9wDBMsZGWWmBeEX5cs4jGT77cajumEcKbogvudBQYVHS68Mgqyq1cWeu8s864T6W",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/2zBDRUDSBmZLXb1Hxd5ueF4T9wDBMsZGWWmBeEX5cs4jGT77cajumEcKbogvudBQYVHS68Mgqyq1cWeu8s864T6W?cluster=devnet",
+      "notes": "Delegated 8weMvjPkTajFRoWfokrBd3U5qi7sZQbZSvA4G2Ram9tE -> DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh (validator=MUS3hc9TCw4cGC12vHNoYcCGzJG1txjgQLZWVoeNHNd)"
+    },
+    {
+      "step": "1h. Participant A (Long Conviction) Init & Delegate PlayerStance",
+      "category": "delegation_and_vrf",
+      "layer": "Solana Devnet L1",
+      "signature": "3fkyDnRvmboQrCoe2B7HAvU7BdLEwpbkLReMiFS4cctS7rgmABvgq998nnr5ZgHYFwGZb3Gzudw6wmZRhfyG3hHG",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/3fkyDnRvmboQrCoe2B7HAvU7BdLEwpbkLReMiFS4cctS7rgmABvgq998nnr5ZgHYFwGZb3Gzudw6wmZRhfyG3hHG?cluster=devnet",
+      "notes": "Delegated DdCKSstknmPVypqkmYz11AiT61mQ1NvF5kdYJaXNTxkn -> DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+    },
+    {
+      "step": "1h. Participant B (Short Conviction) Init & Delegate PlayerStance",
+      "category": "delegation_and_vrf",
+      "layer": "Solana Devnet L1",
+      "signature": "pZWefRKtPTge6GCGynMygyitChjmYcECSv3t8cnFKSMi1ukg8MCK2a4rsMBHXLc8odUpMRwSddeLh9zm7L33kvq",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/pZWefRKtPTge6GCGynMygyitChjmYcECSv3t8cnFKSMi1ukg8MCK2a4rsMBHXLc8odUpMRwSddeLh9zm7L33kvq?cluster=devnet",
+      "notes": "Delegated FRG4c8cDh3g1MVTbUh8qe6tDxyZYVVxBroHGmKYpG7hE -> DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+    },
+    {
+      "step": "1i. Participant A (Long Conviction) Init ER EphemeralPermission",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "5rxkhBfJt6JsP1KfP4rz1HqhfXshtYs3Mg8aJ75dcVnaf772ysBcdTng6eb4q2sztKqtPnWf31i8JQYvMhX6jBm4",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/5rxkhBfJt6JsP1KfP4rz1HqhfXshtYs3Mg8aJ75dcVnaf772ysBcdTng6eb4q2sztKqtPnWf31i8JQYvMhX6jBm4?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "Permission PDA A5kFom1DQW17pxpFYYrvhWjWcePD8HFJ6Nppqad1aSFD (ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1)"
+    },
+    {
+      "step": "1j.1 Real-Time ER Session Update #1",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "xLVE6dm3x8Wx4W1UaqnnsjNssxDdQGe2r628yvKz2C4EBCadteu9DHZUS7h6rWLu4Fy6dS6huLtTnkC7VrMjNRw",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/xLVE6dm3x8Wx4W1UaqnnsjNssxDdQGe2r628yvKz2C4EBCadteu9DHZUS7h6rWLu4Fy6dS6huLtTnkC7VrMjNRw?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "Participant A (Long Conviction) zero-popup SessionKey (7hBwEGSR…) weights=[3000,7000,0,0]"
+    },
+    {
+      "step": "1j.2 Real-Time ER Session Update #2",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "WMEX7x36wNqmRQSoVt3bmjd9hGAbAaqgDcBDcmFoJ72eMxkW6uCas3GqA9gZiJGVEzZHT5gQHgBRuoB2Gb8QRPe",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/WMEX7x36wNqmRQSoVt3bmjd9hGAbAaqgDcBDcmFoJ72eMxkW6uCas3GqA9gZiJGVEzZHT5gQHgBRuoB2Gb8QRPe?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "Participant A (Long Conviction) zero-popup SessionKey (7hBwEGSR…) weights=[3500,6500,0,0]"
+    },
+    {
+      "step": "1j.3 Real-Time ER Session Update #3",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "3wKGSgi1Fs6f5JjTETmyozxkJxUwUvuydUSnYbophfGZFPiu1Es92x7R3DR5wH51gdBSs9G8pBcPUbBbkaSPZ8B8",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/3wKGSgi1Fs6f5JjTETmyozxkJxUwUvuydUSnYbophfGZFPiu1Es92x7R3DR5wH51gdBSs9G8pBcPUbBbkaSPZ8B8?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "Participant A (Long Conviction) zero-popup SessionKey (7hBwEGSR…) weights=[4000,6000,0,0]"
+    },
+    {
+      "step": "1i. Participant B (Short Conviction) Init ER EphemeralPermission",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "5q8J6bCDHqNrMVwn94Ld2LJysn7XuuvhGFMmk2oFJSQ9qsgxrpzjZpNyxxRg1BJ1Ajqn9R2CdryQKWHCM5Huqtmj",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/5q8J6bCDHqNrMVwn94Ld2LJysn7XuuvhGFMmk2oFJSQ9qsgxrpzjZpNyxxRg1BJ1Ajqn9R2CdryQKWHCM5Huqtmj?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "Permission PDA 8D1Hx444xbR3BeoX7kXRo7icv8Vc3jet1mhrCsMTyFV9 (ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1)"
+    },
+    {
+      "step": "1j.4 Real-Time ER Session Update #4",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "7E7X7rniTbovZr52okGz4bQoBnoEeDWZjhLKRSsiLVnZ4nK8B27SyPA1xNpZrwSYHz7FtLBqSEbZdAs3q9cHE3M",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/7E7X7rniTbovZr52okGz4bQoBnoEeDWZjhLKRSsiLVnZ4nK8B27SyPA1xNpZrwSYHz7FtLBqSEbZdAs3q9cHE3M?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "Participant B (Short Conviction) zero-popup SessionKey (BvemA3bv…) weights=[-3000,-7000,0,0]"
+    },
+    {
+      "step": "1j.5 Real-Time ER Session Update #5",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "2nkJZ9jy7Baf7Pm3WRMFnyKtSeyD1RGDTQARGqjSre2wpLujYVWuLuvZ5wYnb6A7Xvqx35d2T1FkTGNpgMFx717E",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/2nkJZ9jy7Baf7Pm3WRMFnyKtSeyD1RGDTQARGqjSre2wpLujYVWuLuvZ5wYnb6A7Xvqx35d2T1FkTGNpgMFx717E?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "Participant B (Short Conviction) zero-popup SessionKey (BvemA3bv…) weights=[-3500,-6500,0,0]"
+    },
+    {
+      "step": "1j.6 Real-Time ER Session Update #6",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "5mNQQ5z3unmCQMDAZFtfSeqXY5iPFZ4vjfyUNWCtg5rrgLGx6sxiU41EQ1oAEP6fCXXkaW8Xg4oQNujqRtCb4FkW",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/5mNQQ5z3unmCQMDAZFtfSeqXY5iPFZ4vjfyUNWCtg5rrgLGx6sxiU41EQ1oAEP6fCXXkaW8Xg4oQNujqRtCb4FkW?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "Participant B (Short Conviction) zero-popup SessionKey (BvemA3bv…) weights=[-4000,-6000,0,0]"
+    },
+    {
+      "step": "1k. Request Live MagicBlock VRF Randomness",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "3gJanrfejfoicdLXrqmGxrMe3Gk9TB3e77t84HXaPZrQFbMzxPQpGbh5rhw66qJN97EnJ6TqHQoaEvQtz4JV8XvM",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/3gJanrfejfoicdLXrqmGxrMe3Gk9TB3e77t84HXaPZrQFbMzxPQpGbh5rhw66qJN97EnJ6TqHQoaEvQtz4JV8XvM?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "Delegated queue 5hBR571xnXppuCPveTrctfTU7tJLSN94nq7kv7FRK5Tc -> callback_settlement_vrf"
+    },
+    {
+      "step": "1l. Showdown Permission Unseal (Participant A (Long Conviction))",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "G1MRLfDLHRLJgdQ7HnEZyEeUjz7Rw5DoNAdhNg8QLZ92E2ZQj6V34uukPpvobBpMweaHnU8kukaxSMUrcu5HkR9",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/G1MRLfDLHRLJgdQ7HnEZyEeUjz7Rw5DoNAdhNg8QLZ92E2ZQj6V34uukPpvobBpMweaHnU8kukaxSMUrcu5HkR9?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "UpdateEphemeralPermissionCpi -> public Showdown state"
+    },
+    {
+      "step": "1l. Showdown Permission Unseal (Participant B (Short Conviction))",
+      "category": "delegation_and_vrf",
+      "layer": "MagicBlock ER",
+      "signature": "KrzVqcDH7yzsbeKJgKYuA7ABG2AkCTrTNC3sdWAqWXyPRhvdu8sDSR9fwdX2EynwGsMeSKKSpSzBTSFMKGzYZnK",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/KrzVqcDH7yzsbeKJgKYuA7ABG2AkCTrTNC3sdWAqWXyPRhvdu8sDSR9fwdX2EynwGsMeSKKSpSzBTSFMKGzYZnK?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "UpdateEphemeralPermissionCpi -> public Showdown state"
+    },
+    {
+      "step": "1m. Evaluate Deterministic Score (Participant A (Long Conviction))",
+      "category": "l1_settlement",
+      "layer": "MagicBlock ER",
+      "signature": "49TeWtpa82HDjqtWpmQXC5F55d5CtJKXFEcjFCqoZGBgKXeiULKrwmVTAtqhuLuXNpD3tedm6sSTZMNAnx4FEGuM",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/49TeWtpa82HDjqtWpmQXC5F55d5CtJKXFEcjFCqoZGBgKXeiULKrwmVTAtqhuLuXNpD3tedm6sSTZMNAnx4FEGuM?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "i128 (10^9) fixed-point score + CloseEphemeralPermissionCpi"
+    },
+    {
+      "step": "1m. Evaluate Deterministic Score (Participant B (Short Conviction))",
+      "category": "l1_settlement",
+      "layer": "MagicBlock ER",
+      "signature": "2eyRHqXdEaeFgbXozvJWy5ow6NmJM7mCgkZX4Me89scfQFgNXDkjpnwNMx526NoL34JuUbdvan1oHXSWuuYMhmzL",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/2eyRHqXdEaeFgbXozvJWy5ow6NmJM7mCgkZX4Me89scfQFgNXDkjpnwNMx526NoL34JuUbdvan1oHXSWuuYMhmzL?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "i128 (10^9) fixed-point score + CloseEphemeralPermissionCpi"
+    },
+    {
+      "step": "1n. Commit & Undelegate PlayerStance (Participant A (Long Conviction))",
+      "category": "l1_settlement",
+      "layer": "MagicBlock ER",
+      "signature": "4LAxWRTqpwVf3GCxcYraC9J3b7StC33ZqCi2MxEvekA72FQ8RhmKc8UvPJgnb8gtiRqAMhtbUfG23gXuXaYJUBWZ",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/4LAxWRTqpwVf3GCxcYraC9J3b7StC33ZqCi2MxEvekA72FQ8RhmKc8UvPJgnb8gtiRqAMhtbUfG23gXuXaYJUBWZ?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "MagicIntentBundleBuilder::commit_and_undelegate -> Solana Devnet L1"
+    },
+    {
+      "step": "1n. Commit & Undelegate PlayerStance (Participant B (Short Conviction))",
+      "category": "l1_settlement",
+      "layer": "MagicBlock ER",
+      "signature": "4oPn9rQGRRsnCxhwBoycTydgAzpzP2Lpzho31msQdprWkMp4e4bY1V7JKXgj5jm4WQXkun4JKpRZA8tdKeW2REXq",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/4oPn9rQGRRsnCxhwBoycTydgAzpzP2Lpzho31msQdprWkMp4e4bY1V7JKXgj5jm4WQXkun4JKpRZA8tdKeW2REXq?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "MagicIntentBundleBuilder::commit_and_undelegate -> Solana Devnet L1"
+    },
+    {
+      "step": "1o. Settle & Commit+Undelegate ArenaShard to L1",
+      "category": "l1_settlement",
+      "layer": "MagicBlock ER",
+      "signature": "3Ljspf1XppENsm75dzu7utizmAobbxQCP7L8L4S1kcLUksLN1VR6HzCqbpPVG4orw3xzr5tQSsJ2czFLrGSs9EE9",
+      "endpoint": "https://devnet-us.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/3Ljspf1XppENsm75dzu7utizmAobbxQCP7L8L4S1kcLUksLN1VR6HzCqbpPVG4orw3xzr5tQSsJ2czFLrGSs9EE9?cluster=custom&customUrl=https%3A%2F%2Fdevnet-us.magicblock.app",
+      "notes": "MagicIntentBundleBuilder::commit_and_undelegate -> Solana Devnet L1"
+    },
+    {
+      "step": "1p. Settle Arena Pool & Pay Protocol Fee on L1",
+      "category": "l1_settlement",
+      "layer": "Solana Devnet L1",
+      "signature": "4HBq6pLiRajjwHzu65LEasQEMYbpSpqXDreGA1sERxaXuCHX4MqkRofV2yG6bQn3vEHW6XDBueqgEGmafVXpBusV",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/4HBq6pLiRajjwHzu65LEasQEMYbpSpqXDreGA1sERxaXuCHX4MqkRofV2yG6bQn3vEHW6XDBueqgEGmafVXpBusV?cluster=devnet",
+      "notes": "Credited canonical platformFeeAccount (6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir) + creatorFeeVault"
+    },
+    {
+      "step": "1q. Winner Claim Payout on L1",
+      "category": "l1_settlement",
+      "layer": "Solana Devnet L1",
+      "signature": "5q2XBveFNbUnf8Wzxdek9hkPAwczcXUUnmJUWcXKzfVMe26oLsFQWXkEnXLoyuJjawbM1K8UMcDYGQUi6nns5WQe",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/5q2XBveFNbUnf8Wzxdek9hkPAwczcXUUnmJUWcXKzfVMe26oLsFQWXkEnXLoyuJjawbM1K8UMcDYGQUi6nns5WQe?cluster=devnet",
+      "notes": "Winner D8yuJCu6XuRTWgxKo3JcWQEcskiEKHckeT8ZuUziDGG4 claimed Harmonic Shapley payout"
+    },
+    {
+      "step": "1r. Update Cross-Game Market ELO Passport on L1",
+      "category": "l1_settlement",
+      "layer": "Solana Devnet L1",
+      "signature": "3EDExdtwzuvBSXrHDdFmaeibqnRo3UCoGDEfdseDXCr5utZ4fd8mvdW5sJ8zsU7zf642AtWmJ13NUcLm6mT6wbWf",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/3EDExdtwzuvBSXrHDdFmaeibqnRo3UCoGDEfdseDXCr5utZ4fd8mvdW5sJ8zsU7zf642AtWmJ13NUcLm6mT6wbWf?cluster=devnet",
+      "notes": "MarketPassport PDA H9UVqeXPiZDHnU2zyjcdgdzxJyWkMDL5nrL5dJ8YE6NS"
+    },
+    {
+      "step": "2a. Fund Relayer Canonical ATA & Recipient ATAs",
+      "category": "private_payments_and_fees",
+      "layer": "Solana Devnet L1",
+      "signature": "4nvfgrv6MyQSjfxmhKwCKx6hxq9wHug1XkWrLue6kZro5kJcgKBY8kqMCVQCmP7of9PKg8gPULMUvJ1E7VWVr4h1",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/4nvfgrv6MyQSjfxmhKwCKx6hxq9wHug1XkWrLue6kZro5kJcgKBY8kqMCVQCmP7of9PKg8gPULMUvJ1E7VWVr4h1?cluster=devnet",
+      "notes": "Relayer ATA 5utFSmRYYepNJWj4Uuz7AYLey5CFqMSAQ1MF1mBhj3QU funded with 25,000,000 units of F6chXtYN1UUtxY1eNcbjnRDqnMWVYNUtqUqiy52pzWm1"
+    },
+    {
+      "step": "2b. Relayer SDK `delegateSpl` into Private ER TEE",
+      "category": "private_payments_and_fees",
+      "layer": "Solana Devnet L1",
+      "signature": "4joJKzqR2N9zuwHNd3tCPesNkPvRXFF7PZbLPiTSaXSbuZMFcwf9iK8LPWLoWS97v44RtKdWtUTp2NnSgrKuZ5vx",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/4joJKzqR2N9zuwHNd3tCPesNkPvRXFF7PZbLPiTSaXSbuZMFcwf9iK8LPWLoWS97v44RtKdWtUTp2NnSgrKuZ5vx?cluster=devnet",
+      "notes": "Deposited & delegated 5,000,000 units via SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2 to TEE MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo"
+    },
+    {
+      "step": "2c.1 Relayer Private Transfer #1 (Encrypted TEE Magic ATA + Fee)",
+      "category": "private_payments_and_fees",
+      "layer": "Solana Devnet L1",
+      "signature": "3CsEpDT6HLBif5dMsWNDYXJk9uk2QDrdBwQrv4neRBJSfHSSmYmugLZmKUAZziSycKCn3QFoFCCLNcq6rpUXSZH3",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/3CsEpDT6HLBif5dMsWNDYXJk9uk2QDrdBwQrv4neRBJSfHSSmYmugLZmKUAZziSycKCn3QFoFCCLNcq6rpUXSZH3?cluster=devnet",
+      "notes": "Encrypted ix 34 -> TEE MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo; paid 15000 token fee (100 bps) into platformFeeAccount 6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir"
+    },
+    {
+      "step": "2c.2 Relayer Private Transfer #2 (Encrypted TEE Magic ATA + Fee)",
+      "category": "private_payments_and_fees",
+      "layer": "Solana Devnet L1",
+      "signature": "2YG9tGwG71WL8hTLwfkjVuRbMxtHU5wQkfpj25PNB8RK8D2wVcMj2dpAGgjY88U5SkV9WutZytmwRFLmPPjYWmf9",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/2YG9tGwG71WL8hTLwfkjVuRbMxtHU5wQkfpj25PNB8RK8D2wVcMj2dpAGgjY88U5SkV9WutZytmwRFLmPPjYWmf9?cluster=devnet",
+      "notes": "Encrypted ix 34 -> TEE MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo; paid 20000 token fee (100 bps) into platformFeeAccount 6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir"
+    },
+    {
+      "step": "2c.3 Relayer Private Transfer #3 (Encrypted TEE Magic ATA + Fee)",
+      "category": "private_payments_and_fees",
+      "layer": "Solana Devnet L1",
+      "signature": "AFy5keK578KJGcvrhx6rdMEpjb5m7Fo8EfnXTh91F2cXubAc3MomHgLGz6MpsuPiX1fSXVVSneyJhNaUPTBfmmB",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/AFy5keK578KJGcvrhx6rdMEpjb5m7Fo8EfnXTh91F2cXubAc3MomHgLGz6MpsuPiX1fSXVVSneyJhNaUPTBfmmB?cluster=devnet",
+      "notes": "Encrypted ix 34 -> TEE MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo; paid 25000 token fee (100 bps) into platformFeeAccount 6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir"
+    },
+    {
+      "step": "2d. In-TEE SDK `transferSpl` (Private Ephemeral -> Ephemeral)",
+      "category": "private_payments_and_fees",
+      "layer": "MagicBlock Private ER (TEE)",
+      "signature": "2WYxkTdTPX9B5qQYAmJFebaJsBEsTtCX1CZCopzuj3pwejiHCezCR5C7gmucaXYSdFrrSRuatvAHyFJRNdWR1MYQ",
+      "endpoint": "https://devnet-tee.magicblock.app",
+      "solscanUrl": "https://solscan.io/tx/2WYxkTdTPX9B5qQYAmJFebaJsBEsTtCX1CZCopzuj3pwejiHCezCR5C7gmucaXYSdFrrSRuatvAHyFJRNdWR1MYQ?cluster=custom&customUrl=https%3A%2F%2Fdevnet-tee.magicblock.app",
+      "notes": "Executed inside Intel TDX TEE (https://devnet-tee.magicblock.app) via EnsureMagicAtaDestination + SPL Transfer"
+    },
+    {
+      "step": "2e. Relayer SDK `withdrawSpl` Shuttle Withdrawal to Base L1",
+      "category": "private_payments_and_fees",
+      "layer": "Solana Devnet L1",
+      "signature": "4V7kkHif9B3MgLbeUuGmnWd9zMP5AhSWnQ6buXipLnMvG7pyePZQm4iXmyqLPMWLkTP6LJYRoBpCCxfAcpygKuYm",
+      "endpoint": "https://api.devnet.solana.com",
+      "solscanUrl": "https://solscan.io/tx/4V7kkHif9B3MgLbeUuGmnWd9zMP5AhSWnQ6buXipLnMvG7pyePZQm4iXmyqLPMWLkTP6LJYRoBpCCxfAcpygKuYm?cluster=devnet",
+      "notes": "Withdrew 1,000,000 units from TEE MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo -> 5utFSmRYYepNJWj4Uuz7AYLey5CFqMSAQ1MF1mBhj3QU"
+    }
+  ]
+}

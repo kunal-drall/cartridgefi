@@ -235,4 +235,61 @@ test.describe("Agent-06 Wave 4 Headless Visual & Gameplay Proof", () => {
     expect(guards.pageErrors).toEqual([]);
     expect(guards.dialogsOpened).toEqual([]);
   });
+
+  test("5. Protocol Execution Console (/protocol) — Live Devnet Program IDs, Canonical platformFeeAccount ATA, Category Proof Filters & Zero Slop", async ({
+    page,
+  }, testInfo) => {
+    const guards = attachZeroErrorGuards(page);
+    await page.goto("/protocol", { waitUntil: "networkidle" });
+
+    // Verify single H1 & Infrastructure positioning
+    const h1 = page.locator("h1");
+    await expect(h1).toHaveCount(1);
+    await expect(h1).toContainText("Protocol Inspector & Live Execution Console");
+
+    // Verify all 4 deployed Devnet Program IDs + canonical platformFeeAccount ATA + Relayer wallet
+    await expect(page.locator("body")).toContainText(
+      "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR",
+    );
+    await expect(page.locator("body")).toContainText(
+      "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT",
+    );
+    await expect(page.locator("body")).toContainText(
+      "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr",
+    );
+    await expect(page.locator("body")).toContainText(
+      "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr",
+    );
+    await expect(page.locator("body")).toContainText(
+      "6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir",
+    );
+    await expect(page.locator("body")).toContainText(
+      "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1",
+    );
+
+    // Filter proof ledger categories interactively
+    await page.locator("#protocol-filter-private_payments_and_fees").click();
+    await expect(page.locator("#protocol-proof-ledger")).toContainText(
+      "Relayer Private Transfer #1",
+    );
+    await page.locator("#protocol-filter-delegation_and_vrf").click();
+    await expect(page.locator("#protocol-proof-ledger")).toContainText(
+      "Real-Time ER Session Update #6",
+    );
+    await page.locator("#protocol-filter-all").click();
+
+    await page.screenshot({
+      path: join(SCREENSHOT_DIR, `05-protocol-${testInfo.project.name}.png`),
+      fullPage: false,
+    });
+
+    const overflowPx = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflowPx).toBeLessThanOrEqual(2);
+
+    expect(guards.consoleErrors).toEqual([]);
+    expect(guards.pageErrors).toEqual([]);
+    expect(guards.dialogsOpened).toEqual([]);
+  });
 });

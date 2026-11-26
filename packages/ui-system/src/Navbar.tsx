@@ -11,16 +11,16 @@ export interface NavbarProps {
 }
 
 const NAV_LINKS = [
-  { id: "nav-link-borel", href: "/play/borel", label: "Play Borel (#001)" },
-  { id: "nav-link-pulse-runner", href: "/play/pulse-runner", label: "Pulse Runner (#002)" },
+  { id: "nav-link-protocol", href: "/protocol", label: "Protocol Console" },
+  { id: "nav-link-borel", href: "/play/borel", label: "Reference Harness #001" },
+  { id: "nav-link-pulse-runner", href: "/play/pulse-runner", label: "Harness #002" },
   { id: "nav-link-studio", href: "/studio", label: "Vibe Studio" },
-  { id: "nav-link-wallet", href: "#wallet-bento", label: "7-Chain Wallet" },
-  { id: "nav-link-engine", href: "#engine-stack", label: "Engine Stack" },
+  { id: "nav-link-engine", href: "/#engine-stack", label: "Engine Stack" },
 ] as const;
 
 /**
  * Shared floating Liquid Glass Header with live ER room telemetry, desktop links,
- * accessible mobile navigation sheet, Launch Studio ghost pill, and Play Borel Live CTA.
+ * accessible mobile navigation sheet, Protocol Console CTA, and Reference Harness #001 link.
  */
 export function Navbar({
   activeErRooms = 42,
@@ -65,7 +65,7 @@ export function Navbar({
             className="hidden md:inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#050609]/80 px-3 py-1 font-mono text-[11px] text-slate-300 tabular-nums"
           >
             <LivePulseDot tone="emerald" size="sm" />
-            <span>{activeErRooms} ER Rooms</span>
+            <span>{activeErRooms} ER Shards</span>
             <span className="text-slate-600" aria-hidden="true">
               ·
             </span>
@@ -73,22 +73,22 @@ export function Navbar({
           </div>
 
           <ActionButton
-            id="nav-cta-studio"
-            href="/studio"
+            id="nav-cta-play-borel"
+            href="/play/borel"
             variant="ghost"
             size="sm"
             className="hidden sm:inline-flex"
           >
-            Launch Studio
+            Harness #001
           </ActionButton>
 
           <ActionButton
-            id="nav-cta-play-borel"
-            href="/play/borel"
+            id="nav-cta-protocol"
+            href="/protocol"
             variant="emerald"
             size="sm"
           >
-            Play Borel Live
+            Protocol Console
           </ActionButton>
 
           <button

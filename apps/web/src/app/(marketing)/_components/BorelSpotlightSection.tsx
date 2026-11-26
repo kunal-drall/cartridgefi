@@ -75,22 +75,22 @@ export function BorelSpotlightSection(): React.JSX.Element {
       <div className="max-w-3xl">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <GlassPill tone="emerald" size="xs">
-            First-Party Flagship · Game #001
+            Reference Harness #001 (Protocol Integration Demo)
           </GlassPill>
           <span className="font-mono text-xs text-slate-400">
-            Solana RFS #11 + RFS #3 + RFS #7 Live Execution
+            End-to-End PER + Session Key + VRF + L1 Vault Proof
           </span>
         </div>
         <h2
           id="borel-spotlight-heading"
           className="font-display text-3xl font-bold tracking-[-0.035em] text-white sm:text-4xl lg:text-5xl text-balance"
         >
-          Meet Borel: Game-Day Mode for stocks, perps, and predictions.
+          Reference Harness #001: Borel Protocol Integration Demo.
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-400">
-          Named after Émile Borel, founder of strategic game theory. Borel unites real-time Kalshi
-          prediction catalysts, Solana perpetuals, and tokenized equities inside 60-second to
-          Game-Day arenas where thesis skill—never wallet size or copy-trade bots—wins the pool.
+          Named after Émile Borel, founder of strategic game theory. Borel serves as our live
+          end-to-end protocol harness exercising delegated ER state shards, Intel TDX Fog-of-War
+          permissions, VRF settlement, and non-custodial multi-venue payouts.
         </p>
       </div>
 

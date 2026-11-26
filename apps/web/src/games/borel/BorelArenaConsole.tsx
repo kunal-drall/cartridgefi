@@ -476,7 +476,7 @@ export function BorelArenaConsole(): React.JSX.Element {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <GlassPill tone="emerald" size="xs">
-                Cartridge #001 · Flagship Game-Day Arena (RFS #11)
+                Reference Harness #001 (Protocol Integration Demo)
               </GlassPill>
               <GlassPill tone="violet" size="xs">
                 Private ER TEE · {BOREL_ENGINE_PROOF.teePermissionProgramId.slice(0, 8)}…
@@ -488,7 +488,7 @@ export function BorelArenaConsole(): React.JSX.Element {
               ) : null}
             </div>
             <h1 className="mt-2 font-display text-2xl font-bold tracking-[-0.035em] text-white sm:text-3xl">
-              BOREL — Blind Conviction Blitz
+              BOREL — Reference Harness #001 (Protocol Integration Demo)
             </h1>
           </div>
 

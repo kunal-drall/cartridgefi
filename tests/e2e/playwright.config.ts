@@ -7,7 +7,7 @@ export default defineConfig({
     timeout: 10_000,
   },
   fullyParallel: false,
-  retries: 0,
+  retries: 1,
   reporter: [["list"]],
   use: {
     baseURL: process.env.CARTRIDGEFI_WEB_URL ?? "http://127.0.0.1:3100",

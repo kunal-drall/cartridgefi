@@ -82,24 +82,47 @@ export default function CartridgeFiLandingPage(): React.JSX.Element {
               the game engine for real markets.
             </h1>
 
-            <p className="mt-5 max-w-[680px] text-base leading-relaxed text-slate-400 sm:text-lg">
-              Turn perps, prediction markets, and tokenized stocks into{" "}
-              <span className="font-mono text-slate-200 tabular-nums">10ms</span> multiplayer
-              games. Play <strong className="font-semibold text-white">Borel</strong>—our flagship
-              Game-Day skill arena—or build any game with one prompt, CLI, or AI coding agent.
+            <p className="mt-5 max-w-[700px] text-base leading-relaxed text-slate-400 sm:text-lg">
+              Technical Entertainment Finance Protocol (
+              <span className="font-mono text-slate-200">Infra + DeFi + Privacy</span>) uniting
+              MagicBlock Ephemeral Rollups, Intel TDX Private ERs, VRF, and eSPL private fee
+              routing into{" "}
+              <span className="font-mono text-slate-200 tabular-nums">10ms</span> non-custodial
+              state machines—verified live on Solana Devnet via{" "}
+              <strong className="font-semibold text-white">
+                Borel: Reference Harness #001 (Protocol Integration Demo)
+              </strong>
+              .
             </p>
 
+            {/* Prominent MagicBlock Blitz v10 Protocol Inspector Banner */}
+            <a
+              id="hero-protocol-inspector-banner"
+              href="/protocol"
+              className="mt-5 inline-flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-[#00F59B]/35 bg-[#00F59B]/[0.08] px-3.5 py-2 font-mono text-xs text-slate-100 transition-colors hover:border-[#00F59B]/65 hover:bg-[#00F59B]/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B]"
+            >
+              <span className="rounded-md bg-[#00F59B] px-1.5 py-0.5 text-[10px] font-bold text-[#050609]">
+                LIVE DEVNET PROOF
+              </span>
+              <span className="font-semibold text-white">
+                Open Protocol Inspector &amp; Live Execution Console (/protocol)
+              </span>
+              <span className="text-[#00F59B]" aria-hidden="true">
+                -&gt;
+              </span>
+            </a>
+
             {/* Primary & Secondary CTA Cluster */}
-            <div className="mt-8 flex w-full max-w-full min-w-0 flex-wrap items-start gap-3.5">
+            <div className="mt-6 flex w-full max-w-full min-w-0 flex-wrap items-start gap-3.5">
               <div className="flex w-full sm:w-auto max-w-full min-w-0 flex-col gap-1.5">
                 <ActionButton
-                  id="hero-primary-play-borel"
-                  href="/play/borel"
+                  id="hero-primary-protocol-console"
+                  href="/protocol"
                   variant="emerald"
                   size="lg"
                   className="w-full sm:w-auto"
                 >
-                  <span>Play Borel (#001) — Free</span>
+                  <span>Protocol Execution Console</span>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path
                       d="M3.5 8H12.5M12.5 8L8.5 4M12.5 8L8.5 12"
@@ -111,7 +134,22 @@ export default function CartridgeFiLandingPage(): React.JSX.Element {
                   </svg>
                 </ActionButton>
                 <span className="pl-1 font-mono text-[11px] leading-snug text-slate-400 break-words">
-                  Zero Popups · Apple Pay &amp; 7 Chains · Paper or Live USDC
+                  4 Live Devnet Programs · Delegations &amp; VRF · Private eSPL Fees
+                </span>
+              </div>
+
+              <div className="flex w-full sm:w-auto max-w-full min-w-0 flex-col gap-1.5">
+                <ActionButton
+                  id="hero-primary-play-borel"
+                  href="/play/borel"
+                  variant="glass"
+                  size="lg"
+                  className="w-full sm:w-auto"
+                >
+                  <span>Reference Harness #001 (Borel)</span>
+                </ActionButton>
+                <span className="pl-1 font-mono text-[11px] leading-snug text-slate-400 break-words">
+                  Protocol Integration Demo · Session Keys · TEE Fog-of-War
                 </span>
               </div>
 

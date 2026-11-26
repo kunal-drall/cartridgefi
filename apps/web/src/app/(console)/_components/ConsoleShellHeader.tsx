@@ -25,25 +25,32 @@ const CONSOLE_TABS: readonly {
   mobileLabel: string;
 }[] = [
   {
+    id: "console-tab-protocol",
+    href: "/protocol",
+    shortCode: "RPC",
+    label: "Protocol Inspector & Live Execution Console",
+    mobileLabel: "Protocol",
+  },
+  {
     id: "console-tab-borel",
     href: "/play/borel",
     shortCode: "#001",
-    label: "Cartridge #001: BOREL (Game-Day Arena)",
-    mobileLabel: "#001 BOREL Arena",
+    label: "Reference Harness #001 (Protocol Integration Demo)",
+    mobileLabel: "#001 Harness",
   },
   {
     id: "console-tab-pulse-runner",
     href: "/play/pulse-runner",
     shortCode: "#002",
-    label: "Cartridge #002: Pulse Runner (3-Lane Arcade)",
-    mobileLabel: "#002 Pulse Runner",
+    label: "Reference Harness #002: Pulse Runner",
+    mobileLabel: "#002 Runner",
   },
   {
     id: "console-tab-studio",
     href: "/studio",
     shortCode: "IDE",
     label: "Vibe Studio & Wallet SDK",
-    mobileLabel: "Vibe Studio",
+    mobileLabel: "Studio",
   },
 ];
 
@@ -130,7 +137,7 @@ export function ConsoleShellHeader(): React.JSX.Element {
           aria-label="Console Cartridge Switcher"
           className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-2"
         >
-          <div className="grid w-full grid-cols-3 gap-1.5 lg:flex lg:w-auto lg:flex-wrap lg:gap-2">
+          <div className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-4 lg:flex lg:w-auto lg:flex-wrap lg:gap-2">
             {CONSOLE_TABS.map((tab) => {
               const isActive =
                 pathname === tab.href || pathname.startsWith(`${tab.href}/`);

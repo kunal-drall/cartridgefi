@@ -21,7 +21,8 @@
     "clippy:programs": "cargo clippy --all-targets -- -D warnings",
     "clippy:services": "cargo clippy --manifest-path services/Cargo.toml --all-targets -- -D warnings",
     "skills:check": "npx skills check",
-    "prove:devnet": "CARTRIDGEFI_STANDALONE_DEV=false node scripts/prove-devnet-live.ts"
+    "prove:devnet": "CARTRIDGEFI_STANDALONE_DEV=false node scripts/prove-devnet-live.ts",
+    "prove:blitz": "CARTRIDGEFI_STANDALONE_DEV=false node scripts/prove-magicblock-blitz.ts"
   },
   "devDependencies": {
     "@cartridgefi/codama-clients": "workspace:*",

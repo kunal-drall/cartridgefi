@@ -1,13 +1,13 @@
-# CartridgeFi — The Entertainment Finance Game Engine on Solana & MagicBlock
+# CartridgeFi Protocol — Entertainment Finance Infrastructure (`Infra + DeFi + Privacy`) on Solana & MagicBlock
 
-**CartridgeFi** is the universal Entertainment Finance Game Engine on **Solana** and **MagicBlock Ephemeral Rollups (ERs) & Private Ephemeral Rollups (PER / Intel TDX TEE)**—turning perpetuals, prediction markets, and tokenized equities into `10ms`, zero-popup multiplayer skill games.
+**CartridgeFi** (`v0.1.0-blitz-protocol`) is a parameterized **Entertainment Finance Protocol** on **Solana** and **MagicBlock Ephemeral Rollups (ERs) & Private Ephemeral Rollups (PER / Intel TDX TEE)**—providing `10ms` delegated state shards, zero-popup session keys, TEE anti-copy-trading permissions, verifiable randomness (`VRF`), private eSPL fee routing, and non-custodial multi-venue settlement.
 
-Proven live on Solana Devnet + MagicBlock Router (`https://devnet-router.magicblock.app`) by:
-- **Borel (`#001`)** — Our First-Party Studio Flagship Game executing Solana RFS #11 (*Game-Day Mode for Prediction Markets*), RFS #3 (*Earned Stock Vault*), and RFS #7 (*Perps & Onchain Trading*). Features multiplayer Blind Conviction Blitz arenas where rival allocations stay hardware-encrypted inside a MagicBlock Private ER ("Fog of War") for the first 75% of the clock before unsealing live on screen in the final Showdown, paying winners in `NVDAx`, `ANTx`, `SPYx`, or `USDC`.
-- **Pulse Runner (`#002`)** — A 60fps 3-lane arcade volatility runner proving that radically different game genres execute against the **exact same parameterized Anchor programs** without writing custom smart contracts.
-- **Web Vibe-Coding Studio (`/studio`) + `<CartridgeDeck/>` Wallet SDK + Agentic Stack (`SKILL.md` + `@cartridgefi/mcp` + CLI)** — Compile natural-language game prompts into `CartridgeManifest v2.0` PDAs, run 500-tick fixed-point solvency simulations, embed 15-line mini-apps inside partner wallets (`40% / 30% / 30%` fee split), or build via Claude Code, Cursor, and Codex (`50% / 50%` creator fee split).
+Verified 100% live on Solana Devnet (`https://api.devnet.solana.com`), MagicBlock Router (`https://devnet-router.magicblock.app`), and Intel TDX Private ER (`https://devnet-tee.magicblock.app`):
+- **Protocol Inspector & Live Execution Console (`/protocol`)** — Technical verification dashboard displaying live Devnet Program IDs, ER/TEE RPC latency probes, canonical `platformFeeAccount` SPL fee counter, and clickable Solscan transaction proofs.
+- **Reference Harness `#001`: Borel (`/play/borel`)** — End-to-end protocol integration demo exercising delegated ER `RoomShard`s, 75% Intel TDX Fog-of-War -> Showdown unseal, VRF settlement, and claim-time payout routing (`NVDAx`, `ANTx`, `SPYx`, `USDC`).
+- **Reference Harness `#002`: Pulse Runner (`/play/pulse-runner`) + Vibe Studio (`/studio`) + Agentic Stack (`SKILL.md` + `@cartridgefi/mcp` + CLI)** — Demonstrates multi-genre execution against the exact same 4 parameterized Anchor programs without custom smart contracts.
 
-> **Live On-Chain Proof:** See [`docs/DEVNET_PROOF.md`](./docs/DEVNET_PROOF.md) for verified Solana Devnet Program IDs, binary rent audit, explicit `platformFeeAccount`, and live Solscan Devnet + MagicBlock ER transaction links (`CARTRIDGEFI_STANDALONE_DEV=false`).
+> **Live On-Chain Proof (`CARTRIDGEFI_STANDALONE_DEV=false`):** See [`docs/DEVNET_PROOF.md`](./docs/DEVNET_PROOF.md) and [`apps/web/src/data/devnet-proof.json`](./apps/web/src/data/devnet-proof.json) for all 33 confirmed Devnet + ER + TEE transactions.
 
 ---
 
@@ -15,8 +15,8 @@ Proven live on Solana Devnet + MagicBlock Router (`https://devnet-router.magicbl
 
 ```mermaid
 flowchart TB
-  subgraph Client["Players, Creators & AI Coding Agents"]
-    Web["Flagship Web Console\n/ · /play/borel · /play/pulse-runner · /studio"]
+  subgraph Client["Engineers, Creators & AI Coding Agents"]
+    Web["Protocol Console & Harnesses\n/protocol · /play/borel · /play/pulse-runner · /studio"]
     Deck["CartridgeDeck & BorelArena\n15-Line Partner Wallet SDK (40/30/30)"]
     Agents["Claude Code · Cursor · Codex\nnpx skills add + @cartridgefi/mcp v2 + CLI"]
   end
@@ -27,16 +27,16 @@ flowchart TB
     Keepers["cartridge-keeper-bots\nAutonomous Crank + 3 AI Pacer Bots"]
   end
 
-  subgraph MagicBlock["MagicBlock Ephemeral Rollups & Private ER (10ms)"]
+  subgraph MagicBlock["MagicBlock Ephemeral Rollups & Intel TDX Private ER (10ms)"]
     Router["Magic Router\ndevnet-router.magicblock.app"]
-    PER["Delegated RoomShard & PlayerStance\nACLseoPoy... Fog-of-War -> Showdown Unseal"]
+    PER["Delegated RoomShard, PlayerStance & eSPL\nACLseoPoy... + SPLxh1LV... (devnet-tee)"]
     OracleVRF["Live Pricing Oracle (PriCems...)\n+ Ephemeral VRF Queue (Vrf1RNU...)"]
   end
 
-  subgraph SolanaL1["Solana L1 Canonical Settlement (~150ms Alpenglow / 400ms)"]
-    Registry["cartridge_registry\nEngineConfig + CartridgeManifestAccount PDAs"]
+  subgraph SolanaL1["Solana L1 Canonical Settlement"]
+    Registry["cartridge_registry\nEngineConfig + Canonical platformFeeAccount ATA"]
     ERRoom["cartridge_er_room\n#[ephemeral] Delegation + 4 i128 (10^9) Skill Formulas"]
-    Vault["cartridge_vault_router\nSessionRiskEnvelope + Harmonic Shapley + Stock Prize Menu"]
+    Vault["cartridge_vault_router\nSessionRiskEnvelope + Harmonic Shapley + Fee Split"]
     Passport["cartridge_passport\nPortable Market ELO + xStocks Eligibility Bitmask"]
   end
 
@@ -55,17 +55,18 @@ flowchart TB
 
 ---
 
-## Deployed Solana Devnet Programs & MagicBlock Constants
+## Deployed Solana Devnet Programs, Relayer & `platformFeeAccount`
 
 | Component | Pubkey / Endpoint | Role |
 | :--- | :--- | :--- |
-| **`cartridge-registry`** | `5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr` | `EngineConfig` (`platform_fee_account`, guarded beta `$500` room / `$5,000` global TVL caps) & parameterized `CartridgeManifestAccount` PDAs |
-| **`cartridge-er-room`** | `Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR` | 200-player `RoomShard`, MagicBlock Delegation, PER Fog-of-War permissions, `ScheduleCrankCpi`, scoped `#[vrf]`/`#[vrf_callback]`, `MagicIntentBundleBuilder`, & 4 `i128` (`10^9`) skill formulas |
-| **`cartridge-vault-router`** | `6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT` | Non-custodial `SessionRiskEnvelope` (`<= 5x` leverage, session-key custody isolation), Harmonic Shapley payouts, `50/50` & `40/30/30` fee splits, & Claim-Time Stock Prize Menu (`NVDAx`, `ANTx`, `SPYx`, `USDC`) |
-| **`cartridge-passport`** | `5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr` | Portable Cross-Game Market ELO (`i128` `10^9`) & Geo/xStocks Eligibility Bitmask |
-| **MagicBlock Delegation** | `DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh` | Base-layer account delegation & ER commit/undelegation |
-| **MagicBlock Permission (PER)** | `ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1` | ER-local `EphemeralPermission` (`is_private = true` Fog-of-War -> `false` Showdown) |
-| **MagicBlock Devnet Router** | `https://devnet-router.magicblock.app` | Dynamic ER validator routing, blockhash resolution & 0-SOL session-key execution |
+| **`cartridge_er_room` (P1)** | `Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR` | `435,080 B` · Delegated `RoomShard` & `PlayerStance`, PER permissions, VRF request/callback, `MagicIntentBundleBuilder`, & 4 `i128` (`10^9`) formulas |
+| **`cartridge_vault_router` (P2)** | `6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT` | `373,232 B` · Non-custodial `SessionRiskEnvelope`, Harmonic Shapley payouts, `50/50` & `40/30/30` fee splits into `platformFeeAccount` |
+| **`cartridge_registry` (P3)** | `5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr` | `188,752 B` · `EngineConfig` (`platform_fee_account`, TVL caps) & parameterized `CartridgeManifestAccount` PDAs |
+| **`cartridge_passport` (P4)** | `5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr` | `182,040 B` · Portable Cross-Game Market ELO (`i128` `10^9`) & Geo/xStocks Eligibility Bitmask |
+| **Relayer / App Wallet** | `D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1` | Executes TEE authentication, `delegateSpl`, private fee-paying eSPL transfers, and `withdrawSpl` |
+| **`platformFeeAccount` (Canonical ATA)** | `6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir` | Canonical SPL ATA of treasury owner `Giyjg9VusfUXJbNYT2W3gRHpfFPez1kPAE5YcWsmNjPd` for Devnet SPL mint `F6chXtYN1UUtxY1eNcbjnRDqnMWVYNUtqUqiy52pzWm1` |
+| **MagicBlock Delegation / PER / eSPL** | `DELeGGvX...` · `ACLseoPo...` · `SPLxh1LV...` | Account delegation, ER-local permissions, and encrypted Magic ATA private SPL transfers |
+| **MagicBlock Router & Private TEE** | `https://devnet-router.magicblock.app` · `https://devnet-tee.magicblock.app` | Dynamic ER routing (`10ms`) & Intel TDX hardware-encrypted execution |
 
 ---
 
@@ -113,7 +114,7 @@ export function PartnerWalletMiniApp({ userWallet }: { userWallet: string }) {
     <CartridgeDeck
       cartridgeSlug="borel-blind-conviction-blitz-001"
       partnerWallet={userWallet}
-      partnerFeeVault="6eLQk7Y5YeZ1E3BwUYWVbD6PLpDffLzWZ3MPodQXVK8M"
+      partnerFeeVault="6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir"
       mode="PAPER"
     />
   );
@@ -143,11 +144,11 @@ pnpm test:litesvm
 pnpm clippy:services
 pnpm test:services
 
-# 5. Deploy sequentially to Solana Devnet & execute live MagicBlock ER E2E proof
+# 5. Priority-ordered Devnet deploy & full MagicBlock Blitz v10 on-chain proof
 ./scripts/deploy-devnet.sh
-pnpm prove:devnet
+pnpm prove:blitz
 
-# 6. Run Playwright Desktop (1440x900) & Mobile (390x844) headless E2E suite
+# 6. Run Playwright Desktop (1440x900) & Mobile (390x844) headless E2E suite (incl. /protocol)
 pnpm test:e2e
 ```
 

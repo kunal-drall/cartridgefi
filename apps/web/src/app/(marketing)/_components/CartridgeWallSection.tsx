@@ -35,7 +35,7 @@ const TELEMETRY_BY_SLUG: Record<string, CartridgeLiveTelemetry> = {
     baseCreatorEarnedAtomicUsdc: 18_420_500_000n,
     stepFeeAtomicUsdc: 2_500_000n,
     playHref: "/play/borel",
-    badgeLabel: "First-Party Flagship",
+    badgeLabel: "Reference Harness #001",
   },
   "pulse-runner-nvda-sol": {
     slotCode: "#002",

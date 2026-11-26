@@ -80,7 +80,9 @@ export async function POST(req: Request): Promise<NextResponse> {
 
   const configuredApi =
     process.env.CARTRIDGEFI_API_URL ?? process.env.NEXT_PUBLIC_CORE_API_URL;
-  if (Boolean(configuredApi) || process.env.VERCEL !== "1") {
+  const isServerlessFrontend =
+    process.env.VERCEL === "1" || Boolean(process.env.K_SERVICE);
+  if (Boolean(configuredApi) || !isServerlessFrontend) {
     try {
       const upstream = await fetch(`${configuredApi ?? CORE_API_URL}/v1/rooms/deploy`, {
         method: "POST",

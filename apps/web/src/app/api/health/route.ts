@@ -12,10 +12,12 @@ const DEVNET_RPC_URL =
   process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
 
 export async function GET(): Promise<NextResponse> {
-  // When running on Vercel without an external `core-api` daemon URL configured,
-  // skip localhost probing and verify live Solana Devnet RPC directly.
+  // When running on Cloud Run (`K_SERVICE`) or Vercel (`VERCEL=1`) without an external
+  // `core-api` daemon URL configured, skip localhost probing and verify live Solana Devnet RPC directly.
+  const isServerlessFrontend =
+    process.env.VERCEL === "1" || Boolean(process.env.K_SERVICE);
   const shouldProbeCoreApi =
-    Boolean(CONFIGURED_CORE_API) || process.env.VERCEL !== "1";
+    Boolean(CONFIGURED_CORE_API) || !isServerlessFrontend;
 
   if (shouldProbeCoreApi) {
     try {

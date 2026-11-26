@@ -1,0 +1,47 @@
+# Dependencies & build caches
+node_modules
+**/node_modules
+.next
+**/.next
+dist
+**/dist
+.turbo
+**/.turbo
+out
+**/*.tsbuildinfo
+
+# Rust & Anchor (not needed for frontend Cloud Run image)
+target
+**/target
+programs
+services
+tests/onchain
+.anchor
+Cargo.lock
+Cargo.toml
+Anchor.toml
+
+# Git, keys & local secrets (NEVER include in image)
+.git
+.gitignore
+.keys
+**/.keys
+*.keypair.json
+*-keypair.json
+**/*.keypair.json
+**/*-keypair.json
+id.json
+**/id.json
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# E2E artifacts & logs
+*.log
+playwright-report
+test-results
+tests/e2e/screenshots
+tests/e2e/test-results

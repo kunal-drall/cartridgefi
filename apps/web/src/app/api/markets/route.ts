@@ -10,7 +10,9 @@ const CONFIGURED_CORE_API =
 const CORE_API_URL = CONFIGURED_CORE_API ?? "http://127.0.0.1:8787";
 
 export async function GET(): Promise<NextResponse> {
-  if (Boolean(CONFIGURED_CORE_API) || process.env.VERCEL !== "1") {
+  const isServerlessFrontend =
+    process.env.VERCEL === "1" || Boolean(process.env.K_SERVICE);
+  if (Boolean(CONFIGURED_CORE_API) || !isServerlessFrontend) {
     try {
       const upstream = await fetch(`${CORE_API_URL}/v1/markets/discover`, {
         signal: AbortSignal.timeout(2000),

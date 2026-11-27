@@ -4,7 +4,7 @@ use anchor_lang::prelude::*;
 
 const _: fn() -> usize = ::anchor_lang::solana_program::instruction::get_stack_height;
 
-declare_id!("5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr");
+declare_id!("B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF");
 
 pub const SCALE: i128 = 1_000_000_000;
 pub const DEFAULT_ELO_SCALED: i128 = 1_200 * SCALE;

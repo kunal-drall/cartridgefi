@@ -12,7 +12,7 @@ import { getCartridgeManifestAccountCodec, getEngineConfigCodec, type CartridgeM
 import { getInitializeEngineConfigInstructionAsync, getRecordRoomCreatedInstructionAsync, getRegisterCartridgeInstructionAsync, getSyncGlobalTvlInstructionAsync, getUpdateEngineConfigInstructionAsync, parseInitializeEngineConfigInstruction, parseRecordRoomCreatedInstruction, parseRegisterCartridgeInstruction, parseSyncGlobalTvlInstruction, parseUpdateEngineConfigInstruction, type InitializeEngineConfigAsyncInput, type ParsedInitializeEngineConfigInstruction, type ParsedRecordRoomCreatedInstruction, type ParsedRegisterCartridgeInstruction, type ParsedSyncGlobalTvlInstruction, type ParsedUpdateEngineConfigInstruction, type RecordRoomCreatedAsyncInput, type RegisterCartridgeAsyncInput, type SyncGlobalTvlAsyncInput, type UpdateEngineConfigAsyncInput } from '../instructions/index.js';
 import { findEngineConfigPda } from '../pdas/index.js';
 
-export const CARTRIDGE_REGISTRY_PROGRAM_ADDRESS = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr" as Address<"5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr">;
+export const CARTRIDGE_REGISTRY_PROGRAM_ADDRESS = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc" as Address<"BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc">;
 
 export enum CartridgeRegistryAccount { CartridgeManifestAccount, EngineConfig }
 
@@ -45,7 +45,7 @@ if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Arr
     throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION, { instructionData: data, programName: "cartridgeRegistry" });
 }
 
-export type ParsedCartridgeRegistryInstruction<TProgram extends string = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"> =
+export type ParsedCartridgeRegistryInstruction<TProgram extends string = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc"> =
 | { instructionType: CartridgeRegistryInstruction.InitializeEngineConfig } & ParsedInitializeEngineConfigInstruction<TProgram>
 | { instructionType: CartridgeRegistryInstruction.RecordRoomCreated } & ParsedRecordRoomCreatedInstruction<TProgram>
 | { instructionType: CartridgeRegistryInstruction.RegisterCartridge } & ParsedRegisterCartridgeInstruction<TProgram>

@@ -28,6 +28,8 @@ export interface HandReceiptProps {
   /** Solscan URL of the round's on-chain transaction, when one exists. */
   explorerUrl?: string;
   signature?: string;
+  /** Connected wallet (short form) shown as the player; omitted when no wallet is connected. */
+  playerLabel?: string;
 }
 
 const W = 1200;
@@ -55,7 +57,7 @@ export function receiptGlyphs(legs: readonly ReceiptLeg[]): string {
 
 export function buildShareText(props: HandReceiptProps): string {
   const lines = [
-    `Borel ${props.roomCode} · ${props.modeLabel} · ${props.stakeLabel}`,
+    `Borel ${props.roomCode} · ${props.playerLabel ? `${props.playerLabel} · ` : ""}${props.modeLabel} · ${props.stakeLabel}`,
     `${receiptGlyphs(props.legs)}  #${props.rank}/${props.totalSeats}  ${formatScorePctPrecise(props.scoreE9)}`,
     props.explorerUrl ?? "Paper round · no on-chain transaction",
   ];
@@ -173,7 +175,7 @@ export function HandReceipt(props: HandReceiptProps): React.JSX.Element {
           {props.roomCode}
         </text>
         <text x={W - M} y={104} fill="#6b7280" fontFamily={MONO} fontSize={13} textAnchor="end">
-          {props.modeLabel} · {props.stakeLabel}
+          {props.playerLabel ? `${props.playerLabel} · ` : ""}{props.modeLabel} · {props.stakeLabel}
         </text>
         <line x1={M} y1={128} x2={W - M} y2={128} stroke="#303642" />
 

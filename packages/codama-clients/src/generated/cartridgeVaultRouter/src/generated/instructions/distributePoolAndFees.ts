@@ -15,7 +15,7 @@ export const DISTRIBUTE_POOL_AND_FEES_DISCRIMINATOR: ReadonlyUint8Array = new Ui
 
 export function getDistributePoolAndFeesDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(DISTRIBUTE_POOL_AND_FEES_DISCRIMINATOR); }
 
-export type DistributePoolAndFeesInstruction<TProgram extends string = typeof CARTRIDGE_VAULT_ROUTER_PROGRAM_ADDRESS, TAccountAuthority extends string | AccountMeta<string> = string, TAccountRoomVault extends string | AccountMeta<string> = string, TAccountRoomShard extends string | AccountMeta<string> = string, TAccountUsdcMint extends string | AccountMeta<string> = string, TAccountVaultUsdcToken extends string | AccountMeta<string> = string, TAccountPlatformFeeAccount extends string | AccountMeta<string> = string, TAccountCreatorFeeVault extends string | AccountMeta<string> = string, TAccountPartnerFeeVault extends string | AccountMeta<string> = string, TAccountEngineConfig extends string | AccountMeta<string> = string, TAccountVaultRouterAuth extends string | AccountMeta<string> = string, TAccountRegistryProgram extends string | AccountMeta<string> = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr", TAccountTokenProgram extends string | AccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+export type DistributePoolAndFeesInstruction<TProgram extends string = typeof CARTRIDGE_VAULT_ROUTER_PROGRAM_ADDRESS, TAccountAuthority extends string | AccountMeta<string> = string, TAccountRoomVault extends string | AccountMeta<string> = string, TAccountRoomShard extends string | AccountMeta<string> = string, TAccountUsdcMint extends string | AccountMeta<string> = string, TAccountVaultUsdcToken extends string | AccountMeta<string> = string, TAccountPlatformFeeAccount extends string | AccountMeta<string> = string, TAccountCreatorFeeVault extends string | AccountMeta<string> = string, TAccountPartnerFeeVault extends string | AccountMeta<string> = string, TAccountEngineConfig extends string | AccountMeta<string> = string, TAccountVaultRouterAuth extends string | AccountMeta<string> = string, TAccountRegistryProgram extends string | AccountMeta<string> = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc", TAccountTokenProgram extends string | AccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
 Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountAuthority extends string ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountRoomVault extends string ? WritableAccount<TAccountRoomVault> : TAccountRoomVault, TAccountRoomShard extends string ? ReadonlyAccount<TAccountRoomShard> : TAccountRoomShard, TAccountUsdcMint extends string ? ReadonlyAccount<TAccountUsdcMint> : TAccountUsdcMint, TAccountVaultUsdcToken extends string ? WritableAccount<TAccountVaultUsdcToken> : TAccountVaultUsdcToken, TAccountPlatformFeeAccount extends string ? WritableAccount<TAccountPlatformFeeAccount> : TAccountPlatformFeeAccount, TAccountCreatorFeeVault extends string ? WritableAccount<TAccountCreatorFeeVault> : TAccountCreatorFeeVault, TAccountPartnerFeeVault extends string ? WritableAccount<TAccountPartnerFeeVault> : TAccountPartnerFeeVault, TAccountEngineConfig extends string ? WritableAccount<TAccountEngineConfig> : TAccountEngineConfig, TAccountVaultRouterAuth extends string ? ReadonlyAccount<TAccountVaultRouterAuth> : TAccountVaultRouterAuth, TAccountRegistryProgram extends string ? ReadonlyAccount<TAccountRegistryProgram> : TAccountRegistryProgram, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, ...TRemainingAccounts]>;
 
 export type DistributePoolAndFeesInstructionData = { discriminator: ReadonlyUint8Array;  };
@@ -64,7 +64,7 @@ const accounts = originalAccounts as Record<keyof typeof originalAccounts, Resol
 
 // Resolve default values.
 if (!accounts.registryProgram.value) {
-accounts.registryProgram.value = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr" as Address<"5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr">;
+accounts.registryProgram.value = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc" as Address<"BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc">;
 }
 if (!accounts.engineConfig.value) {
 accounts.engineConfig.value = await findEngineConfigPda({ programAddress: getAddressFromResolvedInstructionAccount("registryProgram", accounts.registryProgram.value) });
@@ -109,7 +109,7 @@ const accounts = originalAccounts as Record<keyof typeof originalAccounts, Resol
 
 // Resolve default values.
 if (!accounts.registryProgram.value) {
-accounts.registryProgram.value = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr" as Address<"5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr">;
+accounts.registryProgram.value = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc" as Address<"BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc">;
 }
 if (!accounts.tokenProgram.value) {
 accounts.tokenProgram.value = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address<"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">;

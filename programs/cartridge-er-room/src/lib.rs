@@ -25,7 +25,7 @@ use ephemeral_rollups_sdk::vrf::{
 };
 use ephemeral_rollups_sdk::{compat, ActionArgs, ShortAccountMeta};
 
-declare_id!("Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR");
+declare_id!("DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W");
 
 pub const SCALE: i128 = 1_000_000_000;
 pub const BPS_TO_SCALE: i128 = 100_000; // 10_000 bps * 100_000 = 1_000_000_000
@@ -40,9 +40,9 @@ pub const SEED_ROOM_SHARD: &[u8] = b"room_shard";
 pub const SEED_PLAYER_STANCE: &[u8] = b"player_stance";
 pub const CRANK_EXECUTOR_SEED: &[u8] = b"crank-executor";
 
-pub const CARTRIDGE_REGISTRY_ID: Pubkey = pubkey!("5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr");
+pub const CARTRIDGE_REGISTRY_ID: Pubkey = pubkey!("BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc");
 pub const CARTRIDGE_VAULT_ROUTER_ID: Pubkey =
-    pubkey!("6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT");
+    pubkey!("Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR");
 pub const PRICING_ORACLE_PROGRAM_ID: Pubkey =
     pubkey!("PriCems5tHihc6UDXDjzjeawomAwBduWMGAi8ZUjppd");
 pub const PYTH_RECEIVER_PROGRAM_ID: Pubkey = pubkey!("rec5EKMGg6MxZYaMdyBfgwp4d5rB9T1VQH5pJv5LtFJ");

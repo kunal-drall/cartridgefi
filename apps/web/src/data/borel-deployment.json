@@ -1,0 +1,23 @@
+{
+  "cluster": "devnet",
+  "deployedAt": "2026-11-27T11:58:20.572Z",
+  "authority": "Fc54gfodfqwq8QZe8M1Zy5ARYdYE7skRynVJGA4UYmWg",
+  "programs": {
+    "registry": "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc",
+    "erRoom": "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W",
+    "vaultRouter": "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR",
+    "passport": "B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF"
+  },
+  "testUsdcMint": "32CRMQ5gBzDv45kAKXVNLb7qfvoPAxRNp6dnnhkUnRtw",
+  "testUsdcDecimals": 6,
+  "treasury": "DaQPvQ4Ewg7oK3Tgubkg8Rz54t8SBkCWrAjCCUzK2kcX",
+  "platformFeeAccount": "6LU5nN8fAbezBnsx8nLhAxvnY7KJc697fLW67qUnfrn8",
+  "engineConfig": "7NE1vxxMpPNBTmY9b22fbZ2gkP9vEDc3ck35T5aNqZin",
+  "passportConfig": "DHhQBaL5ybFbWrRvTjhk95wsgpW23oNUQ8SQ5wn6vVpn",
+  "initSignatures": {
+    "createMint": "5CCMViMUZwXFqtECuVGf97fDGFDEwsbGkgHYaWYN8bnoYAtYadYZCNQEu3vyvnXKctZmwEXGD3GmTwkQQYkpgX3p",
+    "createPlatformFeeAccount": "29faSabSB4kvnYVAQEiwjZfKKketHSpeTPVTqSiz7Kvtvq8BQiEc6zoGgpeNjjtHpiPDSqQSMszpyWn2qNp2KxWs",
+    "initializeEngineConfig": "62NTWmBafL3Qiar8vddPmD5MptqKpjNBooZJLnXmvytQSc3VizG7tSvEBgRRFd3yGh8a8nWCKkBdTkspbqMVtLYV",
+    "initializePassportConfig": "3wYduGC2YniZ1GdzgZvybj1bQMCFiNBggWC4NuPiyHU2qBJkMHdqtiUphhPEqQWamvHE7ZGpD77EXDrb3TFF3bkG"
+  }
+}

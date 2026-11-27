@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Wallet } from "lucide-react";
 import { cn, shortenAddress } from "@/lib/utils";
+import { WalletConnectButton } from "@/components/wallet/WalletConnect";
 import {
   formatAtomicUsdc,
   formatSolLamports,
@@ -93,6 +94,7 @@ export function ConsoleShellHeader(): React.JSX.Element {
 
         {/* Right Live Network Readout & Wallet / Margin Control */}
         <div className="flex items-center gap-2 shrink-0">
+          <WalletConnectButton />
           <button
             id="console-vault-cashier-btn"
             type="button"

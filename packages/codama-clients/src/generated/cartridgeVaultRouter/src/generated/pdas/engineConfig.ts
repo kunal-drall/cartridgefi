@@ -9,7 +9,7 @@
 import { getBytesEncoder, getProgramDerivedAddress, type Address, type HasAddress, type ProgramDerivedAddress } from '@solana/kit';
 
 export async function findEngineConfigPda(config: { programAddress?: Address | HasAddress | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress: programAddressInput = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT" as Address<"6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"> } = config;
+  const { programAddress: programAddressInput = "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR" as Address<"Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR"> } = config;
   const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([101, 110, 103, 105, 110, 101, 95, 99, 111, 110, 102, 105, 103]))]});
 }

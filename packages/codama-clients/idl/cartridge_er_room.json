@@ -1,5 +1,5 @@
 {
-  "address": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR",
+  "address": "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W",
   "metadata": {
     "name": "cartridge_er_room",
     "version": "0.1.0",
@@ -317,7 +317,7 @@
         },
         {
           "name": "owner_program",
-          "address": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
+          "address": "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W"
         },
         {
           "name": "delegation_program",
@@ -692,7 +692,7 @@
         },
         {
           "name": "owner_program",
-          "address": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
+          "address": "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W"
         },
         {
           "name": "delegation_program",
@@ -1261,7 +1261,7 @@
         },
         {
           "name": "vault_router_program",
-          "address": "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"
+          "address": "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR"
         },
         {
           "name": "magic_program",

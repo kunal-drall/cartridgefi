@@ -8,22 +8,22 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-cartridge_registry = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
-cartridge_er_room = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
-cartridge_vault_router = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"
-cartridge_passport = "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr"
+cartridge_registry = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc"
+cartridge_er_room = "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W"
+cartridge_vault_router = "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR"
+cartridge_passport = "B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF"
 
 [programs.devnet]
-cartridge_registry = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
-cartridge_er_room = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
-cartridge_vault_router = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"
-cartridge_passport = "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr"
+cartridge_registry = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc"
+cartridge_er_room = "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W"
+cartridge_vault_router = "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR"
+cartridge_passport = "B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF"
 
 [programs.mainnet]
-cartridge_registry = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
-cartridge_er_room = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
-cartridge_vault_router = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"
-cartridge_passport = "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr"
+cartridge_registry = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc"
+cartridge_er_room = "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W"
+cartridge_vault_router = "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR"
+cartridge_passport = "B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF"
 
 [registry]
 url = "https://api.apr.dev"

@@ -13,7 +13,7 @@ playerStance: Address | HasAddress;
 };
 
 export async function findDelegationMetadataPlayerStancePda(seeds: DelegationMetadataPlayerStanceSeeds, config: { programAddress?: Address | HasAddress | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress: programAddressInput = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR" as Address<"Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"> } = config;
+  const { programAddress: programAddressInput = "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W" as Address<"DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W"> } = config;
   const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([100, 101, 108, 101, 103, 97, 116, 105, 111, 110, 45, 109, 101, 116, 97, 100, 97, 116, 97])), getAddressEncoder().encode(seeds.playerStance)]});
 }

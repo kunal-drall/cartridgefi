@@ -1,5 +1,6 @@
 import { generateKeyPairSigner, type KeyPairSigner } from "@solana/kit";
 import * as client from "@/lib/borel/client";
+import { authorizeWalletForRoom } from "@/lib/wallet/identity";
 import type {
   ChainReceipt,
   LegIndex,
@@ -38,7 +39,8 @@ let sessionSignerPromise: Promise<KeyPairSigner> | null = null;
 
 /**
  * Ephemeral per-tab ed25519 session key. The relayer signs and pays for transactions; this key signs
- * each lock / pivot request so the relayer only acts for its holder. No wallet popup is needed.
+ * each lock / pivot request so the relayer only acts for its holder. When a wallet is connected, the
+ * wallet delegates this key once at join (see authorizeWalletForRoom); no further popups are needed.
  */
 function sessionSigner(): Promise<KeyPairSigner> {
   sessionSignerPromise ??= generateKeyPairSigner();
@@ -61,7 +63,13 @@ function lastReceipt(receipts: readonly ChainReceipt[], fallback: string): Chain
 }
 
 export async function chainJoin(mode: RoomMode): Promise<JoinStep> {
-  const r = await client.joinRoom({ mode, stake: "DEVNET", sessionPubkey: await sessionPubkey() });
+  const session = await sessionPubkey();
+  const r = await client.joinRoom({ mode, stake: "DEVNET", sessionPubkey: session });
+  // With a connected wallet, the wallet signs ONE delegation of this session key for this room, so the
+  // player identity is the wallet while later locks / pivots stay popup-free. Anonymous play is unchanged.
+  if (client.isBorelOk(r)) {
+    await authorizeWalletForRoom({ roomId: r.roomId, sessionPubkey: session, roomEndsAt: r.endsAt });
+  }
   if (client.isBorelOk(r)) {
     return {
       outcome: lastReceipt(r.receipts, "joined · no transaction yet"),

@@ -1,5 +1,5 @@
 {
-  "address": "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT",
+  "address": "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR",
   "metadata": {
     "name": "cartridge_vault_router",
     "version": "0.1.0",
@@ -182,7 +182,7 @@
         },
         {
           "name": "registry_program",
-          "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+          "address": "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc"
         },
         {
           "name": "token_program"
@@ -320,14 +320,14 @@
         },
         {
           "name": "registry_program",
-          "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+          "address": "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc"
         },
         {
           "name": "token_program"
         },
         {
           "name": "source_program",
-          "address": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"
+          "address": "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W"
         },
         {
           "name": "escrow_auth"
@@ -471,7 +471,7 @@
         },
         {
           "name": "registry_program",
-          "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+          "address": "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc"
         },
         {
           "name": "token_program"
@@ -634,7 +634,7 @@
         },
         {
           "name": "registry_program",
-          "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+          "address": "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc"
         },
         {
           "name": "token_program"
@@ -811,7 +811,7 @@
         },
         {
           "name": "registry_program",
-          "address": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr"
+          "address": "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc"
         },
         {
           "name": "token_program"

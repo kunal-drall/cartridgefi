@@ -12,7 +12,7 @@ import { getMarketPassportCodec, getPassportConfigCodec, type MarketPassport, ty
 import { getInitializePassportConfigInstructionAsync, getInitializePassportInstructionAsync, getRecordEloAndVaultCreditInstructionAsync, getUpdateEligibilityBitmaskInstructionAsync, parseInitializePassportConfigInstruction, parseInitializePassportInstruction, parseRecordEloAndVaultCreditInstruction, parseUpdateEligibilityBitmaskInstruction, type InitializePassportAsyncInput, type InitializePassportConfigAsyncInput, type ParsedInitializePassportConfigInstruction, type ParsedInitializePassportInstruction, type ParsedRecordEloAndVaultCreditInstruction, type ParsedUpdateEligibilityBitmaskInstruction, type RecordEloAndVaultCreditAsyncInput, type UpdateEligibilityBitmaskAsyncInput } from '../instructions/index.js';
 import { findPassportConfigPda, findPassportPda } from '../pdas/index.js';
 
-export const CARTRIDGE_PASSPORT_PROGRAM_ADDRESS = "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr" as Address<"5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr">;
+export const CARTRIDGE_PASSPORT_PROGRAM_ADDRESS = "B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF" as Address<"B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF">;
 
 export enum CartridgePassportAccount { MarketPassport, PassportConfig }
 
@@ -44,7 +44,7 @@ if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Arr
     throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION, { instructionData: data, programName: "cartridgePassport" });
 }
 
-export type ParsedCartridgePassportInstruction<TProgram extends string = "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr"> =
+export type ParsedCartridgePassportInstruction<TProgram extends string = "B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF"> =
 | { instructionType: CartridgePassportInstruction.InitializePassport } & ParsedInitializePassportInstruction<TProgram>
 | { instructionType: CartridgePassportInstruction.InitializePassportConfig } & ParsedInitializePassportConfigInstruction<TProgram>
 | { instructionType: CartridgePassportInstruction.RecordEloAndVaultCredit } & ParsedRecordEloAndVaultCreditInstruction<TProgram>

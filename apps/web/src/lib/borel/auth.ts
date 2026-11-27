@@ -29,3 +29,53 @@ export function borelAuthMessage(fields: {
 }): Uint8Array {
   return new TextEncoder().encode(`borel-auth:v1:${canonical(fields)}`);
 }
+
+/**
+ * Wallet delegation: a real wallet (Phantom, Solflare, Backpack, ...) signs ONE human-readable message at
+ * join authorizing the ephemeral session key for one room, so later locks and pivots stay popup-free.
+ * The server verifies the wallet's ed25519 signature before treating the session as the wallet's.
+ */
+export interface WalletDelegation {
+  walletAddress: string;
+  roomId: string;
+  /** Epoch ms after which the delegation is void. */
+  expiresAt: number;
+  /** Base58 ed25519 signature by `walletAddress` over borelWalletDelegationMessage(...). */
+  signature: string;
+}
+
+/** A delegation never outlives this window (rooms run 3–15 min). */
+export const WALLET_DELEGATION_MAX_TTL_MS = 2 * 60 * 60 * 1000;
+
+export function borelWalletDelegationMessage(fields: {
+  roomId: string;
+  sessionPubkey: string;
+  walletAddress: string;
+  expiresAt: number;
+}): Uint8Array {
+  return new TextEncoder().encode(
+    [
+      "Borel wants you to authorize a session key for one Devnet room.",
+      "This signature sends no transaction and costs nothing.",
+      "",
+      `borel-wallet-delegation:v1:${canonical(fields)}`,
+    ].join("\n"),
+  );
+}
+
+const delegations = new Map<string, WalletDelegation>();
+const delegationKey = (roomId: string, sessionPubkey: string) => `${roomId}|${sessionPubkey}`;
+
+/** Client-side registry: remembers the delegation so signed lock/pivot requests carry it. */
+export function rememberWalletDelegation(sessionPubkey: string, delegation: WalletDelegation): void {
+  delegations.set(delegationKey(delegation.roomId, sessionPubkey), delegation);
+}
+
+export function walletDelegationFor(roomId: string, sessionPubkey: string): WalletDelegation | undefined {
+  const d = delegations.get(delegationKey(roomId, sessionPubkey));
+  if (d && d.expiresAt <= Date.now()) {
+    delegations.delete(delegationKey(roomId, sessionPubkey));
+    return undefined;
+  }
+  return d;
+}

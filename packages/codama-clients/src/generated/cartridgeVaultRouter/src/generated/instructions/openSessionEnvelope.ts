@@ -15,7 +15,7 @@ export const OPEN_SESSION_ENVELOPE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8
 
 export function getOpenSessionEnvelopeDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(OPEN_SESSION_ENVELOPE_DISCRIMINATOR); }
 
-export type OpenSessionEnvelopeInstruction<TProgram extends string = typeof CARTRIDGE_VAULT_ROUTER_PROGRAM_ADDRESS, TAccountPlayer extends string | AccountMeta<string> = string, TAccountEngineConfig extends string | AccountMeta<string> = string, TAccountRoomVault extends string | AccountMeta<string> = string, TAccountUsdcMint extends string | AccountMeta<string> = string, TAccountVaultUsdcToken extends string | AccountMeta<string> = string, TAccountPlayerUsdcAta extends string | AccountMeta<string> = string, TAccountSessionEnvelope extends string | AccountMeta<string> = string, TAccountVaultRouterAuth extends string | AccountMeta<string> = string, TAccountRegistryProgram extends string | AccountMeta<string> = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr", TAccountTokenProgram extends string | AccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+export type OpenSessionEnvelopeInstruction<TProgram extends string = typeof CARTRIDGE_VAULT_ROUTER_PROGRAM_ADDRESS, TAccountPlayer extends string | AccountMeta<string> = string, TAccountEngineConfig extends string | AccountMeta<string> = string, TAccountRoomVault extends string | AccountMeta<string> = string, TAccountUsdcMint extends string | AccountMeta<string> = string, TAccountVaultUsdcToken extends string | AccountMeta<string> = string, TAccountPlayerUsdcAta extends string | AccountMeta<string> = string, TAccountSessionEnvelope extends string | AccountMeta<string> = string, TAccountVaultRouterAuth extends string | AccountMeta<string> = string, TAccountRegistryProgram extends string | AccountMeta<string> = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc", TAccountTokenProgram extends string | AccountMeta<string> = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
 Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountPlayer extends string ? WritableSignerAccount<TAccountPlayer> & AccountSignerMeta<TAccountPlayer> : TAccountPlayer, TAccountEngineConfig extends string ? WritableAccount<TAccountEngineConfig> : TAccountEngineConfig, TAccountRoomVault extends string ? WritableAccount<TAccountRoomVault> : TAccountRoomVault, TAccountUsdcMint extends string ? ReadonlyAccount<TAccountUsdcMint> : TAccountUsdcMint, TAccountVaultUsdcToken extends string ? WritableAccount<TAccountVaultUsdcToken> : TAccountVaultUsdcToken, TAccountPlayerUsdcAta extends string ? WritableAccount<TAccountPlayerUsdcAta> : TAccountPlayerUsdcAta, TAccountSessionEnvelope extends string ? WritableAccount<TAccountSessionEnvelope> : TAccountSessionEnvelope, TAccountVaultRouterAuth extends string ? ReadonlyAccount<TAccountVaultRouterAuth> : TAccountVaultRouterAuth, TAccountRegistryProgram extends string ? ReadonlyAccount<TAccountRegistryProgram> : TAccountRegistryProgram, TAccountTokenProgram extends string ? ReadonlyAccount<TAccountTokenProgram> : TAccountTokenProgram, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>;
 
 export type OpenSessionEnvelopeInstructionData = { discriminator: ReadonlyUint8Array; principalUsdc: bigint; leverage: number; ephemeralSessionKey: Address;  };
@@ -70,7 +70,7 @@ const args = { ...input,  };
 
 // Resolve default values.
 if (!accounts.registryProgram.value) {
-accounts.registryProgram.value = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr" as Address<"5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr">;
+accounts.registryProgram.value = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc" as Address<"BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc">;
 }
 if (!accounts.engineConfig.value) {
 accounts.engineConfig.value = await findEngineConfigPda({ programAddress: getAddressFromResolvedInstructionAccount("registryProgram", accounts.registryProgram.value) });
@@ -124,7 +124,7 @@ const args = { ...input,  };
 
 // Resolve default values.
 if (!accounts.registryProgram.value) {
-accounts.registryProgram.value = "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr" as Address<"5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr">;
+accounts.registryProgram.value = "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc" as Address<"BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc">;
 }
 if (!accounts.tokenProgram.value) {
 accounts.tokenProgram.value = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" as Address<"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA">;

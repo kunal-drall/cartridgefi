@@ -10,7 +10,7 @@ use cartridge_registry::{
 };
 use ephemeral_rollups_sdk::anchor::action;
 
-declare_id!("6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT");
+declare_id!("Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR");
 
 pub const BPS_DENOM: u128 = 10_000;
 pub const ACTION_ESCROW_INDEX: u8 = 255;
@@ -33,8 +33,8 @@ pub const SEED_SESSION_ENVELOPE: &[u8] = b"session_envelope";
 pub const SEED_VAULT_ROUTER_AUTH: &[u8] = b"vault_router_auth";
 pub const SEED_PASSPORT: &[u8] = b"passport";
 
-pub const ER_ROOM_PROGRAM_ID: Pubkey = pubkey!("Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR");
-pub const PASSPORT_PROGRAM_ID: Pubkey = pubkey!("5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr");
+pub const ER_ROOM_PROGRAM_ID: Pubkey = pubkey!("DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W");
+pub const PASSPORT_PROGRAM_ID: Pubkey = pubkey!("B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF");
 
 pub const CANONICAL_NVDAX_MINT: Pubkey = pubkey!("Xsc9qvGR1efVDFGLrVsmkzv3qi45LTBjeUKSPmx9qEh");
 pub const CANONICAL_SPYX_MINT: Pubkey = pubkey!("XsoCS1TfEyfFhfvj8EtZ528L3CaKBDBRqRapnBbDF2W");

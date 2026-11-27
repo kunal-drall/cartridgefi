@@ -88,7 +88,9 @@ for idx in "${!PROGRAMS[@]}"; do
   prog="${PROGRAMS[$idx]}"
   pdir="${PROGRAM_DIRS[$idx]}"
   KEYPAIR_FILE="${DEPLOY_DIR}/${prog}-keypair.json"
-  if [ ! -f "${KEYPAIR_FILE}" ] && [ -f "${REPO_ROOT}/.keys/${prog}-keypair.json" ]; then
+  if [ -f "${REPO_ROOT}/.keys/programs/${prog}-keypair.json" ]; then
+    cp "${REPO_ROOT}/.keys/programs/${prog}-keypair.json" "${KEYPAIR_FILE}"
+  elif [ ! -f "${KEYPAIR_FILE}" ] && [ -f "${REPO_ROOT}/.keys/${prog}-keypair.json" ]; then
     cp "${REPO_ROOT}/.keys/${prog}-keypair.json" "${KEYPAIR_FILE}"
   fi
   KP_PUB="$(solana-keygen pubkey "${KEYPAIR_FILE}")"

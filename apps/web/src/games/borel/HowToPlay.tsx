@@ -171,27 +171,33 @@ export function PhaseGuide({ phase }: { phase: (typeof PHASE_STEPS)[number]["pha
     <section
       id="borel-phase-guide"
       aria-live="polite"
-      className="flex flex-col gap-2 rounded-lg border border-[#22262e] bg-[#0a0d14] px-4 py-3 md:flex-row md:items-center md:gap-5"
+      className="rounded-xl border border-white/[0.08] bg-[#0a0d14] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
     >
-      <ol className="flex shrink-0 items-center gap-2 font-mono text-[11px]">
+      <ol className="grid grid-cols-3 gap-2">
         {PHASE_STEPS.map((s, i) => (
-          <li key={s.phase} className="flex items-center gap-2">
+          <li key={s.phase} aria-current={i === activeIndex ? "step" : undefined}>
             <span
               className={
                 i === activeIndex
-                  ? "rounded-full bg-[#2563eb] px-2 py-0.5 text-white"
+                  ? "block h-1 rounded-full bg-[#3b82f6]"
                   : i < activeIndex
-                    ? "rounded-full border border-[#2a2f39] px-2 py-0.5 text-[#9ca3af]"
-                    : "rounded-full border border-[#1c2029] px-2 py-0.5 text-[#4b5563]"
+                    ? "block h-1 rounded-full bg-[#3b82f6]/35"
+                    : "block h-1 rounded-full bg-white/[0.07]"
+              }
+            />
+            <span
+              className={
+                i === activeIndex
+                  ? "mt-1.5 block truncate font-mono text-[11px] font-medium text-[#f3f4f6]"
+                  : "mt-1.5 block truncate font-mono text-[11px] text-[#6b7280]"
               }
             >
               {i + 1} · {s.label}
             </span>
-            {i < PHASE_STEPS.length - 1 ? <span className="text-[#374151]">→</span> : null}
           </li>
         ))}
       </ol>
-      <p className="text-[13px] text-[#d1d5db]">{active.hint}</p>
+      <p className="mt-2 text-[13px] leading-snug text-[#d1d5db]">{active.hint}</p>
     </section>
   );
 }

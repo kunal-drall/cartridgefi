@@ -4,14 +4,14 @@ use anchor_lang::prelude::*;
 
 const _: fn() -> usize = ::anchor_lang::solana_program::instruction::get_stack_height;
 
-declare_id!("5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr");
+declare_id!("BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc");
 
 pub const SEED_ENGINE_CONFIG: &[u8] = b"engine_config";
 pub const SEED_CARTRIDGE: &[u8] = b"cartridge";
 pub const SEED_VAULT_ROUTER_AUTH: &[u8] = b"vault_router_auth";
 
-pub const VAULT_ROUTER_PROGRAM_ID: Pubkey = pubkey!("6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT");
-pub const ER_ROOM_PROGRAM_ID: Pubkey = pubkey!("Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR");
+pub const VAULT_ROUTER_PROGRAM_ID: Pubkey = pubkey!("Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR");
+pub const ER_ROOM_PROGRAM_ID: Pubkey = pubkey!("DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W");
 
 pub const BETA_MAX_ROOM_POOL_USDC: u64 = 500_000_000;
 pub const BETA_MAX_GLOBAL_TVL_USDC: u64 = 5_000_000_000;

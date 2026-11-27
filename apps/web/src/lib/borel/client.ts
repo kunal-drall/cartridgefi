@@ -4,7 +4,13 @@
 // Every function resolves (never throws) and never logs with console.error.
 // lockHand / pivot / authenticated getRoom are signed by the player's ephemeral ed25519 session key.
 import { getBase58Decoder, signBytes, type KeyPairSigner } from "@solana/kit";
-import { AUTH_MAX_TTL_MS, borelAuthMessage, type BorelAuthAction } from "./auth";
+import {
+  AUTH_MAX_TTL_MS,
+  borelAuthMessage,
+  walletDelegationFor,
+  type BorelAuthAction,
+  type WalletDelegation,
+} from "./auth";
 import type {
   ChainReceipt,
   LockedHand,
@@ -141,12 +147,12 @@ async function signAuth(
   action: BorelAuthAction,
   roomId: string,
   params: unknown,
-): Promise<{ expiresAt: number; signature: string } | null> {
+): Promise<{ expiresAt: number; signature: string; wallet?: WalletDelegation } | null> {
   try {
     const expiresAt = Date.now() + Math.floor(AUTH_MAX_TTL_MS / 2);
     const message = borelAuthMessage({ action, roomId, sessionPubkey: signer.address, params, expiresAt });
     const sig = await signBytes(signer.keyPair.privateKey, message);
-    return { expiresAt, signature: getBase58Decoder().decode(sig) };
+    return { expiresAt, signature: getBase58Decoder().decode(sig), wallet: walletDelegationFor(roomId, signer.address) };
   } catch {
     return null;
   }

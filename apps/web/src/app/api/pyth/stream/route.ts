@@ -1,5 +1,4 @@
 import {
-  PYTH_FEEDS,
   fetchLatestPricesE9,
   parseMarketsParam,
   toWirePayload,
@@ -16,30 +15,12 @@ const SSE_HEADERS = {
 
 /**
  * Same-origin Pyth SSE stream for the browser.
- * - PYTH_API_KEY set: proxies Hermes /v2/updates/price/stream (Hermes requires a Bearer key
- *   since the 2026-08-26 Pyth Core upgrade and accepts no browser tokens).
- * - Otherwise: reads Pyth push-feed accounts on Solana mainnet once a second and emits an
- *   event whenever a publish time changes (plus a 15s keep-alive comment).
+ * Polls the shared server quote cache once a second (Hermes per feed when PYTH_API_KEY is set,
+ * with on-chain push-feed fallback for feeds the key is not entitled to; push feeds only without
+ * a key) and emits an event whenever a publish time changes, plus a 15s keep-alive comment.
  */
 export async function GET(request: Request): Promise<Response> {
   const markets = parseMarketsParam(new URL(request.url).searchParams.get("markets"));
-  const apiKey = process.env.PYTH_API_KEY;
-
-  if (apiKey) {
-    const qs = markets.map((m) => `ids[]=${PYTH_FEEDS[m].feedId}`).join("&");
-    const upstream = await fetch(
-      `https://hermes.pyth.network/v2/updates/price/stream?${qs}&parsed=true&encoding=hex`,
-      {
-        headers: { Authorization: `Bearer ${apiKey}`, Accept: "text/event-stream" },
-        signal: request.signal,
-        cache: "no-store",
-      },
-    );
-    if (upstream.ok && upstream.body) {
-      return new Response(upstream.body, { status: 200, headers: SSE_HEADERS });
-    }
-    return new Response(`hermes upstream ${upstream.status}`, { status: 502 });
-  }
 
   const encoder = new TextEncoder();
   let timer: ReturnType<typeof setInterval> | null = null;

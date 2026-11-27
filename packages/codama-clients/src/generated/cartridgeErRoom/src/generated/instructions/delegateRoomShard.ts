@@ -15,7 +15,7 @@ export const DELEGATE_ROOM_SHARD_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Ar
 
 export function getDelegateRoomShardDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(DELEGATE_ROOM_SHARD_DISCRIMINATOR); }
 
-export type DelegateRoomShardInstruction<TProgram extends string = typeof CARTRIDGE_ER_ROOM_PROGRAM_ADDRESS, TAccountAuthority extends string | AccountMeta<string> = string, TAccountBufferRoomShard extends string | AccountMeta<string> = string, TAccountDelegationRecordRoomShard extends string | AccountMeta<string> = string, TAccountDelegationMetadataRoomShard extends string | AccountMeta<string> = string, TAccountRoomShard extends string | AccountMeta<string> = string, TAccountValidator extends string | AccountMeta<string> = string, TAccountOwnerProgram extends string | AccountMeta<string> = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR", TAccountDelegationProgram extends string | AccountMeta<string> = "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh", TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+export type DelegateRoomShardInstruction<TProgram extends string = typeof CARTRIDGE_ER_ROOM_PROGRAM_ADDRESS, TAccountAuthority extends string | AccountMeta<string> = string, TAccountBufferRoomShard extends string | AccountMeta<string> = string, TAccountDelegationRecordRoomShard extends string | AccountMeta<string> = string, TAccountDelegationMetadataRoomShard extends string | AccountMeta<string> = string, TAccountRoomShard extends string | AccountMeta<string> = string, TAccountValidator extends string | AccountMeta<string> = string, TAccountOwnerProgram extends string | AccountMeta<string> = "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W", TAccountDelegationProgram extends string | AccountMeta<string> = "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh", TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
 Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountAuthority extends string ? WritableSignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountBufferRoomShard extends string ? WritableAccount<TAccountBufferRoomShard> : TAccountBufferRoomShard, TAccountDelegationRecordRoomShard extends string ? WritableAccount<TAccountDelegationRecordRoomShard> : TAccountDelegationRecordRoomShard, TAccountDelegationMetadataRoomShard extends string ? WritableAccount<TAccountDelegationMetadataRoomShard> : TAccountDelegationMetadataRoomShard, TAccountRoomShard extends string ? WritableAccount<TAccountRoomShard> : TAccountRoomShard, TAccountValidator extends string ? ReadonlyAccount<TAccountValidator> : TAccountValidator, TAccountOwnerProgram extends string ? ReadonlyAccount<TAccountOwnerProgram> : TAccountOwnerProgram, TAccountDelegationProgram extends string ? ReadonlyAccount<TAccountDelegationProgram> : TAccountDelegationProgram, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>;
 
 export type DelegateRoomShardInstructionData = { discriminator: ReadonlyUint8Array; eventId: ReadonlyUint8Array; shardIndex: number;  };
@@ -82,7 +82,7 @@ if (!accounts.delegationMetadataRoomShard.value) {
 accounts.delegationMetadataRoomShard.value = await findDelegationMetadataRoomShardPda({ roomShard: getAddressFromResolvedInstructionAccount("roomShard", accounts.roomShard.value) }, { programAddress: getAddressFromResolvedInstructionAccount("delegationProgram", accounts.delegationProgram.value) });
 }
 if (!accounts.ownerProgram.value) {
-accounts.ownerProgram.value = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR" as Address<"Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR">;
+accounts.ownerProgram.value = "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W" as Address<"DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W">;
 }
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -127,7 +127,7 @@ if (!accounts.delegationProgram.value) {
 accounts.delegationProgram.value = "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh" as Address<"DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh">;
 }
 if (!accounts.ownerProgram.value) {
-accounts.ownerProgram.value = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR" as Address<"Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR">;
+accounts.ownerProgram.value = "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W" as Address<"DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W">;
 }
 if (!accounts.systemProgram.value) {
 accounts.systemProgram.value = "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;

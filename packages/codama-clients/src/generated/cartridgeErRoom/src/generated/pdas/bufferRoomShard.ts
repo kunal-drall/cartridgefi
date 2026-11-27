@@ -13,7 +13,7 @@ roomShard: Address | HasAddress;
 };
 
 export async function findBufferRoomShardPda(seeds: BufferRoomShardSeeds, config: { programAddress?: Address | HasAddress | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress: programAddressInput = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR" as Address<"Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"> } = config;
+  const { programAddress: programAddressInput = "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W" as Address<"DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W"> } = config;
   const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([98, 117, 102, 102, 101, 114])), getAddressEncoder().encode(seeds.roomShard)]});
 }

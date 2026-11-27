@@ -13,7 +13,7 @@ owner: Address | HasAddress;
 };
 
 export async function findPassportPda(seeds: PassportSeeds, config: { programAddress?: Address | HasAddress | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress: programAddressInput = "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr" as Address<"5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr"> } = config;
+  const { programAddress: programAddressInput = "B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF" as Address<"B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF"> } = config;
   const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([112, 97, 115, 115, 112, 111, 114, 116])), getAddressEncoder().encode(seeds.owner)]});
 }

@@ -14,32 +14,32 @@
   },
   "programs": {
     "cartridgeErRoom": {
-      "programId": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR",
+      "programId": "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W",
       "priority": 1,
       "binaryBytes": 435080,
       "minRentSol": "2.21085664",
-      "solscanUrl": "https://solscan.io/account/Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR?cluster=devnet"
+      "solscanUrl": "https://solscan.io/account/DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W?cluster=devnet"
     },
     "cartridgeVaultRouter": {
-      "programId": "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT",
+      "programId": "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR",
       "priority": 2,
       "binaryBytes": 373232,
       "minRentSol": "1.89666880",
-      "solscanUrl": "https://solscan.io/account/6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT?cluster=devnet"
+      "solscanUrl": "https://solscan.io/account/Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR?cluster=devnet"
     },
     "cartridgeRegistry": {
-      "programId": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr",
+      "programId": "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc",
       "priority": 3,
       "binaryBytes": 188752,
       "minRentSol": "0.95951040",
-      "solscanUrl": "https://solscan.io/account/5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr?cluster=devnet"
+      "solscanUrl": "https://solscan.io/account/BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc?cluster=devnet"
     },
     "cartridgePassport": {
-      "programId": "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr",
+      "programId": "B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF",
       "priority": 4,
       "binaryBytes": 182040,
       "minRentSol": "0.92541344",
-      "solscanUrl": "https://solscan.io/account/5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr?cluster=devnet"
+      "solscanUrl": "https://solscan.io/account/B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF?cluster=devnet"
     },
     "magicblockDelegation": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh",
     "magicblockPermission": "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1",
@@ -47,14 +47,14 @@
     "magicblockEsplToken": "SPLxh1LVZzEkX99H6rqYizhytLWPZVV296zyYDPagv2"
   },
   "accounts": {
-    "relayerWallet": "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1",
+    "relayerWallet": "Fc54gfodfqwq8QZe8M1Zy5ARYdYE7skRynVJGA4UYmWg",
     "relayerCanonicalAta": "5utFSmRYYepNJWj4Uuz7AYLey5CFqMSAQ1MF1mBhj3QU",
-    "splMint": "F6chXtYN1UUtxY1eNcbjnRDqnMWVYNUtqUqiy52pzWm1",
-    "platformFeeOwner": "Giyjg9VusfUXJbNYT2W3gRHpfFPez1kPAE5YcWsmNjPd",
-    "platformFeeAccountAta": "6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir",
+    "splMint": "32CRMQ5gBzDv45kAKXVNLb7qfvoPAxRNp6dnnhkUnRtw",
+    "platformFeeOwner": "DaQPvQ4Ewg7oK3Tgubkg8Rz54t8SBkCWrAjCCUzK2kcX",
+    "platformFeeAccountAta": "6LU5nN8fAbezBnsx8nLhAxvnY7KJc697fLW67qUnfrn8",
     "creatorFeeVault": "Hrsv3zoNvPQi3kTMuy4KByWVx9d3NQdevTcxTdMZ68sB",
-    "engineConfigPda": "Aeat6EKd8c6hp6unEB73VxBTRRp6cU87Eh6Y8jJChcGj",
-    "passportConfigPda": "FE1CJpug9TyoTju4sjX2jFrNzL4wXopcVWUya77ZY96M",
+    "engineConfigPda": "7NE1vxxMpPNBTmY9b22fbZ2gkP9vEDc3ck35T5aNqZin",
+    "passportConfigPda": "DHhQBaL5ybFbWrRvTjhk95wsgpW23oNUQ8SQ5wn6vVpn",
     "referenceHarness001ManifestPda": "64RnhRaWoy6aSE9bxE5oUtjbrLkEeRjqrim6x15WQwpF",
     "referenceHarness002ManifestPda": "EibkQeJ8ZZSeWgJKnsopCCr2r3vXuZDv2xScMqsPx24s",
     "settledRoomShardPda": "8weMvjPkTajFRoWfokrBd3U5qi7sZQbZSvA4G2Ram9tE",
@@ -375,5 +375,24 @@
       "solscanUrl": "https://solscan.io/tx/4V7kkHif9B3MgLbeUuGmnWd9zMP5AhSWnQ6buXipLnMvG7pyePZQm4iXmyqLPMWLkTP6LJYRoBpCCxfAcpygKuYm?cluster=devnet",
       "notes": "Withdrew 1,000,000 units from TEE MTEWGuqxUpYZGFJQcp8tLN7x5v9BSeoFHYWQQ3n3xzo -> 5utFSmRYYepNJWj4Uuz7AYLey5CFqMSAQ1MF1mBhj3QU"
     }
-  ]
+  ],
+  "historicalProofRun": {
+    "label": "historical proof run (2026-11-26)",
+    "note": "The `transactions` list below was signed on 2026-11-26 by the original deployer against these program IDs. Live programs above were redeployed under the relayer authority on 2026-11-27.",
+    "authority": "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1",
+    "programs": {
+      "cartridgeErRoom": "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR",
+      "cartridgeVaultRouter": "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT",
+      "cartridgeRegistry": "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr",
+      "cartridgePassport": "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr"
+    },
+    "accounts": {
+      "relayerWallet": "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1",
+      "splMint": "F6chXtYN1UUtxY1eNcbjnRDqnMWVYNUtqUqiy52pzWm1",
+      "platformFeeAccountAta": "6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir",
+      "platformFeeOwner": "Giyjg9VusfUXJbNYT2W3gRHpfFPez1kPAE5YcWsmNjPd",
+      "engineConfigPda": "Aeat6EKd8c6hp6unEB73VxBTRRp6cU87Eh6Y8jJChcGj",
+      "passportConfigPda": "FE1CJpug9TyoTju4sjX2jFrNzL4wXopcVWUya77ZY96M"
+    }
+  }
 }

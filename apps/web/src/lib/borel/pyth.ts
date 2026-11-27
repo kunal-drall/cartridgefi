@@ -298,6 +298,37 @@ async function fetchHermesQuotes(
   return out;
 }
 
+/**
+ * Hermes rejects a whole batch when the key lacks a grant for any one feed (403 "Not entitled"),
+ * so each market is requested on its own; markets Hermes refuses fall back to the on-chain
+ * push-feed accounts.
+ */
+async function fetchHermesWithPushFallback(
+  markets: readonly BorelMarket[],
+  apiKey: string,
+  rpcUrl: string,
+): Promise<Partial<Record<BorelMarket, PythQuote>>> {
+  const settled = await Promise.allSettled(markets.map((m) => fetchHermesQuotes([m], apiKey)));
+  const out: Partial<Record<BorelMarket, PythQuote>> = {};
+  const missing: BorelMarket[] = [];
+  markets.forEach((market, i) => {
+    const result = settled[i];
+    const quote = result?.status === "fulfilled" ? result.value[market] : undefined;
+    if (quote) out[market] = quote;
+    else missing.push(market);
+  });
+  if (missing.length > 0) {
+    const fallback = await fetchPushFeedQuotes(missing, rpcUrl).catch(
+      () => ({}) as Partial<Record<BorelMarket, PythQuote>>,
+    );
+    for (const market of missing) {
+      const quote = fallback[market];
+      if (quote) out[market] = quote;
+    }
+  }
+  return out;
+}
+
 /** Shared in-process cache so many SSE clients and scoring routes cost one upstream read. */
 const QUOTE_CACHE_MS = 900;
 const quoteCache = new Map<
@@ -317,10 +348,9 @@ async function cachedQuotes(
   const now = Date.now();
   if (hit && hit.expiresAt > now) return hit.promise;
   const apiKey = process.env.PYTH_API_KEY;
+  const rpcUrl = process.env.PYTH_SOLANA_RPC_URL ?? DEFAULT_MAINNET_RPC;
   const promise = (
-    apiKey
-      ? fetchHermesQuotes(markets, apiKey)
-      : fetchPushFeedQuotes(markets, process.env.PYTH_SOLANA_RPC_URL ?? DEFAULT_MAINNET_RPC)
+    apiKey ? fetchHermesWithPushFallback(markets, apiKey, rpcUrl) : fetchPushFeedQuotes(markets, rpcUrl)
   ).catch(() => ({}));
   quoteCache.set(key, { expiresAt: now + QUOTE_CACHE_MS, promise });
   return promise;

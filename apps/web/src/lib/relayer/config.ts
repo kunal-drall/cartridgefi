@@ -16,7 +16,7 @@ export const RELAYER_RPC_URL =
 export const RELAYER_BALANCE_FLOOR_LAMPORTS = 30_000_000n;
 
 /** Funded public Devnet account used only as a stand-in fee payer for `sigVerify:false` simulations. */
-export const SIMULATION_STAND_IN_PAYER = "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1";
+export const SIMULATION_STAND_IN_PAYER = "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1"; // historical proof run (2026-11-26) deployer, used only as a funded fee payer for sigVerify:false simulations
 
 export const MAGICBLOCK_DEVNET_US_VALIDATOR = "MUS3hc9TCw4cGC12vHNoYcCGzJG1txjgQLZWVoeNHNd";
 export const MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";

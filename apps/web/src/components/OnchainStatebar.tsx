@@ -4,6 +4,7 @@ import * as React from "react";
 import { MagicBlockLockup, SolanaLockup } from "@cartridgefi/ui-system";
 import { cn, shortenAddress } from "@/lib/utils";
 import { useOptionalConsoleVault } from "@/app/(console)/_components/ConsoleVaultContext";
+import { WalletStateReadout } from "@/components/wallet/WalletConnect";
 
 const SOLANA_DEVNET_RPC = "https://api.devnet.solana.com";
 const MAGICBLOCK_ROUTER_RPC = "https://devnet-router.magicblock.app";
@@ -171,7 +172,6 @@ export function OnchainStatebar({
   const vault = useOptionalConsoleVault();
   const sessionKeyActive = vault?.sessionKeyActive ?? false;
   const sessionKeyPubkey = vault?.sessionKeyPubkey ?? "";
-  const connectedBrowserWalletName = vault?.connectedBrowserWalletName ?? null;
 
   return (
     <footer
@@ -241,10 +241,8 @@ export function OnchainStatebar({
             </>
           )}
         </Cell>
-        <Cell label="Wallet">
-          <span className="text-[#9ca3af]">
-            {connectedBrowserWalletName ?? "— none connected"}
-          </span>
+        <Cell label="Wallet" title="Wallet Standard · Solana devnet">
+          <WalletStateReadout />
         </Cell>
         <div className="ml-auto flex h-full shrink-0 items-center gap-2 border-l border-[#22262e] px-3 font-sans text-[10px] text-[#6b7280]">
           <SolanaLockup size="sm" clearspace={false} />

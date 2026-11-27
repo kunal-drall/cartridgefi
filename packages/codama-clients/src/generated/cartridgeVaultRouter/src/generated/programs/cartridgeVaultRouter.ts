@@ -12,7 +12,7 @@ import { getRoomVaultCodec, getSessionRiskEnvelopeCodec, type RoomVault, type Ro
 import { getClaimPrizeInstructionAsync, getDistributePoolActionInstructionAsync, getDistributePoolAndFeesInstructionAsync, getInitializeRoomVaultInstructionAsync, getOpenSessionEnvelopeInstructionAsync, parseClaimPrizeInstruction, parseDistributePoolActionInstruction, parseDistributePoolAndFeesInstruction, parseInitializeRoomVaultInstruction, parseOpenSessionEnvelopeInstruction, type ClaimPrizeAsyncInput, type DistributePoolActionAsyncInput, type DistributePoolAndFeesAsyncInput, type InitializeRoomVaultAsyncInput, type OpenSessionEnvelopeAsyncInput, type ParsedClaimPrizeInstruction, type ParsedDistributePoolActionInstruction, type ParsedDistributePoolAndFeesInstruction, type ParsedInitializeRoomVaultInstruction, type ParsedOpenSessionEnvelopeInstruction } from '../instructions/index.js';
 import { findEngineConfigPda, findRoomVaultPda, findVaultRouterAuthPda, findVaultUsdcTokenPda } from '../pdas/index.js';
 
-export const CARTRIDGE_VAULT_ROUTER_PROGRAM_ADDRESS = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT" as Address<"6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT">;
+export const CARTRIDGE_VAULT_ROUTER_PROGRAM_ADDRESS = "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR" as Address<"Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR">;
 
 export enum CartridgeVaultRouterAccount { RoomVault, SessionRiskEnvelope }
 
@@ -45,7 +45,7 @@ if (containsBytes(data, fixEncoderSize(getBytesEncoder(), 8).encode(new Uint8Arr
     throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION, { instructionData: data, programName: "cartridgeVaultRouter" });
 }
 
-export type ParsedCartridgeVaultRouterInstruction<TProgram extends string = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"> =
+export type ParsedCartridgeVaultRouterInstruction<TProgram extends string = "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR"> =
 | { instructionType: CartridgeVaultRouterInstruction.ClaimPrize } & ParsedClaimPrizeInstruction<TProgram>
 | { instructionType: CartridgeVaultRouterInstruction.DistributePoolAction } & ParsedDistributePoolActionInstruction<TProgram>
 | { instructionType: CartridgeVaultRouterInstruction.DistributePoolAndFees } & ParsedDistributePoolAndFeesInstruction<TProgram>

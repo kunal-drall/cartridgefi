@@ -13,15 +13,18 @@
  *   ER  request_settlement_vrf → callback_settlement_vrf (MagicBlock VRF seed)
  *   ER  trigger_showdown_unseal ×2, evaluate_player_score ×2
  *   ER  undelegate_player_stance ×2 + settle_and_commit_shard (commit + undelegate to L1)
+ *   L1  test-USDC faucet mint ×2 → SPL stake ×2 into relayer escrow → winner payout + 1% fee into
+ *       platformFeeAccount → cartridge_passport.record_elo_and_vault_credit ×2 (relayer = PassportConfig admin)
+ *
+ * Requires the programs redeployed under the relayer authority + `node scripts/init-borel-own-authority.ts`.
  *
  * Hand → slot mapping (program has 4 weight slots): [SOL/USD, BTC/USD, ETH/USD, NVDAx/USD];
  * weight_bps = sign(LONG=+1, SHORT=-1) × conviction × 1000 (gross ≤ 6000 ≤ 10000 cap).
  * SOL/USD is priced in-program by the MagicBlock ER pricing oracle; BTC/ETH/NVDAx entry/exit
  * prices are relayer-supplied from Pyth Hermes. SPY/USD has no slot in on-chain rooms.
  *
- * NOT executed (not authorizable by a fresh key / no stake asset): open_session_envelope,
- * distribute_pool_and_fees, claim_prize (SPL mint F6ch… authority is the unavailable deployer),
- * record_elo_and_vault_credit (passport admin/keeper only).
+ * NOT executed: cartridge_vault_router open_session_envelope / distribute_pool_and_fees / claim_prize
+ * (settlement here is relayer-escrowed SPL transfers, not the vault_router CPI path).
  */
 
 import { createHash } from "node:crypto";
@@ -444,6 +447,30 @@ function ixInitializeMint2(
   };
 }
 
+function ixTransferChecked(
+  source: Address,
+  mint: Address,
+  destination: Address,
+  owner: KeyPairSigner,
+  amount: bigint,
+  decimals: number,
+): Instruction {
+  const data = Buffer.alloc(10);
+  data.writeUInt8(12, 0); // TransferChecked
+  data.writeBigUInt64LE(amount, 1);
+  data.writeUInt8(decimals, 9);
+  return {
+    programAddress: TOKEN_PROGRAM_ID,
+    accounts: [
+      { address: source, role: AccountRole.WRITABLE },
+      { address: mint, role: AccountRole.READONLY },
+      { address: destination, role: AccountRole.WRITABLE },
+      { address: owner.address, role: AccountRole.READONLY_SIGNER, signer: owner } as never,
+    ],
+    data: new Uint8Array(data),
+  };
+}
+
 function ixInitializeAccount3(
   tokenAccount: Address,
   mint: Address,
@@ -789,7 +816,7 @@ const PYTH_PUSH_FEEDS: Record<(typeof BOREL_SLOT_MARKETS)[number], { account: st
   "ETH/USD": { account: "7odryi4WfoMFHtv2eubdMgP1pqQMmdiXSK1N2tqZ2nRH", feedId: "ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace" },
   "NVDAx/USD": { account: "VSgf6jkwrcs9jbLuR57iN1Gk2c68vT9stZe8G6GGix2", feedId: "4244d07890e4610f46bbde67de8f43a4bf8b569eebe904f136b469f148503b7f" },
 };
-const PYTH_MAINNET_RPC = process.env.PYTH_MAINNET_RPC ?? "https://api.mainnet-beta.solana.com";
+const PYTH_MAINNET_RPC = process.env.PYTH_MAINNET_RPC ?? "https://solana-rpc.publicnode.com";
 
 interface BorelLeg {
   market: (typeof BOREL_SLOT_MARKETS)[number];
@@ -1190,16 +1217,100 @@ async function main(): Promise<void> {
   await waitForOwners(PRIMARY_DEVNET_RPC, [roomShardPda, ...stancePdas], erRoomProgramId, "L1 undelegation restore", 90);
   console.log("  ✓ RoomShard + PlayerStances restored on Solana Devnet L1");
 
+  // 7b. Own-authority steps (relayer = test-USDC mint authority + PassportConfig admin/keeper):
+  //     SPL stakes in Borel test-USDC → winner settlement with a 1% fee into platformFeeAccount → record_elo.
+  const deployment = JSON.parse(
+    readFileSync(resolve(dirname(new URL(import.meta.url).pathname), "../apps/web/src/data/borel-deployment.json"), "utf8"),
+  ) as { testUsdcMint: string; platformFeeAccount: string };
+  const usdcMint = address(deployment.testUsdcMint);
+  const platformFeeAccount = address(deployment.platformFeeAccount);
+  const STAKE_UNITS = 10_000_000n; // 10 test-USDC per player
+  const escrowAta = await deriveCanonicalAta(relayer.address, usdcMint);
+  const playerAtas = await Promise.all(players.map((p) => deriveCanonicalAta(p.signer.address, usdcMint)));
+  record(
+    "faucet: mint 100 test-USDC to each player ATA (relayer = mint authority)",
+    "L1",
+    await sendAndConfirmBaseTx(
+      relayer,
+      [
+        ixCreateAssociatedTokenAccountIdempotent(relayer, escrowAta, relayer.address, usdcMint),
+        ...players.flatMap((p, i) => [
+          ixCreateAssociatedTokenAccountIdempotent(relayer, playerAtas[i]!, p.signer.address, usdcMint),
+          ixMintTo(usdcMint, playerAtas[i]!, relayer, 100_000_000n),
+        ]),
+      ],
+      "faucet mint",
+    ),
+  );
+  for (let i = 0; i < players.length; i++) {
+    const p = players[i]!;
+    record(
+      `${p.label}: SPL stake 10 test-USDC → room escrow ${escrowAta}`,
+      "L1",
+      await sendAndConfirmBaseTx(p.signer, [ixTransferChecked(playerAtas[i]!, usdcMint, escrowAta, p.signer, STAKE_UNITS, 6)], `${p.label} stake`),
+    );
+  }
+  const finalScores: bigint[] = [];
+  for (const stance of stancePdas) {
+    const acct = await getAccountBuffer(PRIMARY_DEVNET_RPC, stance, FALLBACK_DEVNET_RPC);
+    finalScores.push(acct && acct.data.length >= 262 ? acct.data.readBigInt64LE(246) + (acct.data.readBigInt64LE(254) << 64n) : 0n);
+  }
+  const winnerIdx = finalScores[1]! > finalScores[0]! ? 1 : 0;
+  const poolUnits = STAKE_UNITS * BigInt(players.length);
+  const feeUnits = (poolUnits * BigInt(RELAYER_PLATFORM_FEE_BPS)) / 10_000n;
+  record(
+    `settle: winner ${players[winnerIdx]!.label} (final_score ${finalScores[winnerIdx]}) paid ${poolUnits - feeUnits} units + ${feeUnits} units (1%) → platformFeeAccount ${platformFeeAccount}`,
+    "L1",
+    await sendAndConfirmBaseTx(
+      relayer,
+      [
+        ixTransferChecked(escrowAta, usdcMint, playerAtas[winnerIdx]!, relayer, poolUnits - feeUnits, 6),
+        ixTransferChecked(escrowAta, usdcMint, platformFeeAccount, relayer, feeUnits, 6),
+      ],
+      "settle with fee",
+    ),
+  );
+  for (let i = 0; i < players.length; i++) {
+    const p = players[i]!;
+    const [passportPda] = await getProgramDerivedAddress({
+      programAddress: passportProgramId,
+      seeds: [Buffer.from("passport"), addressEncoder.encode(p.signer.address)],
+    });
+    const isWin = i === winnerIdx;
+    record(
+      `${p.label}: cartridge_passport.record_elo_and_vault_credit (${isWin ? "win" : "loss"}, relayer = PassportConfig admin)`,
+      "L1",
+      await sendAndConfirmBaseTx(
+        relayer,
+        [
+          await cartridgePassport.getRecordEloAndVaultCreditInstructionAsync({
+            authority: relayer,
+            passport: passportPda,
+            roomMeanEloScaled: 1_500n * SCALE_9,
+            placementScoreScaled: isWin ? SCALE_9 : 0n,
+            isLiveMode: true,
+            isWin,
+            sharpeScoreScaled: null,
+            brierScoreScaled: null,
+            assetCreditKind: cartridgePassport.AssetCreditKind.Usdc,
+            assetCreditUnits: isWin ? poolUnits - feeUnits : 0n,
+          }),
+        ],
+        `${p.label} record_elo`,
+      ),
+    );
+  }
+
   // 8. Append real links to docs/DEVNET_PROOF.md
   const docPath = resolve(dirname(new URL(import.meta.url).pathname), "../docs/DEVNET_PROOF.md");
   const lines = [
     "",
     "---",
     "",
-    `## Borel live run — ${new Date().toISOString()}`,
+    `## Borel live run (own authority) — ${new Date().toISOString()}`,
     "",
-    `Relayer authority \`${relayer.address}\` (fresh Devnet key; no deployer/admin key used). Room \`${slug}\`, RoomShard [\`${roomShardPda}\`](${solscanAccountUrl(roomShardPda)}), VRF seed \`${vrfSeedHex ? `0x${vrfSeedHex}` : "not observed"}\`.`,
-    "Hand → slot mapping: [SOL/USD, BTC/USD, ETH/USD, NVDAx/USD], weight_bps = ±conviction × 1000; one pivot enforced on-chain by max_rebalances = 2. Fee-free paper room: no SPL stake, no distribute/claim, no passport ELO write (admin-only).",
+    `Relayer authority \`${relayer.address}\` = upgrade authority of the redeployed programs (registry \`${registryProgramId}\`, er_room \`${erRoomProgramId}\`, passport \`${passportProgramId}\`), test-USDC mint authority (\`${usdcMint}\`) and PassportConfig admin; fees land in platformFeeAccount [\`${platformFeeAccount}\`](${solscanAccountUrl(platformFeeAccount)}). Room \`${slug}\`, RoomShard [\`${roomShardPda}\`](${solscanAccountUrl(roomShardPda)}), VRF seed \`${vrfSeedHex ? `0x${vrfSeedHex}` : "not observed"}\`.`,
+    "Hand → slot mapping: [SOL/USD, BTC/USD, ETH/USD, NVDAx/USD], weight_bps = ±conviction × 1000; one pivot enforced on-chain by max_rebalances = 2. SPL stakes (10 test-USDC each) are escrowed in the relayer ATA and settled to the highest on-chain final_score with a 1% fee into platformFeeAccount; cartridge_vault_router.distribute_pool_and_fees is not exercised in this run.",
     "",
     "| Step | Layer | Solscan |",
     "| :--- | :--- | :--- |",

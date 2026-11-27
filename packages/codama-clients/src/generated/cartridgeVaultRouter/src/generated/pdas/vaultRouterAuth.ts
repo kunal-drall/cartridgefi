@@ -9,7 +9,7 @@
 import { getBytesEncoder, getProgramDerivedAddress, type Address, type HasAddress, type ProgramDerivedAddress } from '@solana/kit';
 
 export async function findVaultRouterAuthPda(config: { programAddress?: Address | HasAddress | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress: programAddressInput = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT" as Address<"6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT"> } = config;
+  const { programAddress: programAddressInput = "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR" as Address<"Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR"> } = config;
   const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([118, 97, 117, 108, 116, 95, 114, 111, 117, 116, 101, 114, 95, 97, 117, 116, 104]))]});
 }

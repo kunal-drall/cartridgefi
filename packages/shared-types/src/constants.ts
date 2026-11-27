@@ -4,14 +4,43 @@
  */
 
 export const CARTRIDGE_PROGRAM_IDS = {
-  registry: "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr",
-  erRoom: "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR",
-  vaultRouter: "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT",
-  passport: "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr",
+  registry: "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc",
+  erRoom: "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W",
+  vaultRouter: "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR",
+  passport: "B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF",
+} as const;
+
+/**
+ * Live Borel Devnet deployment (2026-11-27): the programs in CARTRIDGE_PROGRAM_IDS were redeployed under
+ * the relayer authority, which is also EngineConfig admin, PassportConfig admin/keeper and test-USDC mint authority.
+ */
+export const BOREL_DEVNET_DEPLOYMENT = {
+  authority: "Fc54gfodfqwq8QZe8M1Zy5ARYdYE7skRynVJGA4UYmWg",
+  testUsdcMint: "32CRMQ5gBzDv45kAKXVNLb7qfvoPAxRNp6dnnhkUnRtw",
+  testUsdcDecimals: 6,
+  treasury: "DaQPvQ4Ewg7oK3Tgubkg8Rz54t8SBkCWrAjCCUzK2kcX",
+  platformFeeAccount: "6LU5nN8fAbezBnsx8nLhAxvnY7KJc697fLW67qUnfrn8",
+  engineConfig: "7NE1vxxMpPNBTmY9b22fbZ2gkP9vEDc3ck35T5aNqZin",
+  passportConfig: "DHhQBaL5ybFbWrRvTjhk95wsgpW23oNUQ8SQ5wn6vVpn",
+} as const;
+
+/** Historical proof run (2026-11-26), signed by the original deployer. Reference only; not live. */
+export const HISTORICAL_PROOF_RUN_2026_11_26 = {
+  authority: "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1",
+  programs: {
+    registry: "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr",
+    erRoom: "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR",
+    vaultRouter: "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT",
+    passport: "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr",
+  },
+  splMint: "F6chXtYN1UUtxY1eNcbjnRDqnMWVYNUtqUqiy52pzWm1",
+  platformFeeAccount: "6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir",
 } as const;
 
 export const CARTRIDGE_DEVNET_AUTHORITIES = {
+  /** Historical proof run (2026-11-26) deployer; kept as the default sample creator wallet. */
   deployerAndKeeper: "D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1",
+  relayerAuthority: "Fc54gfodfqwq8QZe8M1Zy5ARYdYE7skRynVJGA4UYmWg",
   pacerBot1: "FRLBDfWhskqdGsoNkBMsnxHtQTy6Bkm25NEvsVncGAay",
   pacerBot2: "7JdpFNAHqeoaYnnS9G1DY9qCyN33UBRyaySfANCHjFRa",
   pacerBot3: "E5EwXiUfq9wCegbBwNdXpUvubkuJCZC4LDmR8wwQTJsR",

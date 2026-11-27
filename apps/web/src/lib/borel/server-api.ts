@@ -10,7 +10,13 @@ import {
   type SignatureBytes,
 } from "@solana/kit";
 import { z } from "zod";
-import { AUTH_MAX_TTL_MS, borelAuthMessage, type BorelAuthAction } from "./auth";
+import {
+  AUTH_MAX_TTL_MS,
+  WALLET_DELEGATION_MAX_TTL_MS,
+  borelAuthMessage,
+  borelWalletDelegationMessage,
+  type BorelAuthAction,
+} from "./auth";
 import {
   RELAYER_BALANCE_FLOOR_LAMPORTS,
   SIMULATION_STAND_IN_PAYER,
@@ -47,13 +53,63 @@ export function guardRequest(req: Request, opts: { rateLimit: boolean }): NextRe
   return null;
 }
 
-export const AuthSchema = z.object({
+const Base58Signature = z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{80,90}$/);
+
+export const WalletDelegationSchema = z.object({
+  walletAddress: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/),
+  roomId: z.string().min(1).max(64),
   expiresAt: z.number().int().positive(),
-  signature: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{80,90}$/),
+  signature: Base58Signature,
 });
 
+export const AuthSchema = z.object({
+  expiresAt: z.number().int().positive(),
+  signature: Base58Signature,
+  /** Optional: the connected wallet's delegation of this session key for this room. */
+  wallet: WalletDelegationSchema.optional(),
+});
+
+async function verifyEd25519(signer: string, signatureB58: string, message: Uint8Array): Promise<boolean> {
+  const sig = new Uint8Array(getBase58Encoder().encode(signatureB58));
+  if (sig.length !== 64) return false;
+  const key = await getPublicKeyFromAddress(address(signer));
+  return verifySignature(key, sig as unknown as SignatureBytes, message);
+}
+
 /**
- * Verifies that the session key signed `{action, roomId, sessionPubkey, params, expiresAt}`.
+ * Verifies that `walletAddress` signed `{roomId, sessionPubkey, walletAddress, expiresAt}` (the one
+ * wallet popup at join), binding the ephemeral session key to that wallet for that room only.
+ * Returns the verified wallet address, or a human-readable reason.
+ */
+export async function verifyWalletDelegation(args: {
+  roomId: string;
+  sessionPubkey: string;
+  delegation: z.infer<typeof WalletDelegationSchema>;
+}): Promise<{ ok: true; walletAddress: Address } | { ok: false; reason: string }> {
+  const d = args.delegation;
+  const now = Date.now();
+  if (d.roomId !== args.roomId) return { ok: false, reason: "Wallet authorization is for a different room" };
+  if (d.expiresAt <= now) return { ok: false, reason: "Wallet authorization expired" };
+  if (d.expiresAt > now + WALLET_DELEGATION_MAX_TTL_MS) {
+    return { ok: false, reason: "Wallet authorization expiry too far in the future" };
+  }
+  try {
+    const message = borelWalletDelegationMessage({
+      roomId: d.roomId,
+      sessionPubkey: args.sessionPubkey,
+      walletAddress: d.walletAddress,
+      expiresAt: d.expiresAt,
+    });
+    const ok = await verifyEd25519(d.walletAddress, d.signature, message);
+    return ok ? { ok: true, walletAddress: address(d.walletAddress) } : { ok: false, reason: "Invalid wallet signature" };
+  } catch {
+    return { ok: false, reason: "Wallet authorization could not be verified" };
+  }
+}
+
+/**
+ * Verifies that the session key signed `{action, roomId, sessionPubkey, params, expiresAt}`, and, when the
+ * request carries `auth.wallet`, that the wallet delegated this session key for this room.
  * Returns null when valid, else a human-readable reason.
  */
 export async function verifySessionAuth(args: {
@@ -67,9 +123,6 @@ export async function verifySessionAuth(args: {
   if (args.auth.expiresAt <= now) return "Session signature expired";
   if (args.auth.expiresAt > now + AUTH_MAX_TTL_MS) return "Session signature expiry too far in the future";
   try {
-    const sig = new Uint8Array(getBase58Encoder().encode(args.auth.signature));
-    if (sig.length !== 64) return "Malformed session signature";
-    const key = await getPublicKeyFromAddress(address(args.sessionPubkey));
     const message = borelAuthMessage({
       action: args.action,
       roomId: args.roomId,
@@ -77,11 +130,20 @@ export async function verifySessionAuth(args: {
       params: args.params,
       expiresAt: args.auth.expiresAt,
     });
-    const ok = await verifySignature(key, sig as unknown as SignatureBytes, message);
-    return ok ? null : "Invalid session signature";
+    if (!(await verifyEd25519(args.sessionPubkey, args.auth.signature, message))) return "Invalid session signature";
   } catch {
     return "Session signature could not be verified";
   }
+  // A request that claims a wallet must carry a valid wallet delegation; anonymous sessions omit it.
+  if (args.auth.wallet) {
+    const verdict = await verifyWalletDelegation({
+      roomId: args.roomId,
+      sessionPubkey: args.sessionPubkey,
+      delegation: args.auth.wallet,
+    });
+    if (!verdict.ok) return verdict.reason;
+  }
+  return null;
 }
 
 export interface RelayerContext {

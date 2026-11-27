@@ -30,15 +30,17 @@ Both paths have run live on devnet (21-transaction lifecycle on 2026-11-27, link
 
 ## Deployed Solana Devnet Programs, Relayer & `platformFeeAccount`
 
+Borel deployment of 2026-11-27: the Borel relayer `Fc54gfodfqwq8QZe8M1Zy5ARYdYE7skRynVJGA4UYmWg` is upgrade authority, config admin and mint authority. The 2026-11-26 deployment (`Hqi5b6iY…`, `6hzFDMeB…`, `5tH1uFw8…`, `5jkGrbF9…`) remains on devnet as the historical proof run.
+
 | Component | Pubkey / Endpoint | Role |
 | :--- | :--- | :--- |
-| **`cartridge_er_room` (P1)** | `Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR` | `435,080 B` · Delegated `RoomShard` & `PlayerStance`, PER permissions, VRF request/callback, `MagicIntentBundleBuilder`, & 4 `i128` (`10^9`) formulas |
-| **`cartridge_vault_router` (P2)** | `6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT` | `373,232 B` · Non-custodial `SessionRiskEnvelope`, Harmonic Shapley payouts, `50/50` & `40/30/30` fee splits into `platformFeeAccount` |
-| **`cartridge_registry` (P3)** | `5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr` | `188,752 B` · `EngineConfig` (`platform_fee_account`, TVL caps) & parameterized `CartridgeManifestAccount` PDAs |
-| **`cartridge_passport` (P4)** | `5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr` | `182,040 B` · Portable Cross-Game Market ELO (`i128` `10^9`) & Geo/xStocks Eligibility Bitmask |
+| **`cartridge_er_room` (P1)** | `DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W` | `435,080 B` · Delegated `RoomShard` & `PlayerStance`, PER permissions, VRF request/callback, `MagicIntentBundleBuilder`, & 4 `i128` (`10^9`) formulas |
+| **`cartridge_vault_router` (P2)** | `Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR` | `373,232 B` · Non-custodial `SessionRiskEnvelope`, Harmonic Shapley payouts, `50/50` & `40/30/30` fee splits into `platformFeeAccount` |
+| **`cartridge_registry` (P3)** | `BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc` | `188,752 B` · `EngineConfig` (`platform_fee_account`, TVL caps) & parameterized `CartridgeManifestAccount` PDAs |
+| **`cartridge_passport` (P4)** | `B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF` | `182,040 B` · Portable Cross-Game Market ELO (`i128` `10^9`) & Geo/xStocks Eligibility Bitmask |
 | **Proof-run authority (2026-11-26)** | `D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1` | Signed the historical proof run in `docs/DEVNET_PROOF.md` (TEE auth, `delegateSpl`, private eSPL transfers, `withdrawSpl`) |
 | **Borel relayer (live app)** | `Fc54gfodfqwq8QZe8M1Zy5ARYdYE7skRynVJGA4UYmWg` | Server-side fee payer for Borel room transactions; key lives only in server env |
-| **`platformFeeAccount` (Canonical ATA)** | `6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir` | Canonical SPL ATA of treasury owner `Giyjg9VusfUXJbNYT2W3gRHpfFPez1kPAE5YcWsmNjPd` for Devnet SPL mint `F6chXtYN1UUtxY1eNcbjnRDqnMWVYNUtqUqiy52pzWm1` |
+| **`platformFeeAccount`** | `6LU5nN8fAbezBnsx8nLhAxvnY7KJc697fLW67qUnfrn8` | Fee vault (SPL token account) for the Borel test-USDC mint `32CRMQ5gBzDv45kAKXVNLb7qfvoPAxRNp6dnnhkUnRtw` |
 | **MagicBlock Delegation / PER / eSPL** | `DELeGGvX...` · `ACLseoPo...` · `SPLxh1LV...` | Account delegation, ER-local permissions, and encrypted Magic ATA private SPL transfers |
 | **MagicBlock Router & Private TEE** | `https://devnet-router.magicblock.app` · `https://devnet-tee.magicblock.app` | Dynamic ER routing (`10ms`) & Intel TDX hardware-encrypted execution |
 

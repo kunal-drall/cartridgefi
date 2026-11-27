@@ -16,7 +16,7 @@ export const SETTLE_AND_COMMIT_SHARD_DISCRIMINATOR: ReadonlyUint8Array = new Uin
 
 export function getSettleAndCommitShardDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(SETTLE_AND_COMMIT_SHARD_DISCRIMINATOR); }
 
-export type SettleAndCommitShardInstruction<TProgram extends string = typeof CARTRIDGE_ER_ROOM_PROGRAM_ADDRESS, TAccountAuthority extends string | AccountMeta<string> = string, TAccountRoomShard extends string | AccountMeta<string> = string, TAccountOracleFeed extends string | AccountMeta<string> = string, TAccountPermission extends string | AccountMeta<string> = string, TAccountPermissionProgram extends string | AccountMeta<string> = "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1", TAccountEphemeralVault extends string | AccountMeta<string> = "MagicVau1t999999999999999999999999999999999", TAccountVaultRouterProgram extends string | AccountMeta<string> = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT", TAccountMagicProgram extends string | AccountMeta<string> = "Magic11111111111111111111111111111111111111", TAccountMagicContext extends string | AccountMeta<string> = "MagicContext1111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+export type SettleAndCommitShardInstruction<TProgram extends string = typeof CARTRIDGE_ER_ROOM_PROGRAM_ADDRESS, TAccountAuthority extends string | AccountMeta<string> = string, TAccountRoomShard extends string | AccountMeta<string> = string, TAccountOracleFeed extends string | AccountMeta<string> = string, TAccountPermission extends string | AccountMeta<string> = string, TAccountPermissionProgram extends string | AccountMeta<string> = "ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1", TAccountEphemeralVault extends string | AccountMeta<string> = "MagicVau1t999999999999999999999999999999999", TAccountVaultRouterProgram extends string | AccountMeta<string> = "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR", TAccountMagicProgram extends string | AccountMeta<string> = "Magic11111111111111111111111111111111111111", TAccountMagicContext extends string | AccountMeta<string> = "MagicContext1111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
 Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountAuthority extends string ? WritableSignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountRoomShard extends string ? WritableAccount<TAccountRoomShard> : TAccountRoomShard, TAccountOracleFeed extends string ? ReadonlyAccount<TAccountOracleFeed> : TAccountOracleFeed, TAccountPermission extends string ? ReadonlyAccount<TAccountPermission> : TAccountPermission, TAccountPermissionProgram extends string ? ReadonlyAccount<TAccountPermissionProgram> : TAccountPermissionProgram, TAccountEphemeralVault extends string ? ReadonlyAccount<TAccountEphemeralVault> : TAccountEphemeralVault, TAccountVaultRouterProgram extends string ? ReadonlyAccount<TAccountVaultRouterProgram> : TAccountVaultRouterProgram, TAccountMagicProgram extends string ? ReadonlyAccount<TAccountMagicProgram> : TAccountMagicProgram, TAccountMagicContext extends string ? WritableAccount<TAccountMagicContext> : TAccountMagicContext, ...TRemainingAccounts]>;
 
 export type SettleAndCommitShardInstructionData = { discriminator: ReadonlyUint8Array; scheduleVaultAction: boolean; vaultActionAccounts: Array<ActionAccountSpec>;  };
@@ -77,7 +77,7 @@ if (!accounts.ephemeralVault.value) {
 accounts.ephemeralVault.value = "MagicVau1t999999999999999999999999999999999" as Address<"MagicVau1t999999999999999999999999999999999">;
 }
 if (!accounts.vaultRouterProgram.value) {
-accounts.vaultRouterProgram.value = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT" as Address<"6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT">;
+accounts.vaultRouterProgram.value = "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR" as Address<"Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR">;
 }
 if (!accounts.magicProgram.value) {
 accounts.magicProgram.value = "Magic11111111111111111111111111111111111111" as Address<"Magic11111111111111111111111111111111111111">;
@@ -128,7 +128,7 @@ if (!accounts.ephemeralVault.value) {
 accounts.ephemeralVault.value = "MagicVau1t999999999999999999999999999999999" as Address<"MagicVau1t999999999999999999999999999999999">;
 }
 if (!accounts.vaultRouterProgram.value) {
-accounts.vaultRouterProgram.value = "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT" as Address<"6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT">;
+accounts.vaultRouterProgram.value = "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR" as Address<"Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR">;
 }
 if (!accounts.magicProgram.value) {
 accounts.magicProgram.value = "Magic11111111111111111111111111111111111111" as Address<"Magic11111111111111111111111111111111111111">;

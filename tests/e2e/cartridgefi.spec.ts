@@ -5,8 +5,8 @@ import { expect, test, type Page } from "@playwright/test";
 const SCREENSHOT_DIR = join(process.cwd(), "screenshots");
 mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
-const ER_ROOM_PROGRAM = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR";
-const PLATFORM_FEE_ACCOUNT = "6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir";
+const ER_ROOM_PROGRAM = "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W";
+const PLATFORM_FEE_ACCOUNT = "6LU5nN8fAbezBnsx8nLhAxvnY7KJc697fLW67qUnfrn8";
 
 function attachZeroErrorGuards(page: Page): {
   consoleErrors: string[];
@@ -185,9 +185,9 @@ test.describe("Borel — sealed-conviction live market showdowns", () => {
 
     for (const id of [
       ER_ROOM_PROGRAM,
-      "6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT",
-      "5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr",
-      "5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr",
+      "Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR",
+      "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc",
+      "B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF",
       PLATFORM_FEE_ACCOUNT,
     ]) {
       await expect(page.locator("body")).toContainText(id);

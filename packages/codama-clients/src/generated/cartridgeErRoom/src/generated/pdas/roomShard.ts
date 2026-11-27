@@ -14,7 +14,7 @@ shardIndex: number;
 };
 
 export async function findRoomShardPda(seeds: RoomShardSeeds, config: { programAddress?: Address | HasAddress | undefined } = {}): Promise<ProgramDerivedAddress> {
-  const { programAddress: programAddressInput = "Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR" as Address<"Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR"> } = config;
+  const { programAddress: programAddressInput = "DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W" as Address<"DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W"> } = config;
   const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
   return await getProgramDerivedAddress({ programAddress, seeds: [getBytesEncoder().encode(new Uint8Array([114, 111, 111, 109, 95, 115, 104, 97, 114, 100])), fixEncoderSize(getBytesEncoder(), 32).encode(seeds.eventId), getU16Encoder().encode(seeds.shardIndex)]});
 }

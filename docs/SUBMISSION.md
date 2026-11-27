@@ -30,7 +30,9 @@ https://github.com/kunal-drall/cartridgefi
 
 ## 6. Pitch and demo video
 
-Pending render: `artifacts/borel-founder-pitch-demo.mp4` → public link added here.
+https://cartridgefi.vercel.app/borel-pitch-demo.mp4 (1920x1080, 3:36, founder pitch + live product demo; narration is synthetic TTS)
+
+Local master: `artifacts/borel-founder-pitch-demo.mp4`. Pitch deck: `docs/BOREL_PITCH_DECK.pdf` (12 slides; PNGs in `docs/pitch/`).
 
 ## 7. Explorer links and integration proof
 
@@ -50,7 +52,8 @@ Full Borel room lifecycle on the Borel deployment (section 8), signed by the Bor
 | SPL stake, 10 test-USDC into room escrow | https://solscan.io/tx/4mLHwS3XTCSgUuXG6Ntu8XevhiystAPnXe2oZiyVnHz4LPQUd8vJVXkvMN8RW6BHHWo1FNhQ4hs4QR1kWw44uWHi?cluster=devnet |
 | Settlement payout + 1% fee into `platformFeeAccount` | https://solscan.io/tx/2oTzABoin7Y48HKxMAneuuGeffB5cAFooiGMEmkiWaiZQbjdohh6FUJYdgKgt56L9Lziq1hreooqZRQsUNnShPKi?cluster=devnet |
 | `record_elo_and_vault_credit` (passport ELO) | https://solscan.io/tx/59E2KXbrbNCDwHZK36Bx2Zik2Ru4D5P2Nv6KFJnhFgkqgwRFZeBEd4zCw1WPX2y94nM9CkvsdfJwqJEWEKxAeCD9?cluster=devnet |
-| Live app relayer `lock` (production, earlier deployment) | https://solscan.io/tx/374vJPvC6hW7ZBemsdmU9VNDk5HtDejsEiFg16grJb412LimcTpDvVo125asvMy8tkdaUD5Z99rJhPGuGB1fp1Qa?cluster=devnet |
+| Live web app: room join (`initialize_room_shard` + `init_stance_and_delegate` on the Borel `cartridge_er_room`) | https://solscan.io/tx/5ZKtZv69yYjBPeTHGazVSbEvK2gx6T9sLZnN4bV1VB5frxUdQE6v6XnKA8VkBCZ9cc3AemPGG1hvoG54X676qHJZ?cluster=devnet |
+| Live web app: sealed-hand commitment lock | https://solscan.io/tx/7MyVPMpDMRvQN717HyGQW3mVsgJKXBfjUf376VkPBm45AQy5RbMNCeBQ8TDcH1nYsF7rFybUSrq9UB8WiBjWpQ7?cluster=devnet |
 
 Note: in this run the stake escrow and payout are SPL transfers from a relayer-held escrow; routing them through `cartridge_vault_router`'s own payout instructions is next. An earlier 21-transaction run on the 2026-11-26 deployment is also in `docs/DEVNET_PROOF.md`.
 

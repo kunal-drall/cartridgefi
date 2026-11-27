@@ -1,0 +1,56 @@
+[
+  {
+    "scene": "S1",
+    "file": "audio/s1.mp3",
+    "durationSec": 15.672,
+    "text": "Borel is an entertainment-finance trading competition: seal a three-leg market hand, climb a live ladder, unseal at zero. MagicBlock's Permission Program seals the hands, an Ephemeral Rollup runs every stance and pivot, and VRF breaks ties."
+  },
+  {
+    "scene": "S2",
+    "file": "audio/s2.mp3",
+    "durationSec": 20.424,
+    "text": "Trading on Solana is already fast. Playing it against other people still isn't much fun. When positions are public, the winning strategy is to copy the leader, so every leaderboard turns into follow-the-leader. Wagered matches often run for hours and ask you to sign at every step. Nobody gets nervous, and nobody tells their friends how it ended."
+  },
+  {
+    "scene": "S3",
+    "file": "audio/s3.mp3",
+    "durationSec": 14.544,
+    "text": "The insight came from poker, not finance. Hidden information is the game. If rivals see your rank move but never your positions, every price tick is a read, your one pivot is a real decision, and the reveal at zero is the moment people share."
+  },
+  {
+    "scene": "S4",
+    "file": "audio/s4.mp3",
+    "durationSec": 56.712,
+    "text": "Here's the live app, in a paper room. A first visit opens a six-step how-to-play. I pick three markets from SOL, BTC, ETH, NVDAx and SPY, and call each one long or short. I place my conviction cards: one-x, two-x, and the three-x, my Sniper. Then I seal, and the three-minute clock starts. Rivals can see that I sealed, never what I picked. No wallet needed, or connect Phantom, Solflare or Backpack and claim test-USDC. Six labelled pacer bots take the other seats, trading the same prices. The ladder shows ranks only. Every hand stays face-down while ranks move on live Pyth prices. When I'm slipping, I get one pivot: flip a call, or shield it and bank the move. One tap, no popup. Then the clock hits zero, and every hand turns face-up at once. Now the whole table sees each call, each card, and where every Sniper was hiding. The receipt is made for a group chat."
+  },
+  {
+    "scene": "S5",
+    "file": "audio/s5.mp3",
+    "durationSec": 27.816,
+    "text": "Here's what MagicBlock does underneath. First, private access: each hand is submitted on an Ephemeral Rollup behind a Permission Program access list, and rivals stay off that list until the showdown unseal. Second, the real-time loop: stances and pivots live on the rollup, so a pivot is one tap. Third, fairness: ties are broken by MagicBlock VRF, which is fair and auditable. Last, a relayer sponsors the fees, so players never see a wallet popup."
+  },
+  {
+    "scene": "S6",
+    "file": "audio/s6.mp3",
+    "durationSec": 22.824,
+    "text": "All of it has run live under our own program authority: a twenty-seven-transaction room on devnet, fourteen of them on the MagicBlock rollup, covering private joins, sealed hands, pivots, VRF, unseals, scoring and settlement. On Solana, test-USDC stakes paid the winner, with a one percent fee and Elo updates. Zero wallet popups. Every one opens on Solscan."
+  },
+  {
+    "scene": "S7",
+    "file": "audio/s7.mp3",
+    "durationSec": 21.48,
+    "text": "Why now? Private rollup state works on MagicBlock today, Pyth publishes prices on Solana, and MagicBlock now treats entertainment finance as its own category. Fast PvP trading exists, with public positions. Herd, a past Blitz winner, sealed party-game answers in a private rollup with VRF. Borel brings that mechanic to live markets."
+  },
+  {
+    "scene": "S8",
+    "file": "audio/s8.mp3",
+    "durationSec": 18.144,
+    "text": "Rooms are paper by default. Staked rooms pay a one percent protocol fee, and creators earn half of builder fees. Stakes go live only where the rules allow. Next, the web app moves from a SHA-256 commitment onto the full rollup path. Then one number matters: second rooms per first room."
+  },
+  {
+    "scene": "S9",
+    "file": "audio/s9.mp3",
+    "durationSec": 8.712,
+    "text": "We're on devnet, with no users yet. Play a three-minute room at cartridgefi dot vercel dot app, then check every transaction yourself."
+  }
+]

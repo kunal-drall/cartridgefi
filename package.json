@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" -r run build",
-    "dev": "CARTRIDGEFI_STANDALONE_DEV=true pnpm --filter @cartridgefi/web dev",
+    "dev": "pnpm --filter @cartridgefi/web dev",
     "start": "pnpm --filter @cartridgefi/web start",
     "lint": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" -r run lint",
     "typecheck": "pnpm --filter \"./packages/*\" --filter \"./apps/*\" -r run typecheck",

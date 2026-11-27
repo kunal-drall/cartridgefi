@@ -1,0 +1,243 @@
+/* CartridgeFi pitch deck — slides are authored on a fixed 1920x1080 canvas. */
+
+.viewport {
+  position: fixed;
+  inset: 0;
+  background: #020304;
+  overflow: hidden;
+  outline: none;
+}
+
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: center center;
+  z-index: 11;
+  /* Clicks fall through to the prev/next hit zones; only links stay interactive. */
+  pointer-events: none;
+}
+
+.printRoot {
+  background: #050609;
+  width: 1920px;
+}
+
+.printRoot .slide {
+  break-after: page;
+  page-break-after: always;
+}
+
+.printRoot .slide:last-child {
+  break-after: auto;
+  page-break-after: auto;
+}
+
+.slide {
+  --void: #050609;
+  --elevated: #0a0d14;
+  --hairline: #1a1f2b;
+  --hairline-strong: #2a3140;
+  --fg: #f3f4f6;
+  --fg-2: #a3aab6;
+  --fg-3: #6b7280;
+  --blue: #3b82f6;
+  --amber: #f5a524;
+  --green: #22c08a;
+
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: var(--void);
+  color: var(--fg);
+  font-family: var(--font-inter), -apple-system, sans-serif;
+  padding: 104px 128px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.display {
+  font-family: "Plus Jakarta Sans", var(--font-inter), sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+.headline {
+  font-family: "Plus Jakarta Sans", var(--font-inter), sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  margin: 0;
+  font-size: 76px;
+  line-height: 1.02;
+  max-width: 1600px;
+  text-wrap: balance;
+}
+
+.mono {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.footer {
+  position: absolute;
+  left: 128px;
+  right: 128px;
+  bottom: 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 48px;
+  padding-top: 22px;
+  border-top: 1px solid var(--hairline);
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: 17px;
+  line-height: 1.3;
+  color: var(--fg-3);
+}
+
+.footerBrand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--fg-2);
+  font-family: "Plus Jakarta Sans", var(--font-inter), sans-serif;
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.footerSource {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.footerCount {
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: 150px;
+}
+
+/* --- controls (screen only) --- */
+
+.controls {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #22262e;
+  border-radius: 10px;
+  background: rgba(10, 13, 20, 0.92);
+  opacity: 0;
+  transition: opacity 180ms cubic-bezier(0.23, 1, 0.32, 1);
+  z-index: 20;
+}
+
+.controlsVisible,
+.controls:focus-within {
+  opacity: 1;
+}
+
+.controlButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-width: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #d1d5db;
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.controlButton:disabled {
+  color: #4b5563;
+  cursor: default;
+}
+
+.controlButton:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .controlButton:not(:disabled):hover {
+    background: #1d2129;
+  }
+}
+
+.controlCount {
+  padding: 0 10px;
+  color: #9ca3af;
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-size: 13px;
+  min-width: 64px;
+  text-align: center;
+}
+
+.hitLeft,
+.hitRight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.hitLeft {
+  left: 0;
+  width: 33%;
+  cursor: w-resize;
+}
+
+.hitRight {
+  right: 0;
+  width: 67%;
+  cursor: e-resize;
+}
+
+.hitLeft:focus-visible,
+.hitRight:focus-visible {
+  outline: none;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

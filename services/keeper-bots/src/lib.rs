@@ -427,6 +427,7 @@ async fn execute_single_room_round(
     // 5. Trigger T - 15s Showdown unseal
     let unsealed_room: PublicRoomView = http
         .post(format!("{api_base}/v1/rooms/{room_id}/unseal"))
+        .json(&serde_json::json!({}))
         .send()
         .await?
         .error_for_status()?

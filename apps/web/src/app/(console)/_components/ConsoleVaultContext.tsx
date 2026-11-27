@@ -507,3 +507,8 @@ export function useConsoleVault(): ConsoleVaultContextValue {
   }
   return ctx;
 }
+
+/** Same as useConsoleVault, but returns null outside a ConsoleVaultProvider instead of throwing. */
+export function useOptionalConsoleVault(): ConsoleVaultContextValue | null {
+  return React.useContext(ConsoleVaultContext);
+}

@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Wallet } from "lucide-react";
-import { CartridgeFiLogo } from "@cartridgefi/ui-system";
 import { cn, shortenAddress } from "@/lib/utils";
 import {
   formatAtomicUsdc,
@@ -19,33 +18,15 @@ const WORKSPACE_TABS: readonly {
   mobileLabel: string;
 }[] = [
   {
-    id: "console-tab-markets",
-    href: "/",
-    label: "Markets",
-    mobileLabel: "Markets",
-  },
-  {
     id: "console-tab-borel",
-    href: "/play/borel",
-    label: "Borel Arena",
+    href: "/",
+    label: "Borel",
     mobileLabel: "Borel",
-  },
-  {
-    id: "console-tab-pulse-runner",
-    href: "/play/pulse-runner",
-    label: "Pulse Runner",
-    mobileLabel: "Runner",
-  },
-  {
-    id: "console-tab-studio",
-    href: "/studio",
-    label: "Manifest Studio",
-    mobileLabel: "Studio",
   },
   {
     id: "console-tab-protocol",
     href: "/protocol",
-    label: "Protocol Explorer",
+    label: "Protocol",
     mobileLabel: "Protocol",
   },
 ];
@@ -60,48 +41,24 @@ export function ConsoleShellHeader(): React.JSX.Element {
     openCashier,
   } = useConsoleVault();
 
-  const [devnetSlot, setDevnetSlot] = React.useState<number | null>(null);
-  const [devnetLatency, setDevnetLatency] = React.useState<number | null>(null);
-
-  React.useEffect(() => {
-    let active = true;
-    const poll = async (): Promise<void> => {
-      try {
-        const res = await fetch("/api/protocol-telemetry");
-        if (!res.ok || !active) return;
-        const json = (await res.json()) as {
-          probes?: {
-            solanaDevnet?: { slot?: number | null; latencyMs?: number | null };
-          };
-        };
-        if (!active) return;
-        setDevnetSlot(json.probes?.solanaDevnet?.slot ?? null);
-        setDevnetLatency(json.probes?.solanaDevnet?.latencyMs ?? null);
-      } catch {
-        // Silent retry on next interval
-      }
-    };
-    void poll();
-    const id = window.setInterval(() => {
-      void poll();
-    }, 15_000);
-    return () => {
-      active = false;
-      window.clearInterval(id);
-    };
-  }, []);
-
   return (
     <header className="sticky top-0 z-40 border-b border-[#22262e] bg-[#0b0c0e]">
-      <div className="mx-auto flex h-12 max-w-[1600px] items-center justify-between gap-3 px-4">
+      <div className="flex h-11 items-center justify-between gap-3 px-3">
         <div className="flex items-center gap-5 min-w-0">
           <Link
             id="console-home-logo-link"
             href="/"
-            aria-label="CartridgeFi Markets Home"
+            aria-label="Borel home"
             className="shrink-0 rounded py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b82f6]"
           >
-            <CartridgeFiLogo size="sm" showTag />
+            <span className="inline-flex items-center gap-2">
+              <span className="text-[15px] font-semibold tracking-[-0.03em] text-[#f3f4f6]">
+                Borel
+              </span>
+              <span className="rounded-[3px] border border-[#303642] px-1 font-mono text-[10px] text-[#9ca3af]">
+                devnet
+              </span>
+            </span>
           </Link>
 
           {/* Desktop Navigation Tabs */}
@@ -112,7 +69,7 @@ export function ConsoleShellHeader(): React.JSX.Element {
             {WORKSPACE_TABS.map((tab) => {
               const isActive =
                 tab.href === "/"
-                  ? pathname === "/"
+                  ? pathname === "/" || pathname.startsWith("/play/borel")
                   : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
               return (
                 <Link
@@ -136,26 +93,6 @@ export function ConsoleShellHeader(): React.JSX.Element {
 
         {/* Right Live Network Readout & Wallet / Margin Control */}
         <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href="/protocol"
-            className="hidden xl:inline-flex items-center gap-2 rounded-md border border-[#22262e] bg-[#111317] px-2.5 py-1 font-mono text-[11px] text-[#9ca3af] hover:border-[#303642] hover:text-[#e5e7eb] tabular-nums"
-          >
-            <span
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                devnetSlot !== null ? "bg-[#10b981]" : "bg-[#f59e0b]",
-              )}
-            />
-            <span>
-              {devnetSlot !== null
-                ? `Slot ${devnetSlot.toLocaleString()}`
-                : "Devnet RPC"}
-            </span>
-            {devnetLatency !== null ? (
-              <span className="text-[#6b7280]">{devnetLatency}ms</span>
-            ) : null}
-          </Link>
-
           <button
             id="console-vault-cashier-btn"
             type="button"
@@ -164,6 +101,9 @@ export function ConsoleShellHeader(): React.JSX.Element {
           >
             <Wallet className="h-3.5 w-3.5 text-[#3b82f6]" />
             <span>{formatAtomicUsdc(cashUsdcAtomic)}</span>
+            <span className="rounded-[3px] bg-[#f59e0b]/15 px-1 font-sans text-[10px] text-[#fbbf24]">
+              paper
+            </span>
             <span className="hidden sm:inline border-l border-[#303642] pl-2 text-[#9ca3af]">
               {onchainSolLamports > 0n
                 ? formatSolLamports(onchainSolLamports)
@@ -188,7 +128,7 @@ export function ConsoleShellHeader(): React.JSX.Element {
         {WORKSPACE_TABS.map((tab) => {
           const isActive =
             tab.href === "/"
-              ? pathname === "/"
+              ? pathname === "/" || pathname.startsWith("/play/borel")
               : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
           return (
             <Link

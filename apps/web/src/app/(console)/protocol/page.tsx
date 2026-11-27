@@ -1,13 +1,13 @@
 import * as React from "react";
 import type { Metadata } from "next";
-import { ProtocolExecutionConsole } from "@/protocol/ProtocolExecutionConsole";
+import { BorelProtocolInspector } from "@/protocol/BorelProtocolInspector";
 
 export const metadata: Metadata = {
-  title: "Protocol Inspector & Live Execution Console",
+  title: "Protocol Inspector",
   description:
-    "Live Solana Devnet and MagicBlock Ephemeral Rollup / Intel TDX program inspector with Borsh-decoded accounts and Solscan transaction proofs.",
+    "Live Solana devnet, MagicBlock Private ER / TEE, VRF and Pyth telemetry behind Borel sealed-conviction market showdowns.",
 };
 
 export default function ProtocolPage(): React.JSX.Element {
-  return <ProtocolExecutionConsole />;
+  return <BorelProtocolInspector />;
 }

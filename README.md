@@ -1,57 +1,28 @@
-# CartridgeFi Protocol — Entertainment Finance Infrastructure (`Infra + DeFi + Privacy`) on Solana & MagicBlock
+# Borel — Sealed-Conviction Live Market Showdowns on Solana + MagicBlock
 
-**CartridgeFi** (`v0.1.0-blitz-protocol`) is a parameterized **Entertainment Finance Protocol** on **Solana** and **MagicBlock Ephemeral Rollups (ERs) & Private Ephemeral Rollups (PER / Intel TDX TEE)**—providing `10ms` delegated state shards, zero-popup session keys, TEE anti-copy-trading permissions, verifiable randomness (`VRF`), private eSPL fee routing, and non-custodial multi-venue settlement.
+**Fantasy trading with a hidden hand.** Everyone in a Borel room plays the same live window. You draft three market calls (`LONG`/`SHORT` across SOL, BTC, ETH, NVDAx, SPY), place your `1x`/`2x`/`3x` conviction cards (the `3x` is your secret Sniper) and seal the hand. Rivals watch your rank move in real time but never see your legs. Each player gets one Pivot (flip a leg or shield it to cash). At `00:00` every hand unseals and the table learns who was right.
 
-Verified 100% live on Solana Devnet (`https://api.devnet.solana.com`), MagicBlock Router (`https://devnet-router.magicblock.app`), and Intel TDX Private ER (`https://devnet-tee.magicblock.app`):
-- **Protocol Inspector & Live Execution Console (`/protocol`)** — Technical verification dashboard displaying live Devnet Program IDs, ER/TEE RPC latency probes, canonical `platformFeeAccount` SPL fee counter, and clickable Solscan transaction proofs.
-- **Reference Harness `#001`: Borel (`/play/borel`)** — End-to-end protocol integration demo exercising delegated ER `RoomShard`s, 75% Intel TDX Fog-of-War -> Showdown unseal, VRF settlement, and claim-time payout routing (`NVDAx`, `ANTx`, `SPYx`, `USDC`).
-- **Reference Harness `#002`: Pulse Runner (`/play/pulse-runner`) + Vibe Studio (`/studio`) + Agentic Stack (`SKILL.md` + `@cartridgefi/mcp` + CLI)** — Demonstrates multi-genre execution against the exact same 4 parameterized Anchor programs without custom smart contracts.
+- **Live app:** https://cartridgefi.vercel.app (`/` is the Borel table, `/protocol` is the live on-chain inspector)
+- **Why it exists:** see [`docs/IDEA_VALIDATION.md`](./docs/IDEA_VALIDATION.md) (Colosseum Copilot stress test)
+- **On-chain proof:** see [`docs/DEVNET_PROOF.md`](./docs/DEVNET_PROOF.md)
 
-> **Live On-Chain Proof (`CARTRIDGEFI_STANDALONE_DEV=false`):** See [`docs/DEVNET_PROOF.md`](./docs/DEVNET_PROOF.md) and [`apps/web/src/data/devnet-proof.json`](./apps/web/src/data/devnet-proof.json) for all 33 confirmed Devnet + ER + TEE transactions.
+## How a room works
 
----
+The live app and the proof script exercise the same deployed programs at different depths. The table says which is which.
 
-## System Architecture
+| Step | Live app (`/api/borel/*`, relayer-paid) | Proof script (`scripts/prove-live-devnet.ts`) |
+| :--- | :--- | :--- |
+| Join | `cartridge_registry.register_cartridge` (first room), `cartridge_er_room.initialize_room_shard`, `init_stance_and_delegate` (stance delegated to MagicBlock via `DELeGGv…`) | Same, plus `delegate_room_shard` |
+| Seal | sha256 commitment published as a devnet memo; the hand itself is AES-GCM encrypted with a server-held key until showdown | `submit_stance` on the MagicBlock ER under a Permission Program (`ACLseo…`) ACL |
+| Sweat | Scores recomputed from live Pyth prices with bigint `10^9` fixed-point math; only ranks are public | — |
+| Pivot | One `FLIP`/`SHIELD`, memo-recorded, enforced by the relayer | Second `submit_stance`, capped on-chain by `max_rebalances` |
+| Showdown | Hands revealed as memos at settle; tie-break seed from a blockhash, labelled "not VRF" | `request_settlement_vrf`, `trigger_showdown_unseal`, `undelegate_player_stance`, `settle_and_commit_shard` |
 
-```mermaid
-flowchart TB
-  subgraph Client["Engineers, Creators & AI Coding Agents"]
-    Web["Protocol Console & Harnesses\n/protocol · /play/borel · /play/pulse-runner · /studio"]
-    Deck["CartridgeDeck & BorelArena\n15-Line Partner Wallet SDK (40/30/30)"]
-    Agents["Claude Code · Cursor · Codex\nnpx skills add + @cartridgefi/mcp v2 + CLI"]
-  end
+**Not yet possible with the current keys:** SPL stakes, fee routing into `platformFeeAccount` and `record_elo`. These need the original devnet authority (`D7ba9q…`), which holds the test mint and the passport admin role. The historical run that exercised them is in `docs/DEVNET_PROOF.md`. On-chain stances use four slots `[SOL, BTC, ETH, NVDAx]`, so SPY legs are scored off-chain only.
 
-  subgraph Edge["Rust Real-Time Edge & Gasless Cashier"]
-    CoreAPI["cartridge-core-api (:8787)\nKora Paymaster · Jupiter V2 / DFlow / Phoenix Quotes · 7-Chain USDC"]
-    WSMesh["cartridge-ws-mesh (:8788)\n48-Byte 0xCF Binary WorldPulse + Showdown Fan-Out"]
-    Keepers["cartridge-keeper-bots\nAutonomous Crank + 3 AI Pacer Bots"]
-  end
+**Stakes:** rooms default to paper play. Devnet rooms send real devnet transactions through a server-side relayer when it is funded. When it isn't, the app says so and shows simulation results instead of signatures. Nothing in the UI fabricates a transaction.
 
-  subgraph MagicBlock["MagicBlock Ephemeral Rollups & Intel TDX Private ER (10ms)"]
-    Router["Magic Router\ndevnet-router.magicblock.app"]
-    PER["Delegated RoomShard, PlayerStance & eSPL\nACLseoPoy... + SPLxh1LV... (devnet-tee)"]
-    OracleVRF["Live Pricing Oracle (PriCems...)\n+ Ephemeral VRF Queue (Vrf1RNU...)"]
-  end
-
-  subgraph SolanaL1["Solana L1 Canonical Settlement"]
-    Registry["cartridge_registry\nEngineConfig + Canonical platformFeeAccount ATA"]
-    ERRoom["cartridge_er_room\n#[ephemeral] Delegation + 4 i128 (10^9) Skill Formulas"]
-    Vault["cartridge_vault_router\nSessionRiskEnvelope + Harmonic Shapley + Fee Split"]
-    Passport["cartridge_passport\nPortable Market ELO + xStocks Eligibility Bitmask"]
-  end
-
-  Web --> CoreAPI
-  Web --> WSMesh
-  Web --> Router
-  Deck --> Router
-  Agents --> CoreAPI
-  Keepers --> Router
-  Router --> PER
-  OracleVRF --> PER
-  ERRoom <-->|"DELeGGvX... Delegate /\nCommit + Undelegate"| PER
-  Vault -->|"CPI TVL Sync"| Registry
-  Vault -->|"Eligibility Read"| Passport
-```
+**Prices:** Pyth Hermes now requires an API key. Without `PYTH_API_KEY`, the server reads Pyth's on-chain push-feed accounts on Solana mainnet and streams them to the browser over SSE (`/api/pyth/stream`). Equity legs are marked `closed`/`stale` outside US market hours.
 
 ---
 
@@ -63,7 +34,8 @@ flowchart TB
 | **`cartridge_vault_router` (P2)** | `6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT` | `373,232 B` · Non-custodial `SessionRiskEnvelope`, Harmonic Shapley payouts, `50/50` & `40/30/30` fee splits into `platformFeeAccount` |
 | **`cartridge_registry` (P3)** | `5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr` | `188,752 B` · `EngineConfig` (`platform_fee_account`, TVL caps) & parameterized `CartridgeManifestAccount` PDAs |
 | **`cartridge_passport` (P4)** | `5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr` | `182,040 B` · Portable Cross-Game Market ELO (`i128` `10^9`) & Geo/xStocks Eligibility Bitmask |
-| **Relayer / App Wallet** | `D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1` | Executes TEE authentication, `delegateSpl`, private fee-paying eSPL transfers, and `withdrawSpl` |
+| **Proof-run authority (2026-11-26)** | `D7ba9qSDTubn9S86nsTb1EgDSFE2rjCacGcmMDzfpWs1` | Signed the historical proof run in `docs/DEVNET_PROOF.md` (TEE auth, `delegateSpl`, private eSPL transfers, `withdrawSpl`) |
+| **Borel relayer (live app)** | `Fc54gfodfqwq8QZe8M1Zy5ARYdYE7skRynVJGA4UYmWg` | Server-side fee payer for Borel room transactions; key lives only in server env |
 | **`platformFeeAccount` (Canonical ATA)** | `6YR5GiT8KmnbPdhx5siRHBPWTtnxE3FQCGjkwyzbMzir` | Canonical SPL ATA of treasury owner `Giyjg9VusfUXJbNYT2W3gRHpfFPez1kPAE5YcWsmNjPd` for Devnet SPL mint `F6chXtYN1UUtxY1eNcbjnRDqnMWVYNUtqUqiy52pzWm1` |
 | **MagicBlock Delegation / PER / eSPL** | `DELeGGvX...` · `ACLseoPo...` · `SPLxh1LV...` | Account delegation, ER-local permissions, and encrypted Magic ATA private SPL transfers |
 | **MagicBlock Router & Private TEE** | `https://devnet-router.magicblock.app` · `https://devnet-tee.magicblock.app` | Dynamic ER routing (`10ms`) & Intel TDX hardware-encrypted execution |

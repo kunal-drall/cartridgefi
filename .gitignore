@@ -44,3 +44,13 @@ pnpm-debug.log*
 playwright-report/
 test-results/
 tests/e2e/screenshots/
+
+# macOS AppleDouble metadata (exFAT volumes)
+._*
+.DS_Store
+
+# Media artifacts
+artifacts/
+
+# Founder-video pipeline from the pre-pivot sprint (kept locally, not part of Borel)
+video/

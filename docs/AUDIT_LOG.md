@@ -40,3 +40,24 @@
 2. **`packages/ui-system/src/LiquidGlass.tsx`, `apps/web/src/app/(marketing)/page.tsx`, & `apps/web/src/studio/VibeStudioConsole.tsx` (`390x844` Mobile Visual Fit)**:
    - *Finding*: Headless `390x844` screenshot inspection identified Tailwind v4 `.inline-flex` overriding `hidden sm:inline-flex` on the mobile navbar `Launch Studio` button, `CopyTerminalPill` needing `min-w-0 flex-1`, and 44-char base58 PDA strings in `#studio-deploy-receipt` needing `break-all` + explicit `ER Room Program ID` display.
    - *Fix*: Applied responsive fixes, rebuilt `@cartridgefi/ui-system` and `@cartridgefi/web`, and re-verified `8/8` Playwright tests + visual screenshot inspection across `1440x900` and `390x844`.
+
+---
+
+## 4. Borel Pivot Audit — 2026-11-27 (relayer, `/api/borel/*`, scoring)
+
+Independent read-only review of the relayer and game API added in the Borel pivot. Findings are traced code paths unless marked estimated.
+
+| ID | Severity | Finding | Status |
+| :--- | :--- | :--- | :--- |
+| C1 | Critical | Room state rebuilt from any tx carrying a `borel:v1:` memo; anyone could forge lock/pivot/settle events (unbounded scores, early settle revealing all hands) | FIXED — events count only with a relayer-key HMAC bound to the room id, relayer fee payer, and blockTime inside the phase window; signature reads paginated |
+| H1 | High | Lock/pivot accepted any `sessionPubkey` with no player signature; full session ids exposed in room rows | FIXED — session key signs `{action, roomId, sessionPubkey, params, expiresAt}` (ed25519, 2-min expiry), verified server-side; rows carry a 12-hex label only |
+| H2 | High | Exact live per-player scores plus public prices let anyone solve a sealed hand within seconds | FIXED — before settle, rivals expose only rank and rank delta; scores and hands only after settle |
+| H3 | High | Client-supplied entry price (±1% edge, fails open when Pyth is unavailable) | FIXED — entry/pivot prices set server-side from Pyth; legs with missing or >60 s-old prices are refused |
+| H4 | High (estimated cost) | Join rent drain via fresh session keys; per-instance in-memory rate limit | MITIGATED — 24-seat cap per room, rate limit, balance floor; shared limiter/spend budget deferred |
+| H5 | High | Predictable RoomShard seeds allow pre-creation DoS; seed index wraps at 65,536 cycles | FIXED — shard seed = HMAC(relayer key, full room id); reads verify authority and schedule |
+| M1 | Medium | Settle scores a missing feed as 0 and uses call-time prices | FIXED — settle refuses missing/stale prices (uses latest fresh price ~endsAt+1.5 s) |
+| M2 | Medium | No rate limits on GET routes / SSE; per-subset Pyth cache amplifies upstream calls | DEFERRED |
+| M3 | Medium | No price-freshness check on lock/pivot/settle | FIXED — 60 s freshness rule on lock/pivot/settle |
+| L1 | Low | Relayer secret: no leak path found (no client import of server modules, not in `.next/static`, `.env.local` ignored) | Verified |
+
+Verification after fixes: `tsc --noEmit` clean; Playwright 7 passed / 1 skipped (desktop-only Devnet test) on 1440x900 and 390x844. Nothing in this section has been exercised on-chain yet: the Borel relayer was unfunded at audit time.

@@ -89,3 +89,27 @@
 ```bash
 CARTRIDGEFI_STANDALONE_DEV=false pnpm prove:blitz
 ```
+
+---
+
+## Borel live app — status 2026-11-27 16:10 IST
+
+The Borel table at https://cartridgefi.vercel.app sends room actions through a server-side relayer, `Fc54gfodfqwq8QZe8M1Zy5ARYdYE7skRynVJGA4UYmWg` ([Solscan](https://solscan.io/account/Fc54gfodfqwq8QZe8M1Zy5ARYdYE7skRynVJGA4UYmWg?cluster=devnet)). The devnet RPC faucet returned HTTP 410 ("faucet closed") and **the relayer holds 0 SOL**, so no Borel transaction has been broadcast yet. **This section therefore lists no signatures.** The historical run above was signed by a different authority (`D7ba9q…`) on 2026-11-26.
+
+What is verified today, by `simulateTransaction` (`sigVerify: false`) against the deployed devnet programs, using the funded proof-run authority as a labelled stand-in fee payer:
+
+```text
+# Room opened (cartridge_er_room.initialize_room_shard) + PlayerStance initialized & delegated to MagicBlock ER — simulation OK (133358 CU, 1164 bytes)
+Program 5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr invoke [1]   Instruction: RegisterCartridge
+Program Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR invoke [1]   Instruction: InitializeRoomShard
+Program Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR invoke [1]   Instruction: InitStanceAndDelegate
+Program MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr invoke [1]
+```
+
+To produce live links once the relayer holds at least 0.15 devnet SOL:
+
+```sh
+cd /Volumes/T7/cartridgefi && node scripts/prove-live-devnet.ts
+```
+
+The script runs the full lifecycle (join → delegate → `submit_stance` on the ER → pivot → `request_settlement_vrf` → `trigger_showdown_unseal` → undelegate → `settle_and_commit_shard`) and appends real Solscan links to this file. SPL stakes, `platformFeeAccount` fee routing and `record_elo` need the original authority (test-mint and passport admin), so neither the app nor the script can run them with the new relayer.

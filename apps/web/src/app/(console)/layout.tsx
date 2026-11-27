@@ -1,4 +1,5 @@
 import * as React from "react";
+import { OnchainStatebar } from "@/components/OnchainStatebar";
 import { ConsoleShellHeader } from "./_components/ConsoleShellHeader";
 import { ConsoleVaultProvider } from "./_components/ConsoleVaultContext";
 import { UnifiedCashierModal } from "./_components/UnifiedCashierModal";
@@ -27,6 +28,7 @@ export default function ConsoleLayout({
           {children}
         </main>
 
+        <OnchainStatebar className="fixed inset-x-0 bottom-0" />
         <UnifiedCashierModal />
       </div>
     </ConsoleVaultProvider>

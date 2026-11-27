@@ -2,6 +2,8 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: ".",
+  // exFAT volumes create AppleDouble `._*` metadata files next to every spec.
+  testIgnore: ["**/._*"],
   timeout: 60_000,
   expect: {
     timeout: 10_000,

@@ -1,0 +1,11 @@
+target/
+node_modules/
+.keys/
+*.keypair.json
+*-keypair.json
+id.json
+.env
+.env.*
+._*
+.DS_Store
+.git/

@@ -10,4 +10,6 @@ export * from './claimPrize.js';
 export * from './distributePoolAction.js';
 export * from './distributePoolAndFees.js';
 export * from './initializeRoomVault.js';
+export * from './migrateRoomVaultV2.js';
 export * from './openSessionEnvelope.js';
+export * from './refundUnsettledRoom.js';

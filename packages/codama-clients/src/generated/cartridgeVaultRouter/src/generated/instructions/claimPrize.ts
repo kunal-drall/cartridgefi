@@ -41,6 +41,7 @@ sessionEnvelope: TAccountSessionEnvelope;
 usdcMint: TAccountUsdcMint;
 desiredMint: TAccountDesiredMint;
 vaultUsdcToken: TAccountVaultUsdcToken;
+/** Owner must be the envelope's funder (or the player key for legacy envelopes); checked in handler. */
 playerDestinationAta: TAccountPlayerDestinationAta;
 xstockReserveToken?: TAccountXstockReserveToken;
 settlementUsdcAta?: TAccountSettlementUsdcAta;
@@ -93,6 +94,7 @@ sessionEnvelope: TAccountSessionEnvelope;
 usdcMint: TAccountUsdcMint;
 desiredMint: TAccountDesiredMint;
 vaultUsdcToken: TAccountVaultUsdcToken;
+/** Owner must be the envelope's funder (or the player key for legacy envelopes); checked in handler. */
 playerDestinationAta: TAccountPlayerDestinationAta;
 xstockReserveToken?: TAccountXstockReserveToken;
 settlementUsdcAta?: TAccountSettlementUsdcAta;
@@ -140,6 +142,7 @@ sessionEnvelope: TAccountMetas[2];
 usdcMint: TAccountMetas[3];
 desiredMint: TAccountMetas[4];
 vaultUsdcToken: TAccountMetas[5];
+/** Owner must be the envelope's funder (or the player key for legacy envelopes); checked in handler. */
 playerDestinationAta: TAccountMetas[6];
 xstockReserveToken?: TAccountMetas[7] | undefined;
 settlementUsdcAta?: TAccountMetas[8] | undefined;

@@ -20,6 +20,13 @@ pub const BETA_MAX_GLOBAL_TVL_USDC: u64 = 5_000_000_000;
 pub const MAX_LIVE_LEVERAGE: u8 = 5;
 pub const MAX_TOTAL_FEE_BPS: u16 = 1_000;
 pub const MAX_CREATOR_SHARE_BPS: u16 = 5_000;
+/// Seat cap per vault: the single-transaction `distribute_pool_and_fees` limit without an ALT.
+pub const MAX_ENVELOPES_PER_VAULT: u16 = 8;
+/// `RoomVault` layout written by `initialize_room_vault` / `migrate_room_vault_v2`.
+pub const ROOM_VAULT_LAYOUT_VERSION: u8 = 2;
+/// Pre-upgrade (v1) account body sizes, excluding the 8-byte discriminator.
+pub const ROOM_VAULT_V1_SPACE: usize = 287;
+pub const SESSION_ENVELOPE_V1_SPACE: usize = 150;
 
 pub const PARTNER_WALLET_SHARE_BPS: u128 = 4_000;
 pub const PARTNER_CREATOR_SHARE_BPS: u128 = 3_000;
@@ -52,11 +59,26 @@ pub mod cartridge_vault_router {
         ctx: Context<InitializeRoomVault>,
         total_fee_bps: u16,
         partner_wallet_active: bool,
+        buy_in_usdc: u64,
+        max_envelopes: u16,
     ) -> Result<()> {
         let engine_cfg = &ctx.accounts.engine_config;
         let manifest = &ctx.accounts.cartridge_manifest;
 
         require!(!engine_cfg.paused, VaultError::EnginePaused);
+        require!(
+            (1..=MAX_ENVELOPES_PER_VAULT).contains(&max_envelopes),
+            VaultError::InvalidBuyIn
+        );
+        // A full room (max_envelopes × buy_in) must fit the room pool cap (and the beta cap).
+        let mut pool_cap = engine_cfg.max_room_pool_usdc;
+        if engine_cfg.private_beta_mode {
+            pool_cap = pool_cap.min(BETA_MAX_ROOM_POOL_USDC);
+        }
+        require!(
+            buy_in_usdc > 0 && buy_in_usdc <= pool_cap / u64::from(max_envelopes),
+            VaultError::InvalidBuyIn
+        );
         require!(
             total_fee_bps <= MAX_TOTAL_FEE_BPS,
             VaultError::FeeBpsExceedsCap
@@ -109,6 +131,12 @@ pub mod cartridge_vault_router {
         vault.total_claimed_usdc = 0;
         vault.settled = false;
         vault.bump = ctx.bumps.room_vault;
+        vault.buy_in_usdc = buy_in_usdc;
+        vault.max_envelopes = max_envelopes;
+        vault.envelope_count = 0;
+        vault.refunding = false;
+        vault.refunded_count = 0;
+        vault.layout_version = ROOM_VAULT_LAYOUT_VERSION;
 
         Ok(())
     }
@@ -135,6 +163,19 @@ pub mod cartridge_vault_router {
 
         let vault = &mut ctx.accounts.room_vault;
         require!(!vault.settled, VaultError::VaultAlreadySettled);
+        require!(!vault.refunding, VaultError::VaultRefunding);
+        require!(
+            principal_usdc == vault.buy_in_usdc,
+            VaultError::BuyInMismatch
+        );
+        require!(
+            vault.envelope_count < vault.max_envelopes,
+            VaultError::RoomSeatsFull
+        );
+        vault.envelope_count = vault
+            .envelope_count
+            .checked_add(1)
+            .ok_or(VaultError::MathOverflow)?;
 
         let next_room_pool = vault
             .room_pool_usdc
@@ -168,10 +209,10 @@ pub mod cartridge_vault_router {
             CpiContext::new(
                 ctx.accounts.token_program.key(),
                 TransferChecked {
-                    from: ctx.accounts.player_usdc_ata.to_account_info(),
+                    from: ctx.accounts.funder_usdc_ata.to_account_info(),
                     mint: ctx.accounts.usdc_mint.to_account_info(),
                     to: ctx.accounts.vault_usdc_token.to_account_info(),
-                    authority: ctx.accounts.player.to_account_info(),
+                    authority: ctx.accounts.funder.to_account_info(),
                 },
             ),
             principal_usdc,
@@ -206,10 +247,13 @@ pub mod cartridge_vault_router {
         env.claimed = false;
         env.claimed_mint = Pubkey::default();
         env.bump = ctx.bumps.session_envelope;
+        env.funder = ctx.accounts.funder.key();
+        env.refunded = false;
 
         emit!(SessionEnvelopeOpened {
             room_shard: vault.room_shard,
             player: player_key,
+            funder: env.funder,
             principal_usdc,
             leverage,
             room_pool_usdc: next_room_pool,
@@ -280,6 +324,17 @@ pub mod cartridge_vault_router {
         require!(vault.settled && env.settled, VaultError::VaultNotYetSettled);
         require!(!env.claimed, VaultError::PrizeAlreadyClaimed);
         require!(env.payout_usdc > 0, VaultError::ZeroPrizePayout);
+        // Payouts land with the funding wallet (legacy envelopes without a funder pay the player key).
+        let beneficiary = if env.funder != Pubkey::default() {
+            env.funder
+        } else {
+            player_key
+        };
+        require_keys_eq!(
+            ctx.accounts.player_destination_ata.owner,
+            beneficiary,
+            VaultError::Unauthorized
+        );
 
         let desired_mint_key = ctx.accounts.desired_mint.key();
         let room_shard_key = vault.room_shard;
@@ -312,7 +367,7 @@ pub mod cartridge_vault_router {
                 .market_passport
                 .as_ref()
                 .ok_or(VaultError::MissingPassportForXStocks)?;
-            verify_xstocks_passport_eligibility(passport_info, &player_key)?;
+            verify_xstocks_passport_eligibility(passport_info, &beneficiary)?;
 
             require!(xstock_units_out > 0, VaultError::InvalidXStockUnits);
             let xstock_reserve = ctx
@@ -411,6 +466,315 @@ pub mod cartridge_vault_router {
         });
         Ok(())
     }
+
+    /// Authority-only refund of an undistributed room. The first call flips the vault into
+    /// `refunding` (no more deposits, no distribution); each `(envelope, destination)` pair in
+    /// `remaining_accounts` returns that envelope's principal. Idempotent per envelope.
+    pub fn refund_unsettled_room<'info>(
+        ctx: Context<'info, RefundUnsettledRoom<'info>>,
+    ) -> Result<()> {
+        let pairs = ctx.remaining_accounts.chunks_exact(2);
+        require!(
+            pairs.remainder().is_empty(),
+            VaultError::InvalidSettlementAccountPairs
+        );
+
+        let vault = &mut ctx.accounts.room_vault;
+        require!(!vault.settled, VaultError::VaultAlreadySettled);
+        vault.refunding = true;
+
+        let room_shard_key = vault.room_shard;
+        let vault_bump = vault.bump;
+        let vault_seeds: &[&[u8]] = &[SEED_ROOM_VAULT, room_shard_key.as_ref(), &[vault_bump]];
+        let auth_seeds: &[&[u8]] = &[SEED_VAULT_ROUTER_AUTH, &[ctx.bumps.vault_router_auth]];
+        let vault_token_key = ctx.accounts.vault_usdc_token.key();
+
+        for pair in pairs {
+            let env_info = &pair[0];
+            let dest_info = &pair[1];
+            require!(
+                env_info.owner == &crate::ID && env_info.is_writable,
+                VaultError::InvalidEnvelopeAccount
+            );
+            let mut env = {
+                let data = env_info.try_borrow_data()?;
+                let mut slice: &[u8] = &data;
+                SessionRiskEnvelope::try_deserialize(&mut slice)?
+            };
+            require_keys_eq!(env.room_shard, room_shard_key, VaultError::ShardMismatch);
+            let expected_env_pda = Pubkey::create_program_address(
+                &[
+                    SEED_SESSION_ENVELOPE,
+                    room_shard_key.as_ref(),
+                    env.player.as_ref(),
+                    &[env.bump],
+                ],
+                &crate::ID,
+            )
+            .map_err(|_| error!(VaultError::InvalidEnvelopeAccount))?;
+            require_keys_eq!(
+                env_info.key(),
+                expected_env_pda,
+                VaultError::InvalidEnvelopeAccount
+            );
+            if env.refunded {
+                continue;
+            }
+            require!(
+                !env.settled && !env.claimed,
+                VaultError::VaultAlreadySettled
+            );
+
+            require!(dest_info.is_writable, VaultError::RefundDestinationMismatch);
+            require_keys_neq!(
+                dest_info.key(),
+                vault_token_key,
+                VaultError::DuplicateTokenAccounts
+            );
+            let destination = InterfaceAccount::<TokenAccount>::try_from(dest_info)?;
+            let expected_owner = if env.funder != Pubkey::default() {
+                env.funder
+            } else {
+                env.player
+            };
+            require_keys_eq!(
+                destination.owner,
+                expected_owner,
+                VaultError::RefundDestinationMismatch
+            );
+            require_keys_eq!(destination.mint, vault.usdc_mint, VaultError::MintMismatch);
+
+            let principal = env.principal_usdc;
+            if principal > 0 {
+                transfer_checked(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program.key(),
+                        TransferChecked {
+                            from: ctx.accounts.vault_usdc_token.to_account_info(),
+                            mint: ctx.accounts.usdc_mint.to_account_info(),
+                            to: dest_info.clone(),
+                            authority: vault.to_account_info(),
+                        },
+                        &[vault_seeds],
+                    ),
+                    principal,
+                    ctx.accounts.usdc_mint.decimals,
+                )?;
+                let delta_i64 = i64::try_from(principal).map_err(|_| VaultError::MathOverflow)?;
+                registry_cpi::sync_global_tvl(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.registry_program.key(),
+                        registry_cpi::accounts::SyncGlobalTvl {
+                            authority: ctx.accounts.vault_router_auth.to_account_info(),
+                            engine_config: ctx.accounts.engine_config.to_account_info(),
+                        },
+                        &[auth_seeds],
+                    ),
+                    -delta_i64,
+                )?;
+            }
+
+            env.refunded = true;
+            env.settled = true;
+            env.payout_usdc = 0;
+            {
+                let mut data = env_info.try_borrow_mut_data()?;
+                let mut writer: &mut [u8] = &mut data;
+                env.try_serialize(&mut writer)?;
+            }
+
+            vault.room_pool_usdc = vault
+                .room_pool_usdc
+                .checked_sub(principal)
+                .ok_or(VaultError::MathOverflow)?;
+            vault.refunded_count = vault
+                .refunded_count
+                .checked_add(1)
+                .ok_or(VaultError::MathOverflow)?;
+
+            emit!(RoomRefunded {
+                room_shard: room_shard_key,
+                envelope: env_info.key(),
+                destination: dest_info.key(),
+                principal_usdc: principal,
+                remaining_pool_usdc: vault.room_pool_usdc,
+            });
+        }
+
+        if vault.refunded_count == vault.envelope_count {
+            vault.settled = true;
+        }
+        Ok(())
+    }
+
+    /// Authority-only migration of a pre-upgrade (v1) RoomVault and all of its v1 envelopes to the
+    /// v2 layout. `remaining_accounts` must hold every legacy envelope of the vault (writable); each
+    /// is reallocated in place (`funder = default`, `refunded = false`) and counted.
+    pub fn migrate_room_vault_v2<'info>(
+        ctx: Context<'info, MigrateRoomVaultV2<'info>>,
+        buy_in_usdc: u64,
+        max_envelopes: u16,
+    ) -> Result<()> {
+        require!(
+            (1..=MAX_ENVELOPES_PER_VAULT).contains(&max_envelopes) && buy_in_usdc > 0,
+            VaultError::InvalidBuyIn
+        );
+        let vault_info = ctx.accounts.room_vault.to_account_info();
+        require!(vault_info.owner == &crate::ID, VaultError::Unauthorized);
+
+        let (room_shard_key, settled, pool) = {
+            let data = vault_info.try_borrow_data()?;
+            require!(
+                data.len() == 8 + ROOM_VAULT_V1_SPACE && data[..8] == *RoomVault::DISCRIMINATOR,
+                VaultError::InvalidLegacyLayout
+            );
+            let room_shard = read_pubkey(&data, 8)?;
+            let authority = read_pubkey(&data, 40)?;
+            require_keys_eq!(
+                authority,
+                ctx.accounts.authority.key(),
+                VaultError::Unauthorized
+            );
+            let bump = data[294];
+            let expected = Pubkey::create_program_address(
+                &[SEED_ROOM_VAULT, room_shard.as_ref(), &[bump]],
+                &crate::ID,
+            )
+            .map_err(|_| error!(VaultError::InvalidLegacyLayout))?;
+            require_keys_eq!(vault_info.key(), expected, VaultError::InvalidLegacyLayout);
+            (room_shard, data[293] != 0, read_u64(&data, 269)?)
+        };
+
+        let mut seen: Vec<Pubkey> = Vec::with_capacity(ctx.remaining_accounts.len());
+        let mut principal_sum: u64 = 0;
+        for env_info in ctx.remaining_accounts.iter() {
+            require!(
+                env_info.owner == &crate::ID && env_info.is_writable,
+                VaultError::InvalidEnvelopeAccount
+            );
+            {
+                let data = env_info.try_borrow_data()?;
+                require!(
+                    data.len() == 8 + SESSION_ENVELOPE_V1_SPACE
+                        && data[..8] == *SessionRiskEnvelope::DISCRIMINATOR,
+                    VaultError::InvalidLegacyLayout
+                );
+                require_keys_eq!(
+                    read_pubkey(&data, 8)?,
+                    room_shard_key,
+                    VaultError::ShardMismatch
+                );
+                let player = read_pubkey(&data, 40)?;
+                let expected = Pubkey::create_program_address(
+                    &[
+                        SEED_SESSION_ENVELOPE,
+                        room_shard_key.as_ref(),
+                        player.as_ref(),
+                        &[data[157]],
+                    ],
+                    &crate::ID,
+                )
+                .map_err(|_| error!(VaultError::InvalidEnvelopeAccount))?;
+                require_keys_eq!(env_info.key(), expected, VaultError::InvalidEnvelopeAccount);
+                principal_sum = principal_sum
+                    .checked_add(read_u64(&data, 104)?)
+                    .ok_or(VaultError::MathOverflow)?;
+            }
+            require!(
+                !seen.contains(&env_info.key()),
+                VaultError::DuplicatePlayerInSettlement
+            );
+            seen.push(env_info.key());
+            grow_account(
+                env_info,
+                8 + SessionRiskEnvelope::INIT_SPACE,
+                &ctx.accounts.authority,
+                &ctx.accounts.system_program,
+            )?;
+        }
+
+        let envelope_count = u16::try_from(seen.len()).map_err(|_| VaultError::MathOverflow)?;
+        require!(envelope_count <= max_envelopes, VaultError::RoomSeatsFull);
+        if !settled {
+            // Every legacy envelope must be passed: an unsettled pool is exactly Σ principals.
+            require!(principal_sum == pool, VaultError::EnvelopeCountMismatch);
+        }
+
+        grow_account(
+            &vault_info,
+            8 + RoomVault::INIT_SPACE,
+            &ctx.accounts.authority,
+            &ctx.accounts.system_program,
+        )?;
+        let mut vault = {
+            let data = vault_info.try_borrow_data()?;
+            let mut slice: &[u8] = &data;
+            RoomVault::try_deserialize(&mut slice)?
+        };
+        vault.buy_in_usdc = buy_in_usdc;
+        vault.max_envelopes = max_envelopes;
+        vault.envelope_count = envelope_count;
+        vault.refunding = false;
+        vault.refunded_count = 0;
+        vault.layout_version = ROOM_VAULT_LAYOUT_VERSION;
+        {
+            let mut data = vault_info.try_borrow_mut_data()?;
+            let mut writer: &mut [u8] = &mut data;
+            vault.try_serialize(&mut writer)?;
+        }
+
+        emit!(RoomVaultMigrated {
+            room_shard: room_shard_key,
+            room_vault: vault_info.key(),
+            envelope_count,
+            buy_in_usdc,
+            max_envelopes,
+        });
+        Ok(())
+    }
+}
+
+fn read_pubkey(data: &[u8], offset: usize) -> Result<Pubkey> {
+    let end = offset.checked_add(32).ok_or(VaultError::MathOverflow)?;
+    let bytes = data
+        .get(offset..end)
+        .ok_or(VaultError::InvalidLegacyLayout)?;
+    Pubkey::try_from(bytes).map_err(|_| error!(VaultError::InvalidLegacyLayout))
+}
+
+fn read_u64(data: &[u8], offset: usize) -> Result<u64> {
+    let end = offset.checked_add(8).ok_or(VaultError::MathOverflow)?;
+    let bytes = data
+        .get(offset..end)
+        .ok_or(VaultError::InvalidLegacyLayout)?;
+    let mut buf = [0u8; 8];
+    buf.copy_from_slice(bytes);
+    Ok(u64::from_le_bytes(buf))
+}
+
+/// Reallocates a program-owned account to `new_len` (zero-filled tail) and tops up its rent from `payer`.
+fn grow_account<'info>(
+    account: &AccountInfo<'info>,
+    new_len: usize,
+    payer: &Signer<'info>,
+    system_program: &Program<'info, System>,
+) -> Result<()> {
+    let needed = Rent::get()?.minimum_balance(new_len);
+    let current = account.lamports();
+    if needed > current {
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                system_program.key(),
+                anchor_lang::system_program::Transfer {
+                    from: payer.to_account_info(),
+                    to: account.clone(),
+                },
+            ),
+            needed - current,
+        )?;
+    }
+    account.resize(new_len)?;
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -436,6 +800,11 @@ fn execute_pool_distribution<'info>(
     );
 
     let expected_player_count = parse_settled_room_shard(room_shard_info)?;
+    require!(!vault.refunding, VaultError::VaultRefunding);
+    require!(
+        vault.envelope_count == expected_player_count,
+        VaultError::EnvelopeCountMismatch
+    );
     require!(
         remaining_accounts.len() == usize::from(expected_player_count) * 2,
         VaultError::InvalidSettlementAccountPairs
@@ -474,6 +843,16 @@ fn execute_pool_distribution<'info>(
             expected_env_pda,
             VaultError::InvalidEnvelopeAccount
         );
+        {
+            // Defence in depth: every paired envelope holds exactly the room buy-in.
+            let env_data = env_info.try_borrow_data()?;
+            let mut slice: &[u8] = &env_data;
+            let env = SessionRiskEnvelope::try_deserialize(&mut slice)?;
+            require!(
+                env.principal_usdc == vault.buy_in_usdc,
+                VaultError::BuyInMismatch
+            );
+        }
 
         for prev in &score_inputs {
             require!(
@@ -916,6 +1295,13 @@ pub struct RoomVault {
     pub total_claimed_usdc: u64,
     pub settled: bool,
     pub bump: u8,
+    // v2 (append-only after `bump`)
+    pub buy_in_usdc: u64,
+    pub max_envelopes: u16,
+    pub envelope_count: u16,
+    pub refunding: bool,
+    pub refunded_count: u16,
+    pub layout_version: u8,
 }
 
 #[account]
@@ -932,6 +1318,9 @@ pub struct SessionRiskEnvelope {
     pub claimed: bool,
     pub claimed_mint: Pubkey,
     pub bump: u8,
+    // v2 (append-only after `bump`)
+    pub funder: Pubkey,
+    pub refunded: bool,
 }
 
 #[derive(Accounts)]
@@ -983,7 +1372,7 @@ pub struct InitializeRoomVault<'info> {
 
 #[derive(Accounts)]
 pub struct OpenSessionEnvelope<'info> {
-    #[account(mut)]
+    /// RoomShard PlayerStance key the envelope pairs with at distribution.
     pub player: Signer<'info>,
     #[account(
         mut,
@@ -998,24 +1387,29 @@ pub struct OpenSessionEnvelope<'info> {
         bump = room_vault.bump
     )]
     pub room_vault: Box<Account<'info, RoomVault>>,
+    /// Room authority co-signer (approves the seat) and envelope rent payer.
+    #[account(mut, address = room_vault.authority @ VaultError::Unauthorized)]
+    pub room_authority: Signer<'info>,
+    /// Staking wallet: deposits the buy-in and receives the payout or refund.
+    pub funder: Signer<'info>,
     #[account(address = room_vault.usdc_mint @ VaultError::MintMismatch)]
     pub usdc_mint: Box<InterfaceAccount<'info, Mint>>,
     #[account(
         mut,
         address = room_vault.vault_usdc_token @ VaultError::InvalidVaultTokenAccount,
-        constraint = vault_usdc_token.key() != player_usdc_ata.key() @ VaultError::DuplicateTokenAccounts
+        constraint = vault_usdc_token.key() != funder_usdc_ata.key() @ VaultError::DuplicateTokenAccounts
     )]
     pub vault_usdc_token: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
         token::mint = usdc_mint,
-        token::authority = player,
+        token::authority = funder,
         token::token_program = token_program
     )]
-    pub player_usdc_ata: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub funder_usdc_ata: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         init,
-        payer = player,
+        payer = room_authority,
         space = 8 + SessionRiskEnvelope::INIT_SPACE,
         seeds = [SEED_SESSION_ENVELOPE, room_vault.room_shard.as_ref(), player.key().as_ref()],
         bump
@@ -1176,10 +1570,10 @@ pub struct ClaimPrize<'info> {
         constraint = vault_usdc_token.key() != player_destination_ata.key() @ VaultError::DuplicateTokenAccounts
     )]
     pub vault_usdc_token: Box<InterfaceAccount<'info, TokenAccount>>,
+    /// Owner must be the envelope's funder (or the player key for legacy envelopes); checked in handler.
     #[account(
         mut,
         token::mint = desired_mint,
-        token::authority = player,
         token::token_program = token_program
     )]
     pub player_destination_ata: Box<InterfaceAccount<'info, TokenAccount>>,
@@ -1211,10 +1605,54 @@ pub struct ClaimPrize<'info> {
     pub token_program: Interface<'info, TokenInterface>,
 }
 
+#[derive(Accounts)]
+pub struct RefundUnsettledRoom<'info> {
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [SEED_ROOM_VAULT, room_vault.room_shard.as_ref()],
+        bump = room_vault.bump,
+        has_one = authority @ VaultError::Unauthorized
+    )]
+    pub room_vault: Box<Account<'info, RoomVault>>,
+    #[account(address = room_vault.usdc_mint @ VaultError::MintMismatch)]
+    pub usdc_mint: Box<InterfaceAccount<'info, Mint>>,
+    #[account(
+        mut,
+        address = room_vault.vault_usdc_token @ VaultError::InvalidVaultTokenAccount
+    )]
+    pub vault_usdc_token: Box<InterfaceAccount<'info, TokenAccount>>,
+    #[account(
+        mut,
+        seeds = [SEED_ENGINE_CONFIG],
+        bump = engine_config.bump,
+        seeds::program = registry_program.key()
+    )]
+    pub engine_config: Box<Account<'info, EngineConfig>>,
+    /// CHECK: Program-owned PDA signer for atomic global TVL synchronization.
+    #[account(seeds = [SEED_VAULT_ROUTER_AUTH], bump)]
+    pub vault_router_auth: UncheckedAccount<'info>,
+    pub registry_program: Program<'info, CartridgeRegistry>,
+    pub token_program: Interface<'info, TokenInterface>,
+    // remaining_accounts: (SessionRiskEnvelope [writable], destination TokenAccount [writable]) pairs
+}
+
+#[derive(Accounts)]
+pub struct MigrateRoomVaultV2<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK: v1 RoomVault; owner, discriminator, v1 length, PDA and authority verified in handler.
+    #[account(mut)]
+    pub room_vault: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+    // remaining_accounts: every legacy v1 SessionRiskEnvelope of the vault [writable]
+}
+
 #[event]
 pub struct SessionEnvelopeOpened {
     pub room_shard: Pubkey,
     pub player: Pubkey,
+    pub funder: Pubkey,
     pub principal_usdc: u64,
     pub leverage: u8,
     pub room_pool_usdc: u64,
@@ -1228,6 +1666,24 @@ pub struct PoolDistributed {
     pub creator_fee_usdc: u64,
     pub partner_fee_usdc: u64,
     pub total_distributed_usdc: u64,
+}
+
+#[event]
+pub struct RoomRefunded {
+    pub room_shard: Pubkey,
+    pub envelope: Pubkey,
+    pub destination: Pubkey,
+    pub principal_usdc: u64,
+    pub remaining_pool_usdc: u64,
+}
+
+#[event]
+pub struct RoomVaultMigrated {
+    pub room_shard: Pubkey,
+    pub room_vault: Pubkey,
+    pub envelope_count: u16,
+    pub buy_in_usdc: u64,
+    pub max_envelopes: u16,
 }
 
 #[event]
@@ -1319,4 +1775,20 @@ pub enum VaultError {
     UnsupportedPayoutMint,
     #[msg("Arithmetic overflow")]
     MathOverflow,
+    #[msg("Envelope principal must equal the room buy-in")]
+    BuyInMismatch,
+    #[msg("Room seat cap reached")]
+    RoomSeatsFull,
+    #[msg("Room vault is being refunded")]
+    VaultRefunding,
+    #[msg("Opened envelopes must equal the room's counted players")]
+    EnvelopeCountMismatch,
+    #[msg("Invalid buy-in or seat cap for this room vault")]
+    InvalidBuyIn,
+    #[msg("Refund destination must be the funder's (or legacy player's) USDC account")]
+    RefundDestinationMismatch,
+    #[msg("Envelope has already been refunded")]
+    AlreadyRefunded,
+    #[msg("Account is not a v1 (pre-upgrade) layout")]
+    InvalidLegacyLayout,
 }

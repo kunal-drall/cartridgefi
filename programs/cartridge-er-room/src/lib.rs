@@ -332,12 +332,18 @@ pub mod cartridge_er_room {
             shard_owner == &crate::ID || shard_owner == &ephemeral_rollups_sdk::id(),
             ErRoomError::InvalidShardOwner
         );
-        let (start_ts, end_ts) = {
+        let (start_ts, end_ts, shard_authority) = {
             let shard_data = ctx.accounts.room_shard.try_borrow_data()?;
             let mut slice: &[u8] = &shard_data;
             let shard = RoomShard::try_deserialize(&mut slice)?;
-            (shard.start_ts, shard.end_ts)
+            (shard.start_ts, shard.end_ts, shard.authority)
         };
+        // Seat creation (and any re-delegation) needs the room authority's co-signature (C1).
+        require_keys_eq!(
+            ctx.accounts.room_authority.key(),
+            shard_authority,
+            ErRoomError::UnauthorizedAuthority
+        );
         require!(
             session_expiry_ts > start_ts && session_expiry_ts <= end_ts,
             ErRoomError::SessionExpiryExceedsRoomEnd
@@ -518,6 +524,24 @@ pub mod cartridge_er_room {
             stance.move_count < shard.max_rebalances,
             ErRoomError::MaxRebalancesExceeded
         );
+        if stance.move_count == 0 {
+            // Entry (the sealed hand) must land before the clock starts.
+            require!(
+                clock.unix_timestamp < shard.start_ts,
+                ErRoomError::EntryAfterStart
+            );
+            // Entry prices are attested by the co-signing room authority; no silent fallback.
+            require!(
+                args.secondary_prices_8.iter().all(|p| *p > 0),
+                ErRoomError::InvalidAttestedPrice
+            );
+        } else {
+            // Pivots only while the room is live.
+            require!(
+                clock.unix_timestamp >= shard.start_ts && clock.unix_timestamp < shard.end_ts,
+                ErRoomError::PivotOutsideLiveWindow
+            );
+        }
         if shard.action_binding_mode == 1 && stance.move_count > 0 {
             require!(
                 clock.unix_timestamp > stance.last_move_ts,
@@ -548,10 +572,7 @@ pub mod cartridge_er_room {
 
         if stance.move_count == 0 {
             stance.entry_prices_8[0] = oracle_tick;
-            for i in 0..3 {
-                let p = args.secondary_prices_8[i];
-                stance.entry_prices_8[i + 1] = if p > 0 { p } else { oracle_tick };
-            }
+            stance.entry_prices_8[1..].copy_from_slice(&args.secondary_prices_8);
         } else if (stance.step_count as usize) < stance.step_returns_scaled.len() {
             let prev_entry = stance.entry_prices_8[0];
             if prev_entry > 0 {
@@ -1554,6 +1575,15 @@ pub struct InitStanceAndDelegate<'info> {
     /// CHECK: Optional target ER / TEE validator identity.
     pub validator: Option<UncheckedAccount<'info>>,
     pub system_program: Program<'info, System>,
+    /// CHECK: The owner program of the delegated PDA (declared explicitly so `room_authority` is last).
+    #[account(address = crate::ID)]
+    pub owner_program: UncheckedAccount<'info>,
+    /// CHECK: The delegation program.
+    #[account(address = ephemeral_rollups_sdk::id())]
+    pub delegation_program: UncheckedAccount<'info>,
+    /// Room authority co-signer; must equal `RoomShard.authority` (checked in the handler, which
+    /// reads the shard whether it is owned by this program or by the delegation program).
+    pub room_authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -1590,6 +1620,9 @@ pub struct JoinRoomAndInitPermission<'info> {
     /// CHECK: Address pinned to MAGIC_PROGRAM_ID.
     #[account(address = MAGIC_PROGRAM_ID)]
     pub magic_program: UncheckedAccount<'info>,
+    /// Room authority co-signer: every counted seat is authority-approved (C1).
+    #[account(address = room_shard.authority @ ErRoomError::UnauthorizedAuthority)]
+    pub room_authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -1610,6 +1643,9 @@ pub struct SubmitStance<'info> {
     pub player_stance: Account<'info, PlayerStance>,
     /// CHECK: Verified owner (`PriCems...` or `rec5EK...`), freshness <= 15s, and conf <= 150 bps.
     pub oracle_feed: UncheckedAccount<'info>,
+    /// Room authority co-signer: attests the entry prices and the timing of every move (C1).
+    #[account(address = room_shard.authority @ ErRoomError::UnauthorizedAuthority)]
+    pub room_authority: Signer<'info>,
 }
 
 #[derive(Accounts)]
@@ -1880,4 +1916,10 @@ pub enum ErRoomError {
     DivisionByZero,
     #[msg("Arithmetic overflow")]
     MathOverflow,
+    #[msg("The sealed entry must land before the room start timestamp")]
+    EntryAfterStart,
+    #[msg("Pivots are only allowed while the room is live (start_ts <= now < end_ts)")]
+    PivotOutsideLiveWindow,
+    #[msg("Authority-attested entry prices must all be positive")]
+    InvalidAttestedPrice,
 }

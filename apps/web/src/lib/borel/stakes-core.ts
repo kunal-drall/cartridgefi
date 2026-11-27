@@ -3,11 +3,14 @@
 // (server-stakes.ts, app/api/borel/stake|claim) and scripts/prove-stakes-devnet.ts run the SAME code.
 //
 // Money path (all amounts are u64 test-USDC base units, 6 decimals; no floating point):
-//   stake   wallet ATA ─TransferChecked→ player ATA ─open_session_envelope→ room vault token PDA
+//   stake   open_session_envelope: staking wallet ATA (funder) → room vault token PDA. The room authority
+//           (relayer) co-signs; the program enforces the fixed buy-in and the 8-seat cap.
 //   settle  distribute_pool_and_fees: fee → platformFeeAccount (+ creator vault at creator_share_bps),
 //           per-player payout_usdc + rank written into each SessionRiskEnvelope (Harmonic Shapley)
-//   claim   claim_prize: vault → player ATA ─TransferChecked→ staking wallet ATA (same transaction)
-//   elo     cartridge_passport.record_elo_and_vault_credit on the staking wallet's MarketPassport
+//   claim   claim_prize: vault → the funder's (staking wallet's) ATA; the program pins the destination owner
+//   elo     cartridge_passport.record_elo_and_vault_credit on the funder's MarketPassport, bound to the settled
+//           envelope, with an on-chain MatchCredit receipt per (wallet, room)
+//   refund  refund_unsettled_room: authority-only, principal back to each funder for an undistributed room
 // "player" is the RoomShard PlayerStance key (server-derived in the app), so the envelope PDA
 // [session_envelope, room_shard, player] pairs with the stance at distribute time.
 import {
@@ -79,12 +82,14 @@ export function stakeBuyInUnits(roomId: string): bigint | null {
   if (roomId.startsWith("MACRO_15M-")) return STAKE_BUY_IN_UNITS.MACRO_15M;
   return null;
 }
-/** distribute_pool_and_fees takes 2 accounts per player in one legacy/v0 tx (no ALT): cap seats so it fits. */
+/** distribute_pool_and_fees takes 2 accounts per player in one legacy/v0 tx (no ALT): the vault's on-chain seat cap. */
 export const MAX_STAKED_PLAYERS_PER_ROOM = 8;
 /** vault_router leverage is 1..=5; Borel stakes are unlevered. */
 export const STAKE_LEVERAGE = 1;
-/** 8 disc + SessionRiskEnvelope::INIT_SPACE (32·3 + 8 + 1 + 8 + 2 + 1 + 1 + 32 + 1). */
-export const SESSION_ENVELOPE_SPACE = 158n;
+/** 8 disc + SessionRiskEnvelope::INIT_SPACE v2 (32·3 + 8 + 1 + 8 + 2 + 1 + 1 + 32 + 1 + 32 funder + 1 refunded). */
+export const SESSION_ENVELOPE_SPACE = 191n;
+/** Pre-upgrade (v1) SessionRiskEnvelope length: legacy envelopes are migrated before they can be refunded. */
+export const SESSION_ENVELOPE_V1_SPACE = 158;
 /** RoomShard.phase == SettledCommitted (cartridge_er_room::RoomPhase index 3). */
 export const ROOM_PHASE_SETTLED_COMMITTED = 3;
 /**
@@ -304,8 +309,11 @@ export async function creatorFeeVaultFor(chain: StakeChain): Promise<Address> {
   return deriveAta(chain.relayer.address, chain.mint);
 }
 
-/** Registers the fee-routing manifest (once) and initializes the room vault (once per RoomShard). */
-export async function ensureRoomVault(chain: StakeChain, roomShard: Address): Promise<StakeReceipt[]> {
+/**
+ * Registers the fee-routing manifest (once) and initializes the room vault (once per RoomShard) with the
+ * room's fixed buy-in and the 8-seat cap, both enforced on-chain by open_session_envelope.
+ */
+export async function ensureRoomVault(chain: StakeChain, roomShard: Address, buyInUnits: bigint): Promise<StakeReceipt[]> {
   const { manifest, slugHash } = await findStakeFeeManifestPda();
   const { roomVault } = await findVaultPdas(roomShard);
   const creatorFeeVault = await creatorFeeVaultFor(chain);
@@ -347,9 +355,11 @@ export async function ensureRoomVault(chain: StakeChain, roomShard: Address): Pr
       creatorFeeVault,
       totalFeeBps: STAKE_FEE_BPS,
       partnerWalletActive: false,
+      buyInUsdc: buyInUnits,
+      maxEnvelopes: MAX_STAKED_PLAYERS_PER_ROOM,
     }),
   );
-  const label = `cartridge_vault_router.initialize_room_vault (fee ${STAKE_FEE_BPS} bps → platformFeeAccount)${manifestAcc ? "" : " + register fee-routing manifest"}`;
+  const label = `cartridge_vault_router.initialize_room_vault (buy-in ${buyInUnits.toString()} units, ${MAX_STAKED_PLAYERS_PER_ROOM} seats, fee ${STAKE_FEE_BPS} bps → platformFeeAccount)${manifestAcc ? "" : " + register fee-routing manifest"}`;
   return [{ label, signature: await chain.send(label, ixs) }];
 }
 
@@ -437,10 +447,6 @@ const STAKE_MEMO_RE = new RegExp(`^borel:v1:stake:(${B58}):(${B58}):(${B58}):(\\
 
 export function stakeMemoBody(roomShard: Address, session: string, wallet: Address, units: bigint): string {
   return `borel:v1:stake:${roomShard}:${session}:${wallet}:${units.toString()}`;
-}
-
-function eloMemoBody(roomShard: Address, wallet: Address): string {
-  return `borel:v1:elo:${roomShard}:${wallet}`;
 }
 
 function memoEntries(memoField: string | null): string[] {
@@ -539,7 +545,6 @@ export interface BuiltStake {
   transaction: Transaction;
   lastValidBlockHeight: bigint;
   envelope: Address;
-  playerAta: Address;
   walletAta: Address;
   passportInitialized: boolean;
 }
@@ -547,32 +552,25 @@ export interface BuiltStake {
 export async function buildStakeTransaction(chain: StakeChain, args: BuildStakeArgs): Promise<BuiltStake> {
   const { roomVault, vaultUsdcToken } = await findVaultPdas(args.roomShard);
   const envelope = await findSessionEnvelopePda(args.roomShard, args.player.address);
-  const [playerAta, walletAta, walletPassport] = await Promise.all([
-    deriveAta(args.player.address, chain.mint),
-    deriveAta(args.wallet.address, chain.mint),
-    findPassportPda(args.wallet.address),
-  ]);
+  const [walletAta, walletPassport] = await Promise.all([deriveAta(args.wallet.address, chain.mint), findPassportPda(args.wallet.address)]);
   const [passportAcc] = await fetchRaw(chain.rpc, [walletPassport]);
-  const envelopeRent = await chain.rpc.getMinimumBalanceForRentExemption(SESSION_ENVELOPE_SPACE, { commitment: "confirmed" }).send();
 
   const ixs: Instruction[] = [
     computeUnitLimitIx(400_000),
-    createAtaIdempotentIx(chain.relayer, playerAta, args.player.address, chain.mint),
-    transferCheckedIx(walletAta, chain.mint, playerAta, args.wallet, args.amountUnits, chain.decimals),
-    // Exact envelope rent: the player key ends the tx with the balance it started with (0 after join's sweep).
-    systemTransferIx(chain.relayer, args.player.address, envelopeRent),
+    // The staking wallet deposits directly (funder); the relayer co-signs as room authority and pays the envelope rent.
     await cartridgeVaultRouter.getOpenSessionEnvelopeInstructionAsync({
       player: args.player,
       roomVault,
+      roomAuthority: chain.relayer,
+      funder: args.wallet,
       usdcMint: chain.mint,
       vaultUsdcToken,
-      playerUsdcAta: playerAta,
+      funderUsdcAta: walletAta,
       sessionEnvelope: envelope,
       principalUsdc: args.amountUnits,
       leverage: STAKE_LEVERAGE,
       ephemeralSessionKey: args.ephemeralSessionKey,
     }),
-    closeAccountIx(playerAta, chain.relayer.address, args.player),
   ];
   const passportInitialized = passportAcc === null;
   if (passportInitialized) {
@@ -597,7 +595,7 @@ export async function buildStakeTransaction(chain: StakeChain, args: BuildStakeA
   // Nothing is signed here: the wallet signs first, then the server adds relayer + player signatures at
   // submit (after re-checking the room clock), so a built transaction cannot be broadcast late (audit L1).
   const transaction = compileTransaction(message);
-  return { transaction, lastValidBlockHeight: blockhash.lastValidBlockHeight, envelope, playerAta, walletAta, passportInitialized };
+  return { transaction, lastValidBlockHeight: blockhash.lastValidBlockHeight, envelope, walletAta, passportInitialized };
 }
 
 /** Adds the relayer (fee payer) and player signatures to a wallet-signed stake; throws unless fully signed. */
@@ -709,20 +707,25 @@ async function distributeIx(chain: StakeChain, vault: RoomVaultState, roomShard:
   };
 }
 
-/** claim_prize into the player's transient ATA, forwarded to the staking wallet and closed, atomically. */
+/** True for envelopes opened before the vault-router upgrade (no funder recorded on-chain). */
+function hasFunder(state: EnvelopeState): boolean {
+  return state.funder !== SYSTEM_PROGRAM_ID;
+}
+
+/** claim_prize straight into the funder's (staking wallet's) ATA: the program pins the destination owner. */
 export async function claimToWallet(
   chain: StakeChain,
   roomShard: Address,
   envelope: { address: Address; state: EnvelopeState },
   player: KeyPairSigner,
-  wallet: Address,
 ): Promise<StakeReceipt> {
+  if (!hasFunder(envelope.state)) throw new Error(`Envelope ${envelope.address} has no funder (pre-upgrade layout)`);
+  const wallet = envelope.state.funder;
   const { roomVault, vaultUsdcToken } = await findVaultPdas(roomShard);
-  const [playerAta, walletAta] = await Promise.all([deriveAta(player.address, chain.mint), deriveAta(wallet, chain.mint)]);
+  const walletAta = await deriveAta(wallet, chain.mint);
   const payout = envelope.state.payoutUsdc;
   const ixs: Instruction[] = [
     computeUnitLimitIx(300_000),
-    createAtaIdempotentIx(chain.relayer, playerAta, player.address, chain.mint),
     createAtaIdempotentIx(chain.relayer, walletAta, wallet, chain.mint),
     await cartridgeVaultRouter.getClaimPrizeInstructionAsync({
       player,
@@ -731,23 +734,21 @@ export async function claimToWallet(
       usdcMint: chain.mint,
       desiredMint: chain.mint,
       vaultUsdcToken,
-      playerDestinationAta: playerAta,
+      playerDestinationAta: walletAta,
       xstockUnitsOut: 0n,
     }),
-    transferCheckedIx(playerAta, chain.mint, walletAta, player, payout, chain.decimals),
-    closeAccountIx(playerAta, chain.relayer.address, player),
   ];
   const label = `cartridge_vault_router.claim_prize rank ${envelope.state.rank}: ${payout.toString()} units → wallet ${wallet}`;
   return { label, signature: await chain.send(label, ixs) };
 }
 
-/**
- * ELO / vault-credit idempotency until the on-chain marker ships: a relayer-fee-paid tx touching the passport
- * with this room's MAC'd ELO memo, searched over the passport's FULL history (audit M2).
- */
-async function eloAlreadyRecorded(chain: StakeChain, roomShard: Address, wallet: Address, passport: Address): Promise<boolean> {
-  const want = eloMemoBody(roomShard, wallet);
-  return (await relayerMemosFor(chain, passport, (body) => body === want)).length > 0;
+/** On-chain ELO idempotency receipt (audit M2): MatchCredit PDA ["match_credit", wallet, room_shard]. */
+export async function findMatchCreditPda(wallet: Address, roomShard: Address): Promise<Address> {
+  const [pda] = await getProgramDerivedAddress({
+    programAddress: PASSPORT_PROGRAM_ID,
+    seeds: [utf8.encode("match_credit"), addressEncoder.encode(wallet), addressEncoder.encode(roomShard)],
+  });
+  return pda;
 }
 
 export function placementScoreScaled(rank: number, playerCount: number): bigint {
@@ -836,34 +837,36 @@ export async function distributeAndPay(
   const envelopes = await listRoomEnvelopes(chain, roomShard);
   const fee = protocolFeeUnits(settledVault.state.roomPoolUsdc, settledVault.state.totalFeeBps, settledVault.state.creatorShareBps);
 
-  // Resolve wallets + player signers once.
+  // Resolve player signers once; the wallet is the funder recorded on the envelope itself.
   const resolved: { env: { address: Address; state: EnvelopeState }; record: StakeRecord | null; signer: KeyPairSigner | null }[] = [];
   for (const env of envelopes) {
     let match: { record: StakeRecord; signer: KeyPairSigner } | null = null;
     const record = await findStakeRecord(chain, roomShard, env.address);
-    if (record) {
+    if (record && record.wallet === env.state.funder) {
       const signer = await resolvePlayer(env, record);
       if (signer && signer.address === env.state.player) match = { record, signer };
     }
-    if (!match) errors.push(`Envelope ${env.address}: no relayer stake record whose session derives player ${env.state.player}`);
+    if (!match) errors.push(`Envelope ${env.address}: no relayer stake record from funder ${env.state.funder} whose session derives player ${env.state.player}`);
     resolved.push({ env, record: match?.record ?? null, signer: match?.signer ?? null });
   }
 
   // Claims (push to wallets). Each claim is its own tx so one failure does not block the others.
   for (const r of resolved) {
-    if (!r.env.state.settled || r.env.state.claimed || r.env.state.payoutUsdc === 0n) continue;
+    if (!r.env.state.settled || r.env.state.claimed || r.env.state.refunded || r.env.state.payoutUsdc === 0n) continue;
     if (!r.record || !r.signer) continue; // reported above; payout stays claimable in the vault
     try {
-      receipts.push(await claimToWallet(chain, roomShard, r.env, r.signer, r.record.wallet));
+      receipts.push(await claimToWallet(chain, roomShard, r.env, r.signer));
     } catch (err) {
       errors.push(`claim ${r.env.address}: ${err instanceof Error ? err.message.slice(0, 200) : "failed"}`);
     }
   }
 
-  // ELO on each staking wallet's MarketPassport, once per (room, wallet).
-  const withWallet = resolved.filter((r) => r.record !== null && r.env.state.settled);
-  const passports = await Promise.all(withWallet.map((r) => findPassportPda((r.record as StakeRecord).wallet)));
+  // ELO on each funder's MarketPassport, once per (room, wallet): the MatchCredit receipt makes a repeat fail on-chain.
+  const withWallet = resolved.filter((r) => r.record !== null && r.env.state.settled && !r.env.state.refunded);
+  const passports = await Promise.all(withWallet.map((r) => findPassportPda(r.env.state.funder)));
+  const credits = await Promise.all(withWallet.map((r) => findMatchCreditPda(r.env.state.funder, roomShard)));
   const passportAccs = await fetchRaw(chain.rpc, passports);
+  const creditAccs = credits.length > 0 ? await fetchRaw(chain.rpc, credits) : [];
   const elos: bigint[] = [];
   passportAccs.forEach((acc) => {
     if (acc && acc.owner === PASSPORT_PROGRAM_ID && hasDiscriminator(acc.data, cartridgePassport.MARKET_PASSPORT_DISCRIMINATOR)) {
@@ -875,19 +878,17 @@ export async function distributeAndPay(
   const eloDone = new Set<string>();
   for (let i = 0; i < withWallet.length; i += 1) {
     const r = withWallet[i]!;
-    const wallet = (r.record as StakeRecord).wallet;
+    const wallet = r.env.state.funder;
     const passport = passports[i]!;
     if (!passportAccs[i]) {
       errors.push(`ELO ${wallet}: MarketPassport ${passport} missing`);
       continue;
     }
-    if (await eloAlreadyRecorded(chain, roomShard, wallet, passport)) {
+    if (creditAccs[i]) {
       eloDone.add(r.env.address);
       continue;
     }
     const rank = r.env.state.rank;
-    const isWin = rank === 1;
-    const body = eloMemoBody(roomShard, wallet);
     try {
       const label = `cartridge_passport.record_elo_and_vault_credit wallet ${wallet}: rank ${rank}/${envelopes.length}, credit ${r.env.state.payoutUsdc.toString()} units`;
       receipts.push({
@@ -896,16 +897,20 @@ export async function distributeAndPay(
           await cartridgePassport.getRecordEloAndVaultCreditInstructionAsync({
             authority: chain.relayer,
             passport,
+            payer: chain.relayer,
+            matchCredit: credits[i]!,
+            sessionEnvelope: r.env.address,
             roomMeanEloScaled,
             placementScoreScaled: placementScoreScaled(rank, envelopes.length),
             isLiveMode: true,
-            isWin,
+            // The program binds both to the settled envelope (rank 1 ⇔ win, credit = payout).
+            isWin: rank === 1,
             sharpeScoreScaled: null,
             brierScoreScaled: null,
             assetCreditKind: cartridgePassport.AssetCreditKind.Usdc,
             assetCreditUnits: r.env.state.payoutUsdc,
+            roomShard,
           }),
-          memoIx(`${body}:h=${chain.mac(body)}`),
         ]),
       });
       eloDone.add(r.env.address);
@@ -924,11 +929,10 @@ export async function distributeAndPay(
     platformFeeAccount: settledVault.state.platformFeeAccount,
     receipts,
     players: finalEnvelopes.map((e) => {
-      const r = resolved.find((x) => x.env.address === e.address);
       return {
         envelope: e.address,
         player: e.state.player,
-        wallet: r?.record?.wallet ?? null,
+        wallet: hasFunder(e.state) ? e.state.funder : null,
         principalUnits: e.state.principalUsdc,
         payoutUnits: e.state.payoutUsdc,
         rank: e.state.rank,
@@ -938,4 +942,94 @@ export async function distributeAndPay(
     }),
     errors,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Refunds (authority-only): undistributed rooms return each principal to its funder
+// ---------------------------------------------------------------------------
+
+/** refund_unsettled_room pairs per transaction (2 accounts each, plus ATA creates). */
+const REFUND_PAIRS_PER_TX = 4;
+
+/**
+ * Refunds every unrefunded envelope of an undistributed room (vault must be v2: migrate legacy vaults first).
+ * Destination = the funder's ATA, or the player key's ATA for envelopes opened before the upgrade. Idempotent:
+ * refunded envelopes are skipped on-chain and here; a vault with no envelopes is simply marked settled.
+ */
+export async function refundRoom(chain: StakeChain, roomShard: Address): Promise<StakeReceipt[]> {
+  const vault = await readRoomVault(chain, roomShard);
+  if (!vault) throw new Error(`No v2 room vault for ${roomShard}`);
+  if (vault.state.settled) return [];
+  const envelopes = (await listRoomEnvelopes(chain, roomShard)).filter((e) => !e.state.refunded);
+  const receipts: StakeReceipt[] = [];
+  const base = {
+    authority: chain.relayer,
+    roomVault: vault.address,
+    usdcMint: vault.state.usdcMint,
+    vaultUsdcToken: vault.state.vaultUsdcToken,
+  };
+  const batches: { address: Address; state: EnvelopeState }[][] = [];
+  for (let i = 0; i < envelopes.length; i += REFUND_PAIRS_PER_TX) batches.push(envelopes.slice(i, i + REFUND_PAIRS_PER_TX));
+  if (batches.length === 0) batches.push([]);
+  for (const batch of batches) {
+    const ixs: Instruction[] = [computeUnitLimitIx(400_000)];
+    const pairs: { envelope: Address; destination: Address }[] = [];
+    for (const e of batch) {
+      const owner = hasFunder(e.state) ? e.state.funder : e.state.player;
+      const destination = await deriveAta(owner, vault.state.usdcMint);
+      ixs.push(createAtaIdempotentIx(chain.relayer, destination, owner, vault.state.usdcMint));
+      pairs.push({ envelope: e.address, destination });
+    }
+    const ix = await cartridgeVaultRouter.getRefundUnsettledRoomInstructionAsync(base);
+    ixs.push({
+      programAddress: ix.programAddress,
+      data: ix.data,
+      accounts: [
+        ...ix.accounts,
+        ...pairs.flatMap((p) => [
+          { address: p.envelope, role: AccountRole.WRITABLE },
+          { address: p.destination, role: AccountRole.WRITABLE },
+        ]),
+      ],
+    });
+    const total = batch.reduce((a, e) => a + e.state.principalUsdc, 0n);
+    const label = `cartridge_vault_router.refund_unsettled_room: ${batch.length} envelope(s), ${total.toString()} units → funders`;
+    receipts.push({ label, signature: await chain.send(label, ixs) });
+  }
+  return receipts;
+}
+
+/** Raw (layout-agnostic) envelope rows of a room: legacy v1 envelopes cannot be decoded with the v2 decoder. */
+export async function listRawRoomEnvelopes(chain: StakeChain, roomShard: Address): Promise<{ address: Address; data: Uint8Array }[]> {
+  const rows = await programAccountsForRoom(chain, VAULT_ROUTER_PROGRAM_ID, cartridgeVaultRouter.SESSION_RISK_ENVELOPE_DISCRIMINATOR, roomShard);
+  return rows.sort((a, b) => (a.address < b.address ? -1 : 1));
+}
+
+/**
+ * migrate_room_vault_v2 for a pre-upgrade vault: reallocates the vault and all of its v1 envelopes (passed as
+ * remaining accounts) to the v2 layout, sets the buy-in / seat cap and counts the envelopes. No-op when the
+ * vault already has the v2 layout.
+ */
+export async function migrateLegacyVault(chain: StakeChain, roomShard: Address, buyInUnits: bigint): Promise<StakeReceipt[]> {
+  const { roomVault } = await findVaultPdas(roomShard);
+  const [acc] = await fetchRaw(chain.rpc, [roomVault]);
+  if (!acc || acc.owner !== VAULT_ROUTER_PROGRAM_ID) throw new Error(`Room vault ${roomVault} not found`);
+  if (acc.data.length !== 8 + 287) return [];
+  const legacy = (await listRawRoomEnvelopes(chain, roomShard)).filter((r) => r.data.length === SESSION_ENVELOPE_V1_SPACE);
+  const ix = cartridgeVaultRouter.getMigrateRoomVaultV2Instruction({
+    authority: chain.relayer,
+    roomVault,
+    buyInUsdc: buyInUnits,
+    maxEnvelopes: MAX_STAKED_PLAYERS_PER_ROOM,
+  });
+  const label = `cartridge_vault_router.migrate_room_vault_v2: vault ${roomVault} + ${legacy.length} legacy envelope(s) → v2 layout`;
+  const signature = await chain.send(label, [
+    computeUnitLimitIx(400_000),
+    {
+      programAddress: ix.programAddress,
+      data: ix.data,
+      accounts: [...ix.accounts, ...legacy.map((r) => ({ address: r.address, role: AccountRole.WRITABLE }))],
+    },
+  ]);
+  return [{ label, signature }];
 }

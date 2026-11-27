@@ -323,3 +323,22 @@ Same driver, after the AUDIT_LOG §5 fixes: stance layout v2 (all legs in server
 | settle | Commit CyDnZT: undelegate_player_stance (stance → Solana L1) | ER (TEE) | [`4ABp42n8Lj81…`](https://solscan.io/tx/4ABp42n8Lj81hMjhfcGTRfWrz84PexC8irS3XfAsdtybLZMW5tjVAuBqUXuGcS27HeFGfVSFLAnQX5ENK94ciDgC?cluster=custom&customUrl=https%3A%2F%2Fdevnet-tee.magicblock.app) |
 | settle | settle_and_commit_shard: RoomShard commit + undelegate → Solana L1 (MagicIntentBundleBuilder) | ER (TEE) | [`drDkAykPAofv…`](https://solscan.io/tx/drDkAykPAofvbYk2qJJwbt6RBn4KVg5yjqKReiPDy2nEmZLkcg1f9LrfkCp2SgFYmmWMCyBe9mnnmRn3xb6u27Y?cluster=custom&customUrl=https%3A%2F%2Fdevnet-tee.magicblock.app) |
 | settle | MagicBlock TEE → Solana L1: commit + undelegate (Delegation Program) | L1 | [`xsbfKiUEdoHN…`](https://solscan.io/tx/xsbfKiUEdoHNL1zxENzqosRBRS1vPKdm1aH9CBc9DgMEywXa4YZXHdftMLnf1vEN8r3GzXFAhf7txVNwvruQbGf?cluster=devnet) |
+
+---
+
+## Legacy stake vaults refunded after the vault-router upgrade — 2026-11-27T23:47:19.343Z
+
+The four pre-upgrade vaults (STAKES_ONCHAIN_FIXES.md §6) were migrated to the v2 layout with `migrate_room_vault_v2` and refunded with the authority-only `refund_unsettled_room` (relayer `Fc54gfodfqwq8QZe8M1Zy5ARYdYE7skRynVJGA4UYmWg`). Legacy envelopes have no recorded funder, so the program refunds the player key; each refund was then forwarded to the staking wallet named in the relayer-MAC'd stake memo. 10000000 test-USDC units returned in total.
+
+| RoomVault | RoomShard | Pool before (units) | Envelopes | After |
+| :--- | :--- | ---: | ---: | :--- |
+| [`4xLxwKMy…`](https://solscan.io/account/4xLxwKMy773jyEPY2hPH8HvCZq9K3x6tKtxY7jhk73WX?cluster=devnet) | [`6VJeEkP2…`](https://solscan.io/account/6VJeEkP2aitptmB3zwSYGg23VXQuxjPpitwLXkHX7YFh?cluster=devnet) | 0 | 2 | settled (fully refunded) |
+| [`5ZFHEfv5…`](https://solscan.io/account/5ZFHEfv5UUXcwxPcq16NifCy9Hsh8xqg5J7HLSLspkvK?cluster=devnet) | [`Eg67mLqG…`](https://solscan.io/account/Eg67mLqGQKahqeBBGm3aERJMCLi5EB5uJ16VewH1Ygzq?cluster=devnet) | 0 | 1 | settled (fully refunded) |
+| [`FQRKtUJb…`](https://solscan.io/account/FQRKtUJbTf4ydX6iN1sLoFUEMuRma4zm2BSauqv6fcoG?cluster=devnet) | [`A2Pss5KZ…`](https://solscan.io/account/A2Pss5KZ6TiYcfi9odE79MVjdYV7E9uSe8Me9Hn58HN?cluster=devnet) | 10000000 | 1 | settled (fully refunded) |
+| [`4tB3Q3Q1…`](https://solscan.io/account/4tB3Q3Q1fNj9NedCYLGonHspNidudc3jgNTz4QC77ZUE?cluster=devnet) | [`BYAktBRV…`](https://solscan.io/account/BYAktBRVGRUvLG65swnwgXfcz7wQDXLe8HcWgmw6BwM3?cluster=devnet) | 0 | 0 | settled (fully refunded) |
+
+| Step | Solscan |
+| :--- | :--- |
+| cartridge_vault_router.refund_unsettled_room: 1 envelope(s), 10000000 units → funders | [`3xJijzU5EoBToF72…`](https://solscan.io/tx/3xJijzU5EoBToF72AVSycFVeKtJ4DZLJ1Ykc1P4cG9dpugTfqGDH7U6pCN1sBUdrrjqRbcx1USQnvRCVVw8sB8iq?cluster=devnet) |
+| cartridge_vault_router.migrate_room_vault_v2: vault 4tB3Q3Q1fNj9NedCYLGonHspNidudc3jgNTz4QC77ZUE + 0 legacy envelope(s) → v2 layout | [`zYYQxyd9UxdGrt76…`](https://solscan.io/tx/zYYQxyd9UxdGrt76cKqx8c1TBHaVr1HfQbhQ2CwAudYP3TNCPNW6nhUa7v676WX5LTMSNoCqxarDHzFPMuXD1fj?cluster=devnet) |
+| cartridge_vault_router.refund_unsettled_room: 0 envelope(s), 0 units → funders | [`FCxMtMREt6wuo1rv…`](https://solscan.io/tx/FCxMtMREt6wuo1rv4JGE7G6SmhHDwQ76ptmDNMca2hFDsWY1x7UjWpPihAoiP7Sq4jbj5XgGQeaEFm5vt17fiS9?cluster=devnet) |

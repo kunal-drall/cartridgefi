@@ -219,6 +219,8 @@ fn test_f2_onchain_sbf_solvency_bit_for_bit_across_tied_negative_and_partner_vec
                     },
                     *fee_bps,
                     *partner_active,
+                    10_000_000,
+                    8,
                 ),
             ],
             &admin,
@@ -241,6 +243,8 @@ fn test_f2_onchain_sbf_solvency_bit_for_bit_across_tied_negative_and_partner_vec
                 &[
                     ix_open_session_envelope(
                         p.pubkey(),
+                        admin.pubkey(),
+                        p.pubkey(),
                         shard_pda,
                         h.usdc_mint,
                         ata,
@@ -254,6 +258,7 @@ fn test_f2_onchain_sbf_solvency_bit_for_bit_across_tied_negative_and_partner_vec
                         sk.pubkey(),
                         1_750_010_060,
                         Some(validator),
+                        admin.pubkey(),
                     ),
                 ],
                 &p,
@@ -292,12 +297,14 @@ fn test_f2_onchain_sbf_solvency_bit_for_bit_across_tied_negative_and_partner_vec
                         players[p_idx].pubkey(),
                         shard_pda,
                         stance_pdas[p_idx],
+                        admin.pubkey(),
                     ),
                     ix_submit_stance(
                         sks[p_idx].pubkey(),
                         shard_pda,
                         stance_pdas[p_idx],
                         oracle_pubkey,
+                        admin.pubkey(),
                         &SubmitStanceArgs {
                             weights_bps: [weights[p_idx], 0, 0, 0],
                             kalshi_binary_call: 0,

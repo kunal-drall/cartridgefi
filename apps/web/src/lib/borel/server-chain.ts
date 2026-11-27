@@ -72,6 +72,11 @@ export const SHOWDOWN_WINDOW_MS = 15_000;
 const MAX_LOCK_JITTER_MS = 5_000;
 /** Server refuses to send a lock this close to lockAt (landing latency margin). */
 const LOCK_SEND_MARGIN_MS = 2_000;
+/**
+ * cartridge_er_room accepts a pivot only once the ER clock reaches start_ts; the ER clock can trail the wall
+ * clock by ~1 s, so pivots open this long after startsAt.
+ */
+const PIVOT_START_MARGIN_MS = 1_500;
 /** blockTime has 1 s resolution and txs land ~1–2 s after send: tolerance on upper time bounds. */
 const BLOCKTIME_TOLERANCE_MS = 2_000;
 /** Prices older than this are refused for entry, pivot and settle. */
@@ -1062,6 +1067,8 @@ export async function buildJoin(
         delegationMetadataPlayerStance: del.metadata,
         playerStance: stancePda,
         validator: TEE_VALIDATOR,
+        // The room authority (relayer) co-signs every seat (audit C1).
+        roomAuthority: createNoopSigner(relayer),
         ephemeralSessionKey: session.address,
         sessionExpiryTs: BigInt(Math.floor(room.endsAt / 1000)),
       }),
@@ -1086,6 +1093,7 @@ async function joinPermissionIx(relayer: Address, roomShard: Address, stancePda:
       roomShard,
       playerStance: stancePda,
       permission: await permissionPda(stancePda),
+      roomAuthority: createNoopSigner(relayer),
     }),
   );
 }
@@ -1112,6 +1120,7 @@ export async function joinOnEr(room: RoomSchedule, sessionPubkey: string, relaye
 }
 
 function submitStanceIx(
+  relayer: Address,
   session: KeyPairSigner,
   roomShard: Address,
   stancePda: Address,
@@ -1126,6 +1135,8 @@ function submitStanceIx(
       roomShard,
       playerStance: stancePda,
       oracleFeed: ER_SOL_USD_ORACLE,
+      // The room authority attests the entry prices and the move timing (audit C1).
+      roomAuthority: createNoopSigner(relayer),
       weightsBps: weights,
       kalshiBinaryCall: 0,
       kalshiProbBps: code,
@@ -1182,7 +1193,7 @@ export async function buildLock(
   const session = await derivedSigner("session", room.roomId, sessionPubkey);
   const instructions: Instruction[] = [];
   if (!p.stance.joinedEr) instructions.push(await joinPermissionIx(relayer, state.roomShardPda, p.stancePda));
-  instructions.push(submitStanceIx(session, state.roomShardPda, p.stancePda, weightsFor(legs, layout), layout.code, slotPrices8(layout, prices), 0n));
+  instructions.push(submitStanceIx(relayer, session, state.roomShardPda, p.stancePda, weightsFor(legs, layout), layout.code, slotPrices8(layout, prices), 0n));
   return {
     label: "Hand sealed on the MagicBlock Private ER (TEE): submit_stance under a Permission Program ACL",
     instructions,
@@ -1199,9 +1210,13 @@ export async function buildPivot(
   kind: PivotKind,
   state: RoomStateSnapshot,
   nowMs: number,
+  relayer: Address,
 ): Promise<{ action: ErAction; pivot: PivotAction }> {
   assertRoomUsable(state);
-  if (nowMs < room.lockAt || nowMs >= room.endsAt) throw new BorelRuleError("Pivots are only allowed while the room is live");
+  if (nowMs >= room.endsAt) throw new BorelRuleError("Pivots are only allowed while the room is live");
+  if (nowMs < room.startsAt + PIVOT_START_MARGIN_MS) {
+    throw new BorelRuleError(`Pivots open ${PIVOT_START_MARGIN_MS / 1000} s after the room goes live`);
+  }
   const p = requirePlayer(state, sessionPubkey);
   if (!p.hand || !p.layout) throw new BorelRuleError("No sealed hand for this session");
   if (p.pivot || p.stance.moveCount >= MAX_REBALANCES) throw new BorelRuleError("Pivot already used — exactly one per player");
@@ -1214,7 +1229,7 @@ export async function buildPivot(
     action: {
       label: `Pivot on the MagicBlock Private ER: submit_stance ${kind} leg ${legIndex + 1} at the server-set Pyth price (max_rebalances = 2)`,
       instructions: [
-        submitStanceIx(session, state.roomShardPda, p.stancePda, weightsFor(p.hand, p.layout, { legIndex, kind }), p.layout.code, [0n, 0n, 0n], priceE9),
+        submitStanceIx(relayer, session, state.roomShardPda, p.stancePda, weightsFor(p.hand, p.layout, { legIndex, kind }), p.layout.code, [0n, 0n, 0n], priceE9),
       ],
       extraSigners: [session],
       stancePda: p.stancePda,

@@ -188,6 +188,61 @@
               }
             ]
           }
+        },
+        {
+          "name": "payer",
+          "docs": [
+            "Receipt rent payer (the relayer; may equal `authority`)."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "match_credit",
+          "docs": [
+            "A second credit for the same (owner, room) fails here with \"already in use\"."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  116,
+                  99,
+                  104,
+                  95,
+                  99,
+                  114,
+                  101,
+                  100,
+                  105,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "passport.owner",
+                "account": "MarketPassport"
+              },
+              {
+                "kind": "arg",
+                "path": "args.room_shard"
+              }
+            ]
+          }
+        },
+        {
+          "name": "session_envelope",
+          "docs": [
+            "settlement verified in `parse_settled_envelope`."
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
@@ -295,6 +350,19 @@
       ]
     },
     {
+      "name": "MatchCredit",
+      "discriminator": [
+        130,
+        90,
+        254,
+        220,
+        124,
+        245,
+        255,
+        208
+      ]
+    },
+    {
       "name": "PassportConfig",
       "discriminator": [
         247,
@@ -374,6 +442,21 @@
       "code": 6004,
       "name": "MathOverflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidEnvelope",
+      "msg": "Session envelope is not the vault-router envelope of this room and wallet"
+    },
+    {
+      "code": 6006,
+      "name": "EnvelopeNotSettled",
+      "msg": "Session envelope is not settled (or was refunded)"
+    },
+    {
+      "code": 6007,
+      "name": "CreditMismatch",
+      "msg": "Credit units or win flag do not match the settled envelope"
     }
   ],
   "types": [
@@ -461,6 +544,37 @@
           {
             "name": "earned_usdc_units",
             "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MatchCredit",
+      "docs": [
+        "Idempotency receipt: one ELO / earned-asset credit per (passport owner, room)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "passport_owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "credited_units",
+            "type": "u64"
+          },
+          {
+            "name": "recorded_at",
+            "type": "i64"
           },
           {
             "name": "bump",
@@ -597,6 +711,10 @@
           {
             "name": "asset_credit_units",
             "type": "u64"
+          },
+          {
+            "name": "room_shard",
+            "type": "pubkey"
           }
         ]
       }

@@ -16,6 +16,16 @@ pub const ELO_DIVISOR_SCALED: i128 = 400 * SCALE;
 
 pub const SEED_PASSPORT_CONFIG: &[u8] = b"passport_config";
 pub const SEED_PASSPORT: &[u8] = b"passport";
+pub const SEED_MATCH_CREDIT: &[u8] = b"match_credit";
+
+/// `cartridge_vault_router`: owner of the SessionRiskEnvelope a credit is bound to.
+pub const VAULT_ROUTER_PROGRAM_ID: Pubkey = pubkey!("Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR");
+pub const SEED_SESSION_ENVELOPE: &[u8] = b"session_envelope";
+/// `sha256("account:SessionRiskEnvelope")[0..8]` on `cartridge_vault_router`.
+pub const SESSION_ENVELOPE_DISCRIMINATOR: [u8; 8] =
+    [0xe9, 0xaf, 0xa5, 0x17, 0x55, 0x64, 0xaf, 0xe5];
+/// v2 SessionRiskEnvelope length (8 disc + 183).
+pub const SESSION_ENVELOPE_V2_LEN: usize = 191;
 
 pub const BIT_GEO_ELIGIBLE: u8 = 1;
 pub const BIT_CAN_CLAIM_XSTOCKS: u8 = 2;
@@ -105,6 +115,25 @@ pub mod cartridge_passport {
             PassportError::InvalidMeanElo
         );
 
+        // The credit is bound to the settled vault-router envelope of this (room, wallet):
+        // the keeper cannot credit an arbitrary amount or a different outcome.
+        let bound = parse_settled_envelope(
+            &ctx.accounts.session_envelope,
+            &args.room_shard,
+            &ctx.accounts.passport.owner,
+        )?;
+        require!(
+            args.asset_credit_units == bound.payout_usdc && args.is_win == (bound.rank == 1),
+            PassportError::CreditMismatch
+        );
+
+        let receipt = &mut ctx.accounts.match_credit;
+        receipt.passport_owner = ctx.accounts.passport.owner;
+        receipt.room_shard = args.room_shard;
+        receipt.credited_units = args.asset_credit_units;
+        receipt.recorded_at = Clock::get()?.unix_timestamp;
+        receipt.bump = ctx.bumps.match_credit;
+
         let passport = &mut ctx.accounts.passport;
         let (next_elo_scaled, delta_elo_scaled, expected_score_scaled) =
             compute_updated_market_elo(
@@ -176,6 +205,58 @@ pub mod cartridge_passport {
         });
         Ok(())
     }
+}
+
+struct BoundEnvelope {
+    payout_usdc: u64,
+    rank: u16,
+}
+
+/// Reads a v2 `SessionRiskEnvelope` at fixed offsets: 8 disc + room_shard (8..40) + player (40..72)
+/// + session key (72..104) + principal (104..112) + leverage (112) + payout (113..121) + rank (121..123)
+/// + settled (123) + claimed (124) + claimed_mint (125..157) + bump (157) + funder (158..190) + refunded (190).
+fn parse_settled_envelope(
+    env_info: &AccountInfo,
+    room_shard: &Pubkey,
+    owner: &Pubkey,
+) -> Result<BoundEnvelope> {
+    require!(
+        env_info.owner == &VAULT_ROUTER_PROGRAM_ID,
+        PassportError::InvalidEnvelope
+    );
+    let data = env_info.try_borrow_data()?;
+    require!(
+        data.len() >= SESSION_ENVELOPE_V2_LEN && data[..8] == SESSION_ENVELOPE_DISCRIMINATOR,
+        PassportError::InvalidEnvelope
+    );
+    let env_room =
+        Pubkey::try_from(&data[8..40]).map_err(|_| error!(PassportError::InvalidEnvelope))?;
+    let env_player =
+        Pubkey::try_from(&data[40..72]).map_err(|_| error!(PassportError::InvalidEnvelope))?;
+    let funder =
+        Pubkey::try_from(&data[158..190]).map_err(|_| error!(PassportError::InvalidEnvelope))?;
+    require_keys_eq!(env_room, *room_shard, PassportError::InvalidEnvelope);
+    require_keys_eq!(funder, *owner, PassportError::InvalidEnvelope);
+    let expected = Pubkey::create_program_address(
+        &[
+            SEED_SESSION_ENVELOPE,
+            env_room.as_ref(),
+            env_player.as_ref(),
+            &[data[157]],
+        ],
+        &VAULT_ROUTER_PROGRAM_ID,
+    )
+    .map_err(|_| error!(PassportError::InvalidEnvelope))?;
+    require_keys_eq!(env_info.key(), expected, PassportError::InvalidEnvelope);
+    let settled = data[123] != 0;
+    let refunded = data[190] != 0;
+    require!(settled && !refunded, PassportError::EnvelopeNotSettled);
+    let mut payout = [0u8; 8];
+    payout.copy_from_slice(&data[113..121]);
+    Ok(BoundEnvelope {
+        payout_usdc: u64::from_le_bytes(payout),
+        rank: u16::from_le_bytes([data[121], data[122]]),
+    })
 }
 
 pub fn fp_clamp(val: i128, min_val: i128, max_val: i128) -> i128 {
@@ -304,6 +385,18 @@ pub struct RecordEloArgs {
     pub brier_score_scaled: Option<i128>,
     pub asset_credit_kind: AssetCreditKind,
     pub asset_credit_units: u64,
+    pub room_shard: Pubkey,
+}
+
+/// Idempotency receipt: one ELO / earned-asset credit per (passport owner, room).
+#[account]
+#[derive(InitSpace, Debug)]
+pub struct MatchCredit {
+    pub passport_owner: Pubkey,
+    pub room_shard: Pubkey,
+    pub credited_units: u64,
+    pub recorded_at: i64,
+    pub bump: u8,
 }
 
 #[account]
@@ -379,6 +472,7 @@ pub struct UpdateEligibilityBitmask<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(args: RecordEloArgs)]
 pub struct RecordEloAndVaultCredit<'info> {
     pub authority: Signer<'info>,
     #[account(
@@ -392,6 +486,22 @@ pub struct RecordEloAndVaultCredit<'info> {
         bump = passport.bump
     )]
     pub passport: Account<'info, MarketPassport>,
+    /// Receipt rent payer (the relayer; may equal `authority`).
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    /// A second credit for the same (owner, room) fails here with "already in use".
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + MatchCredit::INIT_SPACE,
+        seeds = [SEED_MATCH_CREDIT, passport.owner.as_ref(), args.room_shard.as_ref()],
+        bump
+    )]
+    pub match_credit: Account<'info, MatchCredit>,
+    /// CHECK: vault-router SessionRiskEnvelope; owner, discriminator, PDA, room, funder and
+    /// settlement verified in `parse_settled_envelope`.
+    pub session_envelope: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[event]
@@ -431,4 +541,10 @@ pub enum PassportError {
     InvalidMeanElo,
     #[msg("Arithmetic overflow")]
     MathOverflow,
+    #[msg("Session envelope is not the vault-router envelope of this room and wallet")]
+    InvalidEnvelope,
+    #[msg("Session envelope is not settled (or was refunded)")]
+    EnvelopeNotSettled,
+    #[msg("Credit units or win flag do not match the settled envelope")]
+    CreditMismatch,
 }

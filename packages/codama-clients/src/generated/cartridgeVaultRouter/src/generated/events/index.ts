@@ -8,4 +8,6 @@
 
 export * from './poolDistributed.js';
 export * from './prizeClaimed.js';
+export * from './roomRefunded.js';
+export * from './roomVaultMigrated.js';
 export * from './sessionEnvelopeOpened.js';

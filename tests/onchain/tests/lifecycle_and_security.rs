@@ -318,6 +318,8 @@ fn test_b_private_beta_room_and_global_tvl_caps_hard_revert() {
                     None,
                     500,
                     false,
+                    10_000_000,
+                    8,
                 ),
             ],
             &admin,
@@ -336,6 +338,8 @@ fn test_b_private_beta_room_and_global_tvl_caps_hard_revert() {
         TransactionTarget::Base,
         &[ix_open_session_envelope(
             whale.pubkey(),
+            admin.pubkey(),
+            whale.pubkey(),
             shard_pdas[0],
             usdc_mint,
             whale_ata,
@@ -351,6 +355,8 @@ fn test_b_private_beta_room_and_global_tvl_caps_hard_revert() {
     // 2. Cumulative room deposits > 500_000_000 micro-USDC MUST also revert with BetaRoomPoolCapExceeded (6012)
     h.send_base(
         &[ix_open_session_envelope(
+            whale.pubkey(),
+            admin.pubkey(),
             whale.pubkey(),
             shard_pdas[0],
             h.usdc_mint,
@@ -373,6 +379,8 @@ fn test_b_private_beta_room_and_global_tvl_caps_hard_revert() {
         TransactionTarget::Base,
         &[ix_open_session_envelope(
             p2.pubkey(),
+            admin.pubkey(),
+            p2.pubkey(),
             shard_pdas[0],
             usdc_mint,
             p2_ata,
@@ -388,6 +396,8 @@ fn test_b_private_beta_room_and_global_tvl_caps_hard_revert() {
     // Exact $500 room cap (300M + 200M = 500_000_000) succeeds
     h.send_base(
         &[ix_open_session_envelope(
+            p2.pubkey(),
+            admin.pubkey(),
             p2.pubkey(),
             shard_pdas[0],
             h.usdc_mint,
@@ -408,6 +418,8 @@ fn test_b_private_beta_room_and_global_tvl_caps_hard_revert() {
         let ata = h.create_funded_token_account(h.usdc_mint, depositor.pubkey(), 500_000_000);
         h.send_base(
             &[ix_open_session_envelope(
+                depositor.pubkey(),
+                admin.pubkey(),
                 depositor.pubkey(),
                 *shard_pda,
                 h.usdc_mint,
@@ -439,6 +451,8 @@ fn test_b_private_beta_room_and_global_tvl_caps_hard_revert() {
         &mut h,
         TransactionTarget::Base,
         &[ix_open_session_envelope(
+            overflow_player.pubkey(),
+            admin.pubkey(),
             overflow_player.pubkey(),
             shard_pdas[10],
             usdc_mint,
@@ -508,8 +522,10 @@ fn test_c_full_per_er_vrf_crank_settlement_xstocks_and_passport_lifecycle() {
                 h.platform_fee_ata,
                 creator_fee_ata,
                 Some(partner_fee_ata),
-                500,  // 5.00% total fee
+                500, // 5.00% total fee
                 true, // 40% partner / 30% creator / 30% platform
+                10_000_000,
+                8,
             ),
         ],
         &admin,
@@ -535,6 +551,8 @@ fn test_c_full_per_er_vrf_crank_settlement_xstocks_and_passport_lifecycle() {
             &[
                 ix_initialize_passport(players[i].pubkey(), players[i].pubkey()),
                 ix_open_session_envelope(
+                    players[i].pubkey(),
+                    admin.pubkey(),
                     players[i].pubkey(),
                     shard_pda,
                     h.usdc_mint,
@@ -598,6 +616,7 @@ fn test_c_full_per_er_vrf_crank_settlement_xstocks_and_passport_lifecycle() {
                 session_keys[i].pubkey(),
                 1_750_000_060,
                 Some(validator),
+                admin.pubkey(),
             )],
             &players[i],
             &[&players[i]],
@@ -618,6 +637,7 @@ fn test_c_full_per_er_vrf_crank_settlement_xstocks_and_passport_lifecycle() {
                 players[i].pubkey(),
                 shard_pda,
                 stance_pdas[i],
+                admin.pubkey(),
             )],
             &players[i],
             &[&players[i]],
@@ -707,6 +727,7 @@ fn test_c_full_per_er_vrf_crank_settlement_xstocks_and_passport_lifecycle() {
                 shard_pda,
                 stance_pdas[i],
                 oracle_pubkey,
+                admin.pubkey(),
                 &SubmitStanceArgs {
                     weights_bps: player_weights[i],
                     kalshi_binary_call: 2,
@@ -1018,6 +1039,8 @@ fn test_c_full_per_er_vrf_crank_settlement_xstocks_and_passport_lifecycle() {
         &[ix_record_elo_and_vault_credit(
             keeper.pubkey(),
             players[0].pubkey(),
+            keeper.pubkey(),
+            Address::default(),
             &RecordEloArgs {
                 room_mean_elo_scaled: 1_200 * SCALE,
                 placement_score_scaled: SCALE, // 1st place = 1.0 * 10^9
@@ -1027,6 +1050,7 @@ fn test_c_full_per_er_vrf_crank_settlement_xstocks_and_passport_lifecycle() {
                 brier_score_scaled: Some(960_000_000),
                 asset_credit_kind: AssetCreditKind::Nvdax,
                 asset_credit_units: 1_682_408,
+                room_shard: shard_pda,
             },
         )],
         &keeper,
@@ -1140,6 +1164,8 @@ fn test_c2_remaining_scoring_modes_and_post_commit_magic_action_settlement() {
                     None,
                     400, // 4% total fee, 50/50 split
                     false,
+                    10_000_000,
+                    8,
                 ),
             ],
             &admin,
@@ -1149,6 +1175,8 @@ fn test_c2_remaining_scoring_modes_and_post_commit_magic_action_settlement() {
         h.send_base(
             &[
                 ix_open_session_envelope(
+                    player.pubkey(),
+                    admin.pubkey(),
                     player.pubkey(),
                     shard_pda,
                     h.usdc_mint,
@@ -1163,6 +1191,7 @@ fn test_c2_remaining_scoring_modes_and_post_commit_magic_action_settlement() {
                     sk.pubkey(),
                     1_750_001_060,
                     Some(validator),
+                    admin.pubkey(),
                 ),
             ],
             &player,
@@ -1186,6 +1215,7 @@ fn test_c2_remaining_scoring_modes_and_post_commit_magic_action_settlement() {
                 player.pubkey(),
                 shard_pda,
                 stance_pda,
+                admin.pubkey(),
             )],
             &player,
             &[&player],
@@ -1204,6 +1234,7 @@ fn test_c2_remaining_scoring_modes_and_post_commit_magic_action_settlement() {
                 shard_pda,
                 stance_pda,
                 oracle_pubkey,
+                admin.pubkey(),
                 &SubmitStanceArgs {
                     weights_bps: [5_000, 0, 0, 0],
                     kalshi_binary_call: 2,
@@ -1229,6 +1260,7 @@ fn test_c2_remaining_scoring_modes_and_post_commit_magic_action_settlement() {
                 shard_pda,
                 stance_pda,
                 oracle_pubkey,
+                admin.pubkey(),
                 &SubmitStanceArgs {
                     weights_bps: [6_000, 0, 0, 0],
                     kalshi_binary_call: 2,
@@ -1470,6 +1502,8 @@ fn test_d_session_key_isolation_red_team() {
                 None,
                 500,
                 false,
+                10_000_000,
+                8,
             ),
         ],
         &admin,
@@ -1495,6 +1529,8 @@ fn test_d_session_key_isolation_red_team() {
         TransactionTarget::Base,
         &[ix_open_session_envelope(
             compromised_sk.pubkey(),
+            admin.pubkey(),
+            compromised_sk.pubkey(),
             shard_pda,
             usdc_mint,
             victim_ata,
@@ -1513,6 +1549,8 @@ fn test_d_session_key_isolation_red_team() {
         TransactionTarget::Base,
         &[ix_open_session_envelope(
             compromised_sk.pubkey(),
+            admin.pubkey(),
+            compromised_sk.pubkey(),
             shard_pda,
             usdc_mint,
             sk_ata,
@@ -1528,6 +1566,8 @@ fn test_d_session_key_isolation_red_team() {
     // Victim legitimately opens envelope binding compromised_sk
     h.send_base(
         &[ix_open_session_envelope(
+            victim.pubkey(),
+            admin.pubkey(),
             victim.pubkey(),
             shard_pda,
             usdc_mint,
@@ -1579,6 +1619,7 @@ fn test_d_session_key_isolation_red_team() {
             compromised_sk.pubkey(),
             1_750_000_060,
             Some(validator),
+            admin.pubkey(),
         )],
         &victim,
         &[&victim],
@@ -1609,6 +1650,7 @@ fn test_d_session_key_isolation_red_team() {
             victim.pubkey(),
             shard_pda,
             stance_pda,
+            admin.pubkey(),
         )],
         &victim,
         &[&victim],
@@ -1619,6 +1661,7 @@ fn test_d_session_key_isolation_red_team() {
             shard_pda,
             stance_pda,
             oracle_pubkey,
+            admin.pubkey(),
             &SubmitStanceArgs {
                 weights_bps: [5_000, 0, 0, 0],
                 kalshi_binary_call: 0,
@@ -1803,6 +1846,7 @@ fn test_e_pyth_oracle_staleness_and_confidence_safety() {
             sk.pubkey(),
             1_750_000_060,
             Some(validator),
+            admin.pubkey(),
         )],
         &player,
         &[&player],
@@ -1824,6 +1868,7 @@ fn test_e_pyth_oracle_staleness_and_confidence_safety() {
             player.pubkey(),
             shard_pda,
             stance_pda,
+            admin.pubkey(),
         )],
         &player,
         &[&player],
@@ -1847,6 +1892,7 @@ fn test_e_pyth_oracle_staleness_and_confidence_safety() {
             shard_pda,
             stance_pda,
             oracle_pubkey,
+            admin.pubkey(),
             &SubmitStanceArgs {
                 weights_bps: [5_000, 0, 0, 0],
                 kalshi_binary_call: 0,
@@ -1876,6 +1922,7 @@ fn test_e_pyth_oracle_staleness_and_confidence_safety() {
             shard_pda,
             stance_pda,
             oracle_pubkey,
+            admin.pubkey(),
             &SubmitStanceArgs {
                 weights_bps: [5_000, 0, 0, 0],
                 kalshi_binary_call: 0,
@@ -1902,6 +1949,7 @@ fn test_e_pyth_oracle_staleness_and_confidence_safety() {
             shard_pda,
             stance_pda,
             oracle_pubkey,
+            admin.pubkey(),
             &SubmitStanceArgs {
                 weights_bps: [5_000, 0, 0, 0],
                 kalshi_binary_call: 0,

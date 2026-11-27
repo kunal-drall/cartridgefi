@@ -12,18 +12,18 @@ export const SESSION_RISK_ENVELOPE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8
 
 export function getSessionRiskEnvelopeDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(SESSION_RISK_ENVELOPE_DISCRIMINATOR); }
 
-export type SessionRiskEnvelope = { discriminator: ReadonlyUint8Array; roomShard: Address; player: Address; ephemeralSessionKey: Address; principalUsdc: bigint; leverage: number; payoutUsdc: bigint; rank: number; settled: boolean; claimed: boolean; claimedMint: Address; bump: number;  };
+export type SessionRiskEnvelope = { discriminator: ReadonlyUint8Array; roomShard: Address; player: Address; ephemeralSessionKey: Address; principalUsdc: bigint; leverage: number; payoutUsdc: bigint; rank: number; settled: boolean; claimed: boolean; claimedMint: Address; bump: number; funder: Address; refunded: boolean;  };
 
-export type SessionRiskEnvelopeArgs = { roomShard: Address | HasAddress; player: Address | HasAddress; ephemeralSessionKey: Address | HasAddress; principalUsdc: number | bigint; leverage: number; payoutUsdc: number | bigint; rank: number; settled: boolean; claimed: boolean; claimedMint: Address | HasAddress; bump: number;  };
+export type SessionRiskEnvelopeArgs = { roomShard: Address | HasAddress; player: Address | HasAddress; ephemeralSessionKey: Address | HasAddress; principalUsdc: number | bigint; leverage: number; payoutUsdc: number | bigint; rank: number; settled: boolean; claimed: boolean; claimedMint: Address | HasAddress; bump: number; funder: Address | HasAddress; refunded: boolean;  };
 
 /** Gets the encoder for {@link SessionRiskEnvelopeArgs} account data. */
 export function getSessionRiskEnvelopeEncoder(): FixedSizeEncoder<SessionRiskEnvelopeArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['roomShard', getAddressEncoder()], ['player', getAddressEncoder()], ['ephemeralSessionKey', getAddressEncoder()], ['principalUsdc', getU64Encoder()], ['leverage', getU8Encoder()], ['payoutUsdc', getU64Encoder()], ['rank', getU16Encoder()], ['settled', getBooleanEncoder()], ['claimed', getBooleanEncoder()], ['claimedMint', getAddressEncoder()], ['bump', getU8Encoder()]]), (value) => ({ ...value, discriminator: SESSION_RISK_ENVELOPE_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['roomShard', getAddressEncoder()], ['player', getAddressEncoder()], ['ephemeralSessionKey', getAddressEncoder()], ['principalUsdc', getU64Encoder()], ['leverage', getU8Encoder()], ['payoutUsdc', getU64Encoder()], ['rank', getU16Encoder()], ['settled', getBooleanEncoder()], ['claimed', getBooleanEncoder()], ['claimedMint', getAddressEncoder()], ['bump', getU8Encoder()], ['funder', getAddressEncoder()], ['refunded', getBooleanEncoder()]]), (value) => ({ ...value, discriminator: SESSION_RISK_ENVELOPE_DISCRIMINATOR }));
 }
 
 /** Gets the decoder for {@link SessionRiskEnvelope} account data. */
 export function getSessionRiskEnvelopeDecoder(): FixedSizeDecoder<SessionRiskEnvelope> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['roomShard', getAddressDecoder()], ['player', getAddressDecoder()], ['ephemeralSessionKey', getAddressDecoder()], ['principalUsdc', getU64Decoder()], ['leverage', getU8Decoder()], ['payoutUsdc', getU64Decoder()], ['rank', getU16Decoder()], ['settled', getBooleanDecoder()], ['claimed', getBooleanDecoder()], ['claimedMint', getAddressDecoder()], ['bump', getU8Decoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['roomShard', getAddressDecoder()], ['player', getAddressDecoder()], ['ephemeralSessionKey', getAddressDecoder()], ['principalUsdc', getU64Decoder()], ['leverage', getU8Decoder()], ['payoutUsdc', getU64Decoder()], ['rank', getU16Decoder()], ['settled', getBooleanDecoder()], ['claimed', getBooleanDecoder()], ['claimedMint', getAddressDecoder()], ['bump', getU8Decoder()], ['funder', getAddressDecoder()], ['refunded', getBooleanDecoder()]]);
 }
 
 /** Gets the codec for {@link SessionRiskEnvelope} account data. */
@@ -76,5 +76,5 @@ export async function fetchAllMaybeSessionRiskEnvelope(
 }
 
 export function getSessionRiskEnvelopeSize(): number {
-  return 158;
+  return 191;
 }

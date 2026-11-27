@@ -6,8 +6,9 @@
 //   settle  distributeRoomPayouts(roomId)            → distribute_pool_and_fees, claim_prize → wallets, ELO
 //   claim   POST /api/borel/claim                    → idempotent single-player claim (retry path)
 //
-// Kill switch: everything above is OFF unless BOREL_STAKES_ENABLED=true (server env). Staking stays disabled
-// until the on-chain fixes in docs/specs/STAKES_ONCHAIN_FIXES.md ship (audit C1/H1/H2, docs/AUDIT_LOG.md §5).
+// Kill switch: everything above is OFF unless BOREL_STAKES_ENABLED=true (server env). The on-chain fixes in
+// docs/specs/STAKES_ONCHAIN_FIXES.md (authority-co-signed seats and envelopes, fixed buy-in, 8-seat cap, refunds,
+// MatchCredit ELO receipts) are what make enabling it safe (audit C1/H1/H2/M2, docs/AUDIT_LOG.md §5).
 //
 // The envelope's player is the room's PlayerStance key, which the join route derives per (room, session)
 // from relayer key material (server-chain.ts `derivedSigner`). The same derivation is reproduced here and
@@ -267,7 +268,7 @@ export async function buildStakeForWallet(args: {
   if (nextPool > poolCap) throw new StakeRuleError(`Room pool cap reached (${poolCap} units)`);
   if (nextTvl > tvlCap) throw new StakeRuleError(`Global TVL cap reached (${tvlCap} units)`);
 
-  const receipts = await ensureRoomVault(chain, roomShard);
+  const receipts = await ensureRoomVault(chain, roomShard, buyIn);
   const built = await buildStakeTransaction(chain, {
     roomShard,
     player,
@@ -329,7 +330,7 @@ export async function submitSignedStake(args: {
   const envelope = await findSessionEnvelopePda(roomShard, player.address);
   const signed = await finalizeStakeTransaction(chain, tx, player);
 
-  // Relayer rent (player ATA, envelope, passport) goes through the daily spend guard like every relayer tx.
+  // Relayer rent (envelope, passport) goes through the daily spend guard like every relayer tx.
   const message = decompileTransactionMessage(getCompiledTransactionMessageDecoder().decode(tx.messageBytes));
   const reservation = reserveRelayerSpend(chain.relayer.address, message.instructions);
   let signature: string;
@@ -413,9 +414,10 @@ export async function claimForSession(roomId: string, sessionPubkey: string): Pr
   if (state.claimed) throw new StakeRuleError("Payout already claimed");
   if (state.payoutUsdc === 0n) throw new StakeRuleError("No payout for this rank");
   const record = await findStakeRecord(chain, roomShard, envelope);
-  if (!record || record.session !== sessionPubkey) throw new StakeRuleError("Stake record not found for this session");
-  const receipt = await claimToWallet(chain, roomShard, { address: envelope, state }, player, record.wallet);
-  return { receipt: receiptJson(receipt), payoutUnits: state.payoutUsdc, wallet: record.wallet };
+  if (!record || record.session !== sessionPubkey || record.wallet !== state.funder) throw new StakeRuleError("Stake record not found for this session");
+  // The program pays the funder recorded on the envelope (the staking wallet) and nobody else.
+  const receipt = await claimToWallet(chain, roomShard, { address: envelope, state }, player);
+  return { receipt: receiptJson(receipt), payoutUnits: state.payoutUsdc, wallet: state.funder };
 }
 
 /**

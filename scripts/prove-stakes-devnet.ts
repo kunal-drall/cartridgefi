@@ -7,15 +7,18 @@
  *
  *   L1  faucet: mint 100 test-USDC to each wallet (relayer = mint authority)
  *   L1  register_cartridge + initialize_room_shard (relayer authority) + delegate_room_shard
- *   L1  join ×2: init_stance_and_delegate for the derived player keys (relayer-funded, swept back)
- *   L1  cartridge_vault_router.initialize_room_vault (+ fee-routing manifest, creator_share_bps = 0)
- *   L1  stake ×2: ONE wallet signature each — wallet ATA → player ATA → open_session_envelope → vault PDA
- *       (relayer = fee payer + rent; player key co-signs; MarketPassport initialized for the wallet)
- *   ER  join_room_and_init_permission ×2, submit_stance ×2, request_settlement_vrf, trigger_showdown_unseal ×2,
- *       evaluate_player_score ×2, undelegate_player_stance ×2, settle_and_commit_shard (→ L1, SettledCommitted)
+ *   L1  join ×2: init_stance_and_delegate for the derived player keys (relayer-funded, swept back; the relayer
+ *       co-signs as room authority)
+ *   L1  cartridge_vault_router.initialize_room_vault (fixed buy-in, 8-seat cap, fee-routing manifest)
+ *   L1  stake ×2: ONE wallet signature each — wallet ATA (funder) → open_session_envelope → vault PDA
+ *       (relayer = fee payer, envelope rent and room-authority co-signer; player key co-signs; MarketPassport
+ *       initialized for the wallet)
+ *   ER  join_room_and_init_permission ×2 and submit_stance ×2 before start_ts (authority co-signed, attested entry
+ *       prices), one pivot while live, request_settlement_vrf, trigger_showdown_unseal ×2, evaluate_player_score ×2,
+ *       undelegate_player_stance ×2, settle_and_commit_shard (→ L1, SettledCommitted)
  *   L1  distribute_pool_and_fees: 1% fee → platformFeeAccount, Harmonic Shapley payouts into envelopes
- *   L1  claim_prize ×winners → forwarded to the staking wallet in the same tx
- *   L1  cartridge_passport.record_elo_and_vault_credit ×2 on the wallets' passports
+ *   L1  claim_prize ×winners → straight into the funding wallet's ATA (program-pinned destination)
+ *   L1  cartridge_passport.record_elo_and_vault_credit ×2, bound to the settled envelopes, MatchCredit receipts
  *
  * Run: node scripts/prove-stakes-devnet.ts   (RELAYER_KEYPAIR overrides .keys/relayer.json;
  *      SOLANA_RPC_URL=https://rpc.magicblock.app/devnet avoids public-RPC 429s)
@@ -315,7 +318,8 @@ async function main(): Promise<void> {
   const [manifestPda] = await getProgramDerivedAddress({ programAddress: address(CARTRIDGE_PROGRAM_IDS.registry), seeds: [Buffer.from("cartridge"), slugHash] });
   const eventId = new Uint8Array(createHash("sha256").update(`${roomId}:shard:0`).digest());
   const [roomShard] = await cartridgeErRoom.findRoomShardPda({ eventId, shardIndex: 0 });
-  const startTs = (await chainUnixTs(DEVNET_RPC)) + 60n;
+  // The sealed entry must land before start_ts, so leave room for setup (room, joins, vault, stakes, ER joins).
+  const startTs = (await chainUnixTs(DEVNET_RPC)) + 150n;
   const endTs = startTs + BigInt(DURATION_SECS);
   const unsealTs = startTs + (BigInt(DURATION_SECS) * 7500n) / 10_000n;
   const uri = new Uint8Array(96);
@@ -377,7 +381,14 @@ async function main(): Promise<void> {
         relayer,
         [
           systemTransferIx(relayer, player.address, PLAYER_FUNDING_LAMPORTS),
-          await cartridgeErRoom.getInitStanceAndDelegateInstructionAsync({ player, roomShard, validator, ephemeralSessionKey: sessionKey.address, sessionExpiryTs: endTs }),
+          await cartridgeErRoom.getInitStanceAndDelegateInstructionAsync({
+            player,
+            roomShard,
+            validator,
+            roomAuthority: relayer,
+            ephemeralSessionKey: sessionKey.address,
+            sessionExpiryTs: endTs,
+          }),
         ],
         `join ${i}`,
       ),
@@ -393,7 +404,7 @@ async function main(): Promise<void> {
   }
 
   // 4. Vault + stakes (the exact build the API route returns; the wallet signs the issued message bytes)
-  await ensureRoomVault(chain, roomShard);
+  await ensureRoomVault(chain, roomShard, STAKE_BUY_IN_UNITS.BLITZ_3M);
   for (let i = 0; i < 2; i += 1) {
     const built = await buildStakeTransaction(chain, {
       roomShard,
@@ -427,40 +438,52 @@ async function main(): Promise<void> {
     record(
       `join_room_and_init_permission ${i === 0 ? "A" : "B"} (private Fog-of-War)`,
       "ER",
-      await signAndSend(erFqdn, relayer, [cartridgeErRoom.getJoinRoomAndInitPermissionInstruction({ payer: relayer, roomShard, playerStance: stances[i]!, permission: perm })], `er join ${i}`, [roomShard, stances[i]!, perm]),
+      await signAndSend(
+        erFqdn,
+        relayer,
+        [cartridgeErRoom.getJoinRoomAndInitPermissionInstruction({ payer: relayer, roomShard, playerStance: stances[i]!, permission: perm, roomAuthority: relayer })],
+        `er join ${i}`,
+        [roomShard, stances[i]!, perm],
+      ),
     );
   }
-  while ((await chainUnixTs(erFqdn)) < startTs) await sleep(1000);
   const weights: [number, number, number, number][] = [
     [3000, -1000, 2000, 0],
     [-2000, 1000, 0, 3000],
   ];
+  const submitIx = (i: number, w: [number, number, number, number], prices8: [bigint, bigint, bigint], stage1: bigint) =>
+    cartridgeErRoom.getSubmitStanceInstruction({
+      sessionSigner: sessionKeys[i]!,
+      roomShard,
+      playerStance: stances[i]!,
+      oracleFeed: LIVE_ER_SOL_USD_ORACLE,
+      // The room authority co-signs: it attests the entry prices and the timing of every move.
+      roomAuthority: relayer,
+      weightsBps: w,
+      kalshiBinaryCall: 0,
+      kalshiProbBps: 5000,
+      secondaryPrices8: prices8,
+      stage1ScoreScaled: stage1,
+    });
+  // Sealed entries land BEFORE start_ts (cartridge_er_room rejects a first move at or after start_ts).
+  const erNow = await chainUnixTs(erFqdn);
+  if (erNow >= startTs) throw new Error(`Setup overran start_ts (ER clock ${erNow} >= ${startTs}); rerun`);
   const entry = await secondaryPrices8();
   for (let i = 0; i < 2; i += 1) {
     record(
-      `submit_stance ${i === 0 ? "A" : "B"}: sealed weights [${weights[i]!.join(",")}] (session key)`,
+      `submit_stance ${i === 0 ? "A" : "B"}: sealed weights [${weights[i]!.join(",")}] before start_ts (session key + room authority)`,
       "ER",
-      await signAndSend(
-        erFqdn,
-        sessionKeys[i]!,
-        [
-          cartridgeErRoom.getSubmitStanceInstruction({
-            sessionSigner: sessionKeys[i]!,
-            roomShard,
-            playerStance: stances[i]!,
-            oracleFeed: LIVE_ER_SOL_USD_ORACLE,
-            weightsBps: weights[i]!,
-            kalshiBinaryCall: 0,
-            kalshiProbBps: 5000,
-            secondaryPrices8: entry,
-            stage1ScoreScaled: 0n,
-          }),
-        ],
-        `submit ${i}`,
-        [roomShard, stances[i]!],
-      ),
+      await signAndSend(erFqdn, relayer, [submitIx(i, weights[i]!, entry, 0n)], `submit ${i}`, [roomShard, stances[i]!]),
     );
   }
+  // One pivot while the room is live (pivots before start_ts are rejected on-chain).
+  while ((await chainUnixTs(erFqdn)) < startTs) await sleep(1000);
+  const pivotWeights: [number, number, number, number] = [3000, 1000, 2000, 0];
+  record(
+    `submit_stance A: pivot FLIP slot 1 → [${pivotWeights.join(",")}] while live`,
+    "ER",
+    await signAndSend(erFqdn, relayer, [submitIx(0, pivotWeights, [0n, 0n, 0n], 0n)], "pivot A", [roomShard, stances[0]!]),
+  );
   const [vrfIdentity] = await getProgramDerivedAddress({ programAddress: erRoomProgram, seeds: [Buffer.from("identity")] });
   record(
     "request_settlement_vrf (MagicBlock VRF)",
@@ -575,7 +598,7 @@ async function main(): Promise<void> {
     "",
     `## Borel wallet stakes + vault-router payouts — ${new Date().toISOString()}`,
     "",
-    `Two generated wallets with **0 SOL** (test-USDC from the relayer faucet) staked through \`cartridge_vault_router\` (\`${CARTRIDGE_PROGRAM_IDS.vaultRouter}\`) and were paid out by the program itself. Each stake is ONE wallet signature on a transaction built and partially signed by the server code the app uses (\`apps/web/src/lib/borel/stakes-core.ts\`): relayer \`${relayer.address}\` is fee payer and pays every rent; the room's derived player key co-signs \`open_session_envelope\`. Room \`${roomId}\`, RoomShard [\`${roomShard}\`](${solscanAccount(roomShard)}), RoomVault [\`${outcome.roomVault}\`](${solscanAccount(outcome.roomVault)}), VRF seed \`${vrfSeedHex ? `0x${vrfSeedHex}` : "not observed"}\`, fee ${outcome.feeUnits} units (1%, creator_share_bps = 0) into platformFeeAccount [\`${chain.platformFeeAccount}\`](${solscanAccount(chain.platformFeeAccount)}) (${feeBefore} → ${feeAfter}). Relayer spend for the whole run: ${startLamports - endLamports} lamports.`,
+    `Two generated wallets with **0 SOL** (test-USDC from the relayer faucet) staked through \`cartridge_vault_router\` (\`${CARTRIDGE_PROGRAM_IDS.vaultRouter}\`) and were paid out by the program itself. Each stake is ONE wallet signature on a transaction built by the server code the app uses (\`apps/web/src/lib/borel/stakes-core.ts\`): the wallet deposits the fixed buy-in directly as \`funder\`; relayer \`${relayer.address}\` is fee payer, pays every rent and co-signs as room authority (seats, entries and envelopes are authority-approved on-chain); the room's derived player key co-signs \`open_session_envelope\`. Payouts go straight to the funding wallet; ELO credits are bound to the settled envelopes with one MatchCredit receipt per (wallet, room). Room \`${roomId}\`, RoomShard [\`${roomShard}\`](${solscanAccount(roomShard)}), RoomVault [\`${outcome.roomVault}\`](${solscanAccount(outcome.roomVault)}), VRF seed \`${vrfSeedHex ? `0x${vrfSeedHex}` : "not observed"}\`, fee ${outcome.feeUnits} units (1%, creator_share_bps = 0) into platformFeeAccount [\`${chain.platformFeeAccount}\`](${solscanAccount(chain.platformFeeAccount)}) (${feeBefore} → ${feeAfter}). Relayer spend for the whole run: ${startLamports - endLamports} lamports.`,
     "",
     "| Player | Wallet | Stake (units) | Rank | Payout (units) | Wallet test-USDC at settle | MarketPassport after |",
     "| :--- | :--- | ---: | ---: | ---: | :--- | :--- |",

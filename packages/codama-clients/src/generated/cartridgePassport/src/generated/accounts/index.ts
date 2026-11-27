@@ -7,4 +7,5 @@
  */
 
 export * from './marketPassport.js';
+export * from './matchCredit.js';
 export * from './passportConfig.js';

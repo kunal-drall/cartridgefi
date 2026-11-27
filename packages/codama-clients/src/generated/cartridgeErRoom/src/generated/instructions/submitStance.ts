@@ -14,8 +14,8 @@ export const SUBMIT_STANCE_DISCRIMINATOR: ReadonlyUint8Array = new Uint8Array([7
 
 export function getSubmitStanceDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(SUBMIT_STANCE_DISCRIMINATOR); }
 
-export type SubmitStanceInstruction<TProgram extends string = typeof CARTRIDGE_ER_ROOM_PROGRAM_ADDRESS, TAccountSessionSigner extends string | AccountMeta<string> = string, TAccountRoomShard extends string | AccountMeta<string> = string, TAccountPlayerStance extends string | AccountMeta<string> = string, TAccountOracleFeed extends string | AccountMeta<string> = string, TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
-Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountSessionSigner extends string ? ReadonlySignerAccount<TAccountSessionSigner> & AccountSignerMeta<TAccountSessionSigner> : TAccountSessionSigner, TAccountRoomShard extends string ? WritableAccount<TAccountRoomShard> : TAccountRoomShard, TAccountPlayerStance extends string ? WritableAccount<TAccountPlayerStance> : TAccountPlayerStance, TAccountOracleFeed extends string ? ReadonlyAccount<TAccountOracleFeed> : TAccountOracleFeed, ...TRemainingAccounts]>;
+export type SubmitStanceInstruction<TProgram extends string = typeof CARTRIDGE_ER_ROOM_PROGRAM_ADDRESS, TAccountSessionSigner extends string | AccountMeta<string> = string, TAccountRoomShard extends string | AccountMeta<string> = string, TAccountPlayerStance extends string | AccountMeta<string> = string, TAccountOracleFeed extends string | AccountMeta<string> = string, TAccountRoomAuthority extends string | AccountMeta<string> = string, TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountSessionSigner extends string ? ReadonlySignerAccount<TAccountSessionSigner> & AccountSignerMeta<TAccountSessionSigner> : TAccountSessionSigner, TAccountRoomShard extends string ? WritableAccount<TAccountRoomShard> : TAccountRoomShard, TAccountPlayerStance extends string ? WritableAccount<TAccountPlayerStance> : TAccountPlayerStance, TAccountOracleFeed extends string ? ReadonlyAccount<TAccountOracleFeed> : TAccountOracleFeed, TAccountRoomAuthority extends string ? ReadonlySignerAccount<TAccountRoomAuthority> & AccountSignerMeta<TAccountRoomAuthority> : TAccountRoomAuthority, ...TRemainingAccounts]>;
 
 export type SubmitStanceInstructionData = { discriminator: ReadonlyUint8Array; weightsBps: Array<number>; kalshiBinaryCall: number; kalshiProbBps: number; secondaryPrices8: Array<bigint>; stage1ScoreScaled: bigint;  };
 
@@ -33,11 +33,13 @@ export function getSubmitStanceInstructionDataCodec(): FixedSizeCodec<SubmitStan
     return combineCodec(getSubmitStanceInstructionDataEncoder(), getSubmitStanceInstructionDataDecoder());
 }
 
-export type SubmitStanceInput<TAccountSessionSigner extends InstructionSignerInput = InstructionSignerInput, TAccountRoomShard extends InstructionAccountInput = InstructionAccountInput, TAccountPlayerStance extends InstructionAccountInput = InstructionAccountInput, TAccountOracleFeed extends InstructionAccountInput = InstructionAccountInput> =  {
+export type SubmitStanceInput<TAccountSessionSigner extends InstructionSignerInput = InstructionSignerInput, TAccountRoomShard extends InstructionAccountInput = InstructionAccountInput, TAccountPlayerStance extends InstructionAccountInput = InstructionAccountInput, TAccountOracleFeed extends InstructionAccountInput = InstructionAccountInput, TAccountRoomAuthority extends InstructionSignerInput = InstructionSignerInput> =  {
   sessionSigner: TAccountSessionSigner;
 roomShard: TAccountRoomShard;
 playerStance: TAccountPlayerStance;
 oracleFeed: TAccountOracleFeed;
+/** Room authority co-signer: attests the entry prices and the timing of every move (C1). */
+roomAuthority: TAccountRoomAuthority;
 weightsBps: SubmitStanceInstructionDataArgs["weightsBps"];
 kalshiBinaryCall: SubmitStanceInstructionDataArgs["kalshiBinaryCall"];
 kalshiProbBps: SubmitStanceInstructionDataArgs["kalshiProbBps"];
@@ -45,7 +47,7 @@ secondaryPrices8: SubmitStanceInstructionDataArgs["secondaryPrices8"];
 stage1ScoreScaled: SubmitStanceInstructionDataArgs["stage1ScoreScaled"];
 }
 
-export function getSubmitStanceInstruction<TAccountSessionSigner extends InstructionSignerInput, TAccountRoomShard extends InstructionAccountInput, TAccountPlayerStance extends InstructionAccountInput, TAccountOracleFeed extends InstructionAccountInput, TProgramAddress extends Address = typeof CARTRIDGE_ER_ROOM_PROGRAM_ADDRESS>(input: SubmitStanceInput<TAccountSessionSigner, TAccountRoomShard, TAccountPlayerStance, TAccountOracleFeed>, config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } } ): SubmitStanceInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountSessionSigner, InstructionAccountInputAddress<TAccountSessionSigner>>, ResolvedInstructionAccountMeta<TAccountRoomShard, InstructionAccountInputAddress<TAccountRoomShard>>, ResolvedInstructionAccountMeta<TAccountPlayerStance, InstructionAccountInputAddress<TAccountPlayerStance>>, ResolvedInstructionAccountMeta<TAccountOracleFeed, InstructionAccountInputAddress<TAccountOracleFeed>>> {
+export function getSubmitStanceInstruction<TAccountSessionSigner extends InstructionSignerInput, TAccountRoomShard extends InstructionAccountInput, TAccountPlayerStance extends InstructionAccountInput, TAccountOracleFeed extends InstructionAccountInput, TAccountRoomAuthority extends InstructionSignerInput, TProgramAddress extends Address = typeof CARTRIDGE_ER_ROOM_PROGRAM_ADDRESS>(input: SubmitStanceInput<TAccountSessionSigner, TAccountRoomShard, TAccountPlayerStance, TAccountOracleFeed, TAccountRoomAuthority>, config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } } ): SubmitStanceInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountSessionSigner, InstructionAccountInputAddress<TAccountSessionSigner>>, ResolvedInstructionAccountMeta<TAccountRoomShard, InstructionAccountInputAddress<TAccountRoomShard>>, ResolvedInstructionAccountMeta<TAccountPlayerStance, InstructionAccountInputAddress<TAccountPlayerStance>>, ResolvedInstructionAccountMeta<TAccountOracleFeed, InstructionAccountInputAddress<TAccountOracleFeed>>, ResolvedInstructionAccountMeta<TAccountRoomAuthority, InstructionAccountInputAddress<TAccountRoomAuthority>>> {
   // Program address.
 const programAddressInput = config?.programAddress ?? CARTRIDGE_ER_ROOM_PROGRAM_ADDRESS;
 const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
@@ -54,7 +56,7 @@ const programAddress = typeof programAddressInput === 'string' ? programAddressI
 const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
 
  // Original accounts.
-const originalAccounts = { sessionSigner: { value: input.sessionSigner ?? null, isSigner: true, isWritable: false }, roomShard: { value: input.roomShard ?? null, isSigner: false, isWritable: true }, playerStance: { value: input.playerStance ?? null, isSigner: false, isWritable: true }, oracleFeed: { value: input.oracleFeed ?? null, isSigner: false, isWritable: false } }
+const originalAccounts = { sessionSigner: { value: input.sessionSigner ?? null, isSigner: true, isWritable: false }, roomShard: { value: input.roomShard ?? null, isSigner: false, isWritable: true }, playerStance: { value: input.playerStance ?? null, isSigner: false, isWritable: true }, oracleFeed: { value: input.oracleFeed ?? null, isSigner: false, isWritable: false }, roomAuthority: { value: input.roomAuthority ?? null, isSigner: true, isWritable: false } }
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
@@ -64,7 +66,7 @@ const args = { ...input,  };
 
 
 
-return Object.freeze({ accounts: [getAccountMeta("sessionSigner", accounts.sessionSigner), getAccountMeta("roomShard", accounts.roomShard), getAccountMeta("playerStance", accounts.playerStance), getAccountMeta("oracleFeed", accounts.oracleFeed)], data: getSubmitStanceInstructionDataEncoder().encode(args as SubmitStanceInstructionDataArgs), programAddress } as SubmitStanceInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountSessionSigner, InstructionAccountInputAddress<TAccountSessionSigner>>, ResolvedInstructionAccountMeta<TAccountRoomShard, InstructionAccountInputAddress<TAccountRoomShard>>, ResolvedInstructionAccountMeta<TAccountPlayerStance, InstructionAccountInputAddress<TAccountPlayerStance>>, ResolvedInstructionAccountMeta<TAccountOracleFeed, InstructionAccountInputAddress<TAccountOracleFeed>>>);
+return Object.freeze({ accounts: [getAccountMeta("sessionSigner", accounts.sessionSigner), getAccountMeta("roomShard", accounts.roomShard), getAccountMeta("playerStance", accounts.playerStance), getAccountMeta("oracleFeed", accounts.oracleFeed), getAccountMeta("roomAuthority", accounts.roomAuthority)], data: getSubmitStanceInstructionDataEncoder().encode(args as SubmitStanceInstructionDataArgs), programAddress } as SubmitStanceInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountSessionSigner, InstructionAccountInputAddress<TAccountSessionSigner>>, ResolvedInstructionAccountMeta<TAccountRoomShard, InstructionAccountInputAddress<TAccountRoomShard>>, ResolvedInstructionAccountMeta<TAccountPlayerStance, InstructionAccountInputAddress<TAccountPlayerStance>>, ResolvedInstructionAccountMeta<TAccountOracleFeed, InstructionAccountInputAddress<TAccountOracleFeed>>, ResolvedInstructionAccountMeta<TAccountRoomAuthority, InstructionAccountInputAddress<TAccountRoomAuthority>>>);
 }
 
 export type ParsedSubmitStanceInstruction<TProgram extends string = typeof CARTRIDGE_ER_ROOM_PROGRAM_ADDRESS, TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]> = { programAddress: Address<TProgram>;
@@ -73,12 +75,14 @@ sessionSigner: TAccountMetas[0];
 roomShard: TAccountMetas[1];
 playerStance: TAccountMetas[2];
 oracleFeed: TAccountMetas[3];
+/** Room authority co-signer: attests the entry prices and the timing of every move (C1). */
+roomAuthority: TAccountMetas[4];
 };
 data: SubmitStanceInstructionData; };
 
 export function parseSubmitStanceInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(instruction: Instruction<TProgram> & InstructionWithAccounts<TAccountMetas> & InstructionWithData<ReadonlyUint8Array>): ParsedSubmitStanceInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 4) {
-  throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, { actualAccountMetas: instruction.accounts.length, expectedAccountMetas: 4 });
+  if (instruction.accounts.length < 5) {
+  throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, { actualAccountMetas: instruction.accounts.length, expectedAccountMetas: 5 });
 }
 let accountIndex = 0;
 const getNextAccount = () => {
@@ -86,5 +90,5 @@ const getNextAccount = () => {
   accountIndex += 1;
   return accountMeta;
 }
-  return { programAddress: instruction.programAddress, accounts: { sessionSigner: getNextAccount(), roomShard: getNextAccount(), playerStance: getNextAccount(), oracleFeed: getNextAccount() }, data: getSubmitStanceInstructionDataDecoder().decode(instruction.data) };
+  return { programAddress: instruction.programAddress, accounts: { sessionSigner: getNextAccount(), roomShard: getNextAccount(), playerStance: getNextAccount(), oracleFeed: getNextAccount(), roomAuthority: getNextAccount() }, data: getSubmitStanceInstructionDataDecoder().decode(instruction.data) };
 }

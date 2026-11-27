@@ -32,11 +32,11 @@ pub const BIT_GEO_ELIGIBLE: u8 = 1;
 pub const BIT_CAN_CLAIM_XSTOCKS: u8 = 2;
 pub const BIT_SYBIL_VERIFIED: u8 = 4;
 
-pub const CARTRIDGE_REGISTRY_ID: Address = address!("5tH1uFw8Lyf8NZ8YvMogwGWjLyRXrKBSJveKVbHm1nvr");
-pub const CARTRIDGE_ER_ROOM_ID: Address = address!("Hqi5b6iY9rgnpRW8o5y1vamDU3Y9i6mKq49BDjZVxkFR");
+pub const CARTRIDGE_REGISTRY_ID: Address = address!("BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc");
+pub const CARTRIDGE_ER_ROOM_ID: Address = address!("DDZt6hCBapvBuUMcQipQip2TT2keVuLCsmdFzhG7771W");
 pub const CARTRIDGE_VAULT_ROUTER_ID: Address =
-    address!("6hzFDMeBERxfzrgnWyzeptHknnMzwTr5u1FmVfG9eRBT");
-pub const CARTRIDGE_PASSPORT_ID: Address = address!("5jkGrbF915SoaVbmxbjseUEswVydyXVXXBripyBN8cNr");
+    address!("Db58xzW5iaYdZABeRRpds3UrvYQyRQSRAkPTHdypFuUR");
+pub const CARTRIDGE_PASSPORT_ID: Address = address!("B9ctvYvbegGf5rDAwufAzjNbiAyH147MS7WkpohC9SMF");
 
 pub const DELEGATION_PROGRAM_ID: Address = address!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 pub const PERMISSION_PROGRAM_ID: Address = address!("ACLseoPoyC3cBqoUtkbjZ4aDrkurZW86v19pXz2XQnp1");
@@ -268,6 +268,12 @@ pub struct RoomVault {
     pub total_claimed_usdc: u64,
     pub settled: bool,
     pub bump: u8,
+    pub buy_in_usdc: u64,
+    pub max_envelopes: u16,
+    pub envelope_count: u16,
+    pub refunding: bool,
+    pub refunded_count: u16,
+    pub layout_version: u8,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq)]
@@ -283,6 +289,8 @@ pub struct SessionRiskEnvelope {
     pub claimed: bool,
     pub claimed_mint: Address,
     pub bump: u8,
+    pub funder: Address,
+    pub refunded: bool,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
@@ -303,6 +311,16 @@ pub struct RecordEloArgs {
     pub brier_score_scaled: Option<i128>,
     pub asset_credit_kind: AssetCreditKind,
     pub asset_credit_units: u64,
+    pub room_shard: Address,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq)]
+pub struct MatchCredit {
+    pub passport_owner: Address,
+    pub room_shard: Address,
+    pub credited_units: u64,
+    pub recorded_at: i64,
+    pub bump: u8,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq)]
@@ -536,6 +554,7 @@ pub fn ix_init_stance_and_delegate(
     ephemeral_session_key: Address,
     session_expiry_ts: i64,
     validator: Option<Address>,
+    room_authority: Address,
 ) -> Instruction {
     let (player_stance, _) = player_stance_pda(&room_shard, &player);
     let buffer = delegation_buffer_pda(&player_stance, &CARTRIDGE_ER_ROOM_ID);
@@ -556,6 +575,7 @@ pub fn ix_init_stance_and_delegate(
             AccountMeta::new_readonly(system_program::ID, false),
             AccountMeta::new_readonly(CARTRIDGE_ER_ROOM_ID, false),
             AccountMeta::new_readonly(DELEGATION_PROGRAM_ID, false),
+            AccountMeta::new_readonly(room_authority, true),
         ],
         data: encode_ix(
             "init_stance_and_delegate",
@@ -568,6 +588,7 @@ pub fn ix_join_room_and_init_permission(
     payer: Address,
     room_shard: Address,
     player_stance: Address,
+    room_authority: Address,
 ) -> Instruction {
     let (permission, _) = permission_pda(&player_stance);
     Instruction {
@@ -580,6 +601,7 @@ pub fn ix_join_room_and_init_permission(
             AccountMeta::new_readonly(PERMISSION_PROGRAM_ID, false),
             AccountMeta::new(EPHEMERAL_VAULT_ID, false),
             AccountMeta::new_readonly(MAGIC_PROGRAM_ID, false),
+            AccountMeta::new_readonly(room_authority, true),
         ],
         data: anchor_discriminator("global", "join_room_and_init_permission").to_vec(),
     }
@@ -624,6 +646,7 @@ pub fn ix_submit_stance(
     room_shard: Address,
     player_stance: Address,
     oracle_feed: Address,
+    room_authority: Address,
     args: &SubmitStanceArgs,
 ) -> Instruction {
     Instruction {
@@ -633,6 +656,7 @@ pub fn ix_submit_stance(
             AccountMeta::new(room_shard, false),
             AccountMeta::new(player_stance, false),
             AccountMeta::new_readonly(oracle_feed, false),
+            AccountMeta::new_readonly(room_authority, true),
         ],
         data: encode_ix("submit_stance", args),
     }
@@ -774,6 +798,8 @@ pub fn ix_initialize_room_vault(
     partner_fee_vault: Option<Address>,
     total_fee_bps: u16,
     partner_wallet_active: bool,
+    buy_in_usdc: u64,
+    max_envelopes: u16,
 ) -> Instruction {
     let (engine_config, _) = engine_config_pda();
     let (room_vault, _) = room_vault_pda(&room_shard);
@@ -801,16 +827,25 @@ pub fn ix_initialize_room_vault(
         ],
         data: encode_ix(
             "initialize_room_vault",
-            &(total_fee_bps, partner_wallet_active),
+            &(
+                total_fee_bps,
+                partner_wallet_active,
+                buy_in_usdc,
+                max_envelopes,
+            ),
         ),
     }
 }
 
+/// `funder` deposits from `funder_usdc_ata`; `room_authority` co-signs and pays the envelope rent.
+#[allow(clippy::too_many_arguments)]
 pub fn ix_open_session_envelope(
     player_signer: Address,
+    room_authority: Address,
+    funder: Address,
     room_shard: Address,
     usdc_mint: Address,
-    player_usdc_ata: Address,
+    funder_usdc_ata: Address,
     principal_usdc: u64,
     leverage: u8,
     ephemeral_session_key: Address,
@@ -823,12 +858,14 @@ pub fn ix_open_session_envelope(
     Instruction {
         program_id: CARTRIDGE_VAULT_ROUTER_ID,
         accounts: vec![
-            AccountMeta::new(player_signer, true),
+            AccountMeta::new_readonly(player_signer, true),
             AccountMeta::new(engine_config, false),
             AccountMeta::new(room_vault, false),
+            AccountMeta::new(room_authority, true),
+            AccountMeta::new_readonly(funder, true),
             AccountMeta::new_readonly(usdc_mint, false),
             AccountMeta::new(vault_usdc_token, false),
-            AccountMeta::new(player_usdc_ata, false),
+            AccountMeta::new(funder_usdc_ata, false),
             AccountMeta::new(session_envelope, false),
             AccountMeta::new_readonly(vault_router_auth, false),
             AccountMeta::new_readonly(CARTRIDGE_REGISTRY_ID, false),
@@ -937,6 +974,62 @@ pub fn ix_claim_prize(
     }
 }
 
+/// `envelope_and_destination_pairs`: (SessionRiskEnvelope, destination token account) pairs.
+pub fn ix_refund_unsettled_room(
+    authority: Address,
+    room_shard: Address,
+    usdc_mint: Address,
+    envelope_and_destination_pairs: &[(Address, Address)],
+) -> Instruction {
+    let (engine_config, _) = engine_config_pda();
+    let (room_vault, _) = room_vault_pda(&room_shard);
+    let (vault_usdc_token, _) = room_vault_token_pda(&room_shard);
+    let (vault_router_auth, _) = vault_router_auth_pda();
+    let mut accounts = vec![
+        AccountMeta::new_readonly(authority, true),
+        AccountMeta::new(room_vault, false),
+        AccountMeta::new_readonly(usdc_mint, false),
+        AccountMeta::new(vault_usdc_token, false),
+        AccountMeta::new(engine_config, false),
+        AccountMeta::new_readonly(vault_router_auth, false),
+        AccountMeta::new_readonly(CARTRIDGE_REGISTRY_ID, false),
+        AccountMeta::new_readonly(TOKEN_PROGRAM_ID, false),
+    ];
+    for (env, dest) in envelope_and_destination_pairs {
+        accounts.push(AccountMeta::new(*env, false));
+        accounts.push(AccountMeta::new(*dest, false));
+    }
+    Instruction {
+        program_id: CARTRIDGE_VAULT_ROUTER_ID,
+        accounts,
+        data: anchor_discriminator("global", "refund_unsettled_room").to_vec(),
+    }
+}
+
+/// `legacy_envelopes`: every v1 SessionRiskEnvelope of the vault.
+pub fn ix_migrate_room_vault_v2(
+    authority: Address,
+    room_shard: Address,
+    buy_in_usdc: u64,
+    max_envelopes: u16,
+    legacy_envelopes: &[Address],
+) -> Instruction {
+    let (room_vault, _) = room_vault_pda(&room_shard);
+    let mut accounts = vec![
+        AccountMeta::new(authority, true),
+        AccountMeta::new(room_vault, false),
+        AccountMeta::new_readonly(system_program::ID, false),
+    ];
+    for env in legacy_envelopes {
+        accounts.push(AccountMeta::new(*env, false));
+    }
+    Instruction {
+        program_id: CARTRIDGE_VAULT_ROUTER_ID,
+        accounts,
+        data: encode_ix("migrate_room_vault_v2", &(buy_in_usdc, max_envelopes)),
+    }
+}
+
 pub fn ix_initialize_passport_config(admin: Address, keeper_authority: Address) -> Instruction {
     let (passport_config, _) = passport_config_pda();
     Instruction {
@@ -982,19 +1075,34 @@ pub fn ix_update_eligibility_bitmask(
     }
 }
 
+pub fn match_credit_pda(owner: &Address, room_shard: &Address) -> (Address, u8) {
+    Address::find_program_address(
+        &[b"match_credit", owner.as_ref(), room_shard.as_ref()],
+        &CARTRIDGE_PASSPORT_ID,
+    )
+}
+
+/// `session_envelope` is the settled vault-router envelope the credit is bound to.
 pub fn ix_record_elo_and_vault_credit(
     authority: Address,
     owner: Address,
+    payer: Address,
+    session_envelope: Address,
     args: &RecordEloArgs,
 ) -> Instruction {
     let (passport_config, _) = passport_config_pda();
     let (passport, _) = market_passport_pda(&owner);
+    let (match_credit, _) = match_credit_pda(&owner, &args.room_shard);
     Instruction {
         program_id: CARTRIDGE_PASSPORT_ID,
         accounts: vec![
             AccountMeta::new_readonly(authority, true),
             AccountMeta::new_readonly(passport_config, false),
             AccountMeta::new(passport, false),
+            AccountMeta::new(payer, true),
+            AccountMeta::new(match_credit, false),
+            AccountMeta::new_readonly(session_envelope, false),
+            AccountMeta::new_readonly(system_program::ID, false),
         ],
         data: encode_ix("record_elo_and_vault_credit", args),
     }

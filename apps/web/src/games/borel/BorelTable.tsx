@@ -79,6 +79,8 @@ const EnclaveStateMatrix = dynamic(() => import("./EnclaveStateMatrix"), {
 type TablePhase = "DRAFT" | "SEALED" | "SHOWDOWN";
 
 const HOW_TO_SEEN_KEY = "borel:how-to-seen:v1";
+/** cartridge_er_room rejects pivots before start_ts; the ER clock can trail by ~1 s (server-chain.ts). */
+const PIVOT_START_MARGIN_MS = 1_500;
 
 interface DraftLeg {
   market: BorelMarket;
@@ -487,6 +489,8 @@ export function BorelTable(): React.JSX.Element {
   const [endsAtMs, setEndsAtMs] = React.useState<number>(0);
   /** DEVNET only: server lock time (epoch ms); 0 while the room clock is local (PAPER). */
   const [lockAtMs, setLockAtMs] = React.useState<number>(0);
+  /** DEVNET only: first instant the program accepts a pivot (start_ts, plus ER clock margin). */
+  const [pivotOpenAtMs, setPivotOpenAtMs] = React.useState<number>(0);
   const [nowMs, setNowMs] = React.useState<number>(0);
   const [pivotLeg, setPivotLeg] = React.useState<LegIndex>(0);
   const [receipts, setReceipts] = React.useState<readonly ReceiptEntry[]>([]);
@@ -718,6 +722,7 @@ export function BorelTable(): React.JSX.Element {
             // DEVNET rooms run on the server schedule: seal before lockAt, pivot until endsAt, settle after.
             setEndsAtMs(j.clock.endsAt);
             setLockAtMs(j.clock.lockAt);
+            setPivotOpenAtMs(j.clock.startsAt + PIVOT_START_MARGIN_MS);
           }
         };
         const joinedOk = (j: JoinStep): boolean => j.outcome.kind !== "unfunded" && j.outcome.kind !== "error";
@@ -769,11 +774,11 @@ export function BorelTable(): React.JSX.Element {
     }
   };
 
-  const pivotLocked = serverClock && (nowMs < lockAtMs || nowMs >= endsAtMs);
+  const pivotLocked = serverClock && (nowMs < pivotOpenAtMs || nowMs >= endsAtMs);
 
   const handlePivot = (kind: PivotKind): void => {
     if (!you || you.pivot || phase !== "SEALED") return;
-    if (serverClock && (Date.now() < lockAtMs || Date.now() >= endsAtMs)) return;
+    if (serverClock && (Date.now() < pivotOpenAtMs || Date.now() >= endsAtMs)) return;
     const leg = you.hand[pivotLeg];
     const price = pricesE9[leg.market];
     if (price === undefined) return;
@@ -816,6 +821,7 @@ export function BorelTable(): React.JSX.Element {
     setReceipts([]);
     setRoomId(null);
     setLockAtMs(0);
+    setPivotOpenAtMs(0);
     setRoomSerial((n) => n + 1);
   };
 
@@ -1339,8 +1345,8 @@ export function BorelTable(): React.JSX.Element {
                 </button>
               </div>
               <p className="mt-2 hidden text-[11px] leading-relaxed text-[#7d8590] lg:block">
-                {serverClock && nowMs < lockAtMs
-                  ? `Devnet room starts in ${Math.ceil((lockAtMs - nowMs) / 1000)}s — pivots open at the lock.`
+                {serverClock && nowMs < pivotOpenAtMs
+                  ? `Pivots open in ${Math.ceil((pivotOpenAtMs - nowMs) / 1000)}s, once the room is live.`
                   : "Flip banks the move so far and reverses the leg. Shield banks it and parks the leg in cash."}
               </p>
             </>

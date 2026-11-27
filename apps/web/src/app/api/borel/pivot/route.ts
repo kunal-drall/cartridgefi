@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     }
     const now = Date.now();
     const state = await readRoomState(room, ctx.payer, ctx.signer.address, now);
-    const { action, pivot } = await buildPivot(room, sessionPubkey, requested.legIndex, requested.kind, state, now);
+    const { action, pivot } = await buildPivot(room, sessionPubkey, requested.legIndex, requested.kind, state, now, ctx.payer);
     const outcome = await executeErAction(ctx, action);
     if (outcome.status === "ok") return bigintJson({ status: "ok", receipt: outcome.receipt, pivot });
     return bigintJson({ ...outcome, pivot });

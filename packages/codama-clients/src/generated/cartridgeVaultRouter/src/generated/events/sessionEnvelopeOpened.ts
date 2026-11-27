@@ -12,18 +12,18 @@ export const SESSION_ENVELOPE_OPENED_EVENT_DISCRIMINATOR: ReadonlyUint8Array = n
 
 export function getSessionEnvelopeOpenedEventDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(SESSION_ENVELOPE_OPENED_EVENT_DISCRIMINATOR); }
 
-export type SessionEnvelopeOpenedEvent = { roomShard: Address; player: Address; principalUsdc: bigint; leverage: number; roomPoolUsdc: bigint;  };
+export type SessionEnvelopeOpenedEvent = { roomShard: Address; player: Address; funder: Address; principalUsdc: bigint; leverage: number; roomPoolUsdc: bigint;  };
 
-export type SessionEnvelopeOpenedEventArgs = { roomShard: Address | HasAddress; player: Address | HasAddress; principalUsdc: number | bigint; leverage: number; roomPoolUsdc: number | bigint;  };
+export type SessionEnvelopeOpenedEventArgs = { roomShard: Address | HasAddress; player: Address | HasAddress; funder: Address | HasAddress; principalUsdc: number | bigint; leverage: number; roomPoolUsdc: number | bigint;  };
 
 /** Gets the encoder for {@link SessionEnvelopeOpenedEventArgs} event data. */
 export function getSessionEnvelopeOpenedEventEncoder(): FixedSizeEncoder<SessionEnvelopeOpenedEventArgs> {
-    return getHiddenPrefixEncoder(getStructEncoder([['roomShard', getAddressEncoder()], ['player', getAddressEncoder()], ['principalUsdc', getU64Encoder()], ['leverage', getU8Encoder()], ['roomPoolUsdc', getU64Encoder()]]), [getConstantEncoder(SESSION_ENVELOPE_OPENED_EVENT_DISCRIMINATOR)]);
+    return getHiddenPrefixEncoder(getStructEncoder([['roomShard', getAddressEncoder()], ['player', getAddressEncoder()], ['funder', getAddressEncoder()], ['principalUsdc', getU64Encoder()], ['leverage', getU8Encoder()], ['roomPoolUsdc', getU64Encoder()]]), [getConstantEncoder(SESSION_ENVELOPE_OPENED_EVENT_DISCRIMINATOR)]);
 }
 
 /** Gets the decoder for {@link SessionEnvelopeOpenedEvent} event data. */
 export function getSessionEnvelopeOpenedEventDecoder(): FixedSizeDecoder<SessionEnvelopeOpenedEvent> {
-    return getHiddenPrefixDecoder(getStructDecoder([['roomShard', getAddressDecoder()], ['player', getAddressDecoder()], ['principalUsdc', getU64Decoder()], ['leverage', getU8Decoder()], ['roomPoolUsdc', getU64Decoder()]]), [getConstantDecoder(SESSION_ENVELOPE_OPENED_EVENT_DISCRIMINATOR)]);
+    return getHiddenPrefixDecoder(getStructDecoder([['roomShard', getAddressDecoder()], ['player', getAddressDecoder()], ['funder', getAddressDecoder()], ['principalUsdc', getU64Decoder()], ['leverage', getU8Decoder()], ['roomPoolUsdc', getU64Decoder()]]), [getConstantDecoder(SESSION_ENVELOPE_OPENED_EVENT_DISCRIMINATOR)]);
 }
 
 /** Gets the codec for {@link SessionEnvelopeOpenedEvent} event data. */

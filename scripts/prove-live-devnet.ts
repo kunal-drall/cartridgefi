@@ -928,7 +928,8 @@ async function main(): Promise<void> {
   const eventId = sha256Bytes(`${slug}:shard:0`);
   const [roomShardPda] = await cartridgeErRoom.findRoomShardPda({ eventId, shardIndex: 0 });
   const chainNow = await getChainUnixTimestamp(PRIMARY_DEVNET_RPC);
-  const startTs = chainNow - 5n;
+  // Sealed entries must land before start_ts (cartridge_er_room EntryAfterStart); pivots only once live.
+  const startTs = chainNow + 120n;
   const endTs = startTs + BigInt(durationSecs);
   const unsealTs = startTs + (BigInt(durationSecs) * 7500n) / 10_000n;
   const initShardIx = cartridgeErRoom.getInitializeRoomShardInstruction({
@@ -1045,6 +1046,7 @@ async function main(): Promise<void> {
             delegationMetadataPlayerStance: del.metadata,
             playerStance: stancePda,
             validator: erValidatorPubkey,
+            roomAuthority: relayer,
             ephemeralSessionKey: p.session.address,
             sessionExpiryTs: endTs,
           }),
@@ -1069,7 +1071,15 @@ async function main(): Promise<void> {
       "ER",
       await sendAndConfirmErRouterTx(
         p.signer,
-        [cartridgeErRoom.getJoinRoomAndInitPermissionInstruction({ payer: p.signer, roomShard: roomShardPda, playerStance: stancePdas[i]!, permission: permPda })],
+        [
+          cartridgeErRoom.getJoinRoomAndInitPermissionInstruction({
+            payer: p.signer,
+            roomShard: roomShardPda,
+            playerStance: stancePdas[i]!,
+            permission: permPda,
+            roomAuthority: relayer,
+          }),
+        ],
         [roomShardPda, stancePdas[i]!, permPda],
         erValidatorFqdn,
         `${p.label} join`,
@@ -1084,6 +1094,7 @@ async function main(): Promise<void> {
       roomShard: roomShardPda,
       playerStance: stancePdas[i]!,
       oracleFeed: LIVE_ER_SOL_USD_ORACLE,
+      roomAuthority: relayer,
       weightsBps: weights,
       kalshiBinaryCall: 0,
       kalshiProbBps: 5000,
@@ -1096,6 +1107,7 @@ async function main(): Promise<void> {
     const w = handToWeights(players[i]!.hand);
     await submit(i, w, `${players[i]!.label}: submit_stance — sealed hand weights [${w.join(",")}]`);
   }
+  while ((await getChainUnixTimestamp(erValidatorFqdn)) < startTs) await sleep(1000);
   for (let i = 0; i < players.length; i++) {
     const p = players[i]!;
     const pivoted = p.hand.map((leg, idx) =>
@@ -1270,36 +1282,9 @@ async function main(): Promise<void> {
       "settle with fee",
     ),
   );
-  for (let i = 0; i < players.length; i++) {
-    const p = players[i]!;
-    const [passportPda] = await getProgramDerivedAddress({
-      programAddress: passportProgramId,
-      seeds: [Buffer.from("passport"), addressEncoder.encode(p.signer.address)],
-    });
-    const isWin = i === winnerIdx;
-    record(
-      `${p.label}: cartridge_passport.record_elo_and_vault_credit (${isWin ? "win" : "loss"}, relayer = PassportConfig admin)`,
-      "L1",
-      await sendAndConfirmBaseTx(
-        relayer,
-        [
-          await cartridgePassport.getRecordEloAndVaultCreditInstructionAsync({
-            authority: relayer,
-            passport: passportPda,
-            roomMeanEloScaled: 1_500n * SCALE_9,
-            placementScoreScaled: isWin ? SCALE_9 : 0n,
-            isLiveMode: true,
-            isWin,
-            sharpeScoreScaled: null,
-            brierScoreScaled: null,
-            assetCreditKind: cartridgePassport.AssetCreditKind.Usdc,
-            assetCreditUnits: isWin ? poolUnits - feeUnits : 0n,
-          }),
-        ],
-        `${p.label} record_elo`,
-      ),
-    );
-  }
+  // record_elo_and_vault_credit is bound to a settled cartridge_vault_router envelope (MatchCredit receipt per
+  // wallet + room), which this relayer-escrow run does not open: scripts/prove-stakes-devnet.ts proves it.
+  console.log("  ELO credit skipped: needs a settled vault-router envelope (see scripts/prove-stakes-devnet.ts)");
 
   // 8. Append real links to docs/DEVNET_PROOF.md
   const docPath = resolve(dirname(new URL(import.meta.url).pathname), "../docs/DEVNET_PROOF.md");
@@ -1434,6 +1419,7 @@ async function appMain(base: string): Promise<void> {
   // 1. Join (both land in the same joinable room).
   let roomId = "";
   let lockAt = 0;
+  let startsAt = 0;
   let endsAt = 0;
   let roomShard = "";
   for (const p of players) {
@@ -1442,6 +1428,7 @@ async function appMain(base: string): Promise<void> {
     if (roomId && j.roomId !== roomId) throw new Error("Players landed in different rooms; rerun earlier in the lobby");
     roomId = String(j.roomId);
     lockAt = Number(j.lockAt);
+    startsAt = Number(j.startsAt);
     endsAt = Number(j.endsAt);
     roomShard = String(j.roomShard);
     if (j.erNote) console.log(`  ${p.label} ER join deferred: ${String(j.erNote)}`);
@@ -1493,8 +1480,8 @@ async function appMain(base: string): Promise<void> {
   if (leaked.length > 0) throw new Error("Room API leaked a score or hand before settle");
   for (const line of privacy) console.log(`  privacy: ${line}`);
 
-  // 4. Pivot once each, after lockAt.
-  while (Date.now() < lockAt + 1_500) await sleep(1000);
+  // 4. Pivot once each, once the room is live (cartridge_er_room rejects pivots before start_ts).
+  while (Date.now() < startsAt + 2_000) await sleep(1000);
   for (const p of players) {
     const pv = must(
       await api("/api/borel/pivot", {

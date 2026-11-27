@@ -105,6 +105,9 @@
         },
         {
           "name": "player_destination_ata",
+          "docs": [
+            "Owner must be the envelope's funder (or the player key for legacy envelopes); checked in handler."
+          ],
           "writable": true
         },
         {
@@ -652,6 +655,57 @@
         {
           "name": "partner_wallet_active",
           "type": "bool"
+        },
+        {
+          "name": "buy_in_usdc",
+          "type": "u64"
+        },
+        {
+          "name": "max_envelopes",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "migrate_room_vault_v2",
+      "docs": [
+        "Authority-only migration of a pre-upgrade (v1) RoomVault and all of its v1 envelopes to the",
+        "v2 layout. `remaining_accounts` must hold every legacy envelope of the vault (writable); each",
+        "is reallocated in place (`funder = default`, `refunded = false`) and counted."
+      ],
+      "discriminator": [
+        7,
+        45,
+        76,
+        20,
+        83,
+        251,
+        11,
+        31
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "room_vault",
+          "writable": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "buy_in_usdc",
+          "type": "u64"
+        },
+        {
+          "name": "max_envelopes",
+          "type": "u16"
         }
       ]
     },
@@ -670,7 +724,9 @@
       "accounts": [
         {
           "name": "player",
-          "writable": true,
+          "docs": [
+            "RoomShard PlayerStance key the envelope pairs with at distribution."
+          ],
           "signer": true
         },
         {
@@ -732,6 +788,21 @@
           }
         },
         {
+          "name": "room_authority",
+          "docs": [
+            "Room authority co-signer (approves the seat) and envelope rent payer."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "funder",
+          "docs": [
+            "Staking wallet: deposits the buy-in and receives the payout or refund."
+          ],
+          "signer": true
+        },
+        {
           "name": "usdc_mint"
         },
         {
@@ -739,7 +810,7 @@
           "writable": true
         },
         {
-          "name": "player_usdc_ata",
+          "name": "funder_usdc_ata",
           "writable": true
         },
         {
@@ -835,6 +906,135 @@
           "type": "pubkey"
         }
       ]
+    },
+    {
+      "name": "refund_unsettled_room",
+      "docs": [
+        "Authority-only refund of an undistributed room. The first call flips the vault into",
+        "`refunding` (no more deposits, no distribution); each `(envelope, destination)` pair in",
+        "`remaining_accounts` returns that envelope's principal. Idempotent per envelope."
+      ],
+      "discriminator": [
+        85,
+        217,
+        76,
+        35,
+        242,
+        107,
+        233,
+        253
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "room_vault"
+          ]
+        },
+        {
+          "name": "room_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  111,
+                  111,
+                  109,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "room_vault.room_shard",
+                "account": "RoomVault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "usdc_mint"
+        },
+        {
+          "name": "vault_usdc_token",
+          "writable": true
+        },
+        {
+          "name": "engine_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  110,
+                  103,
+                  105,
+                  110,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ],
+            "program": {
+              "kind": "account",
+              "path": "registry_program"
+            }
+          }
+        },
+        {
+          "name": "vault_router_auth",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116,
+                  95,
+                  114,
+                  111,
+                  117,
+                  116,
+                  101,
+                  114,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry_program",
+          "address": "BXbbMC5nLzYqMPvty73S9v4G5V3nCjGWkvqRRWAAmdKc"
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -890,6 +1090,32 @@
         33,
         212,
         38
+      ]
+    },
+    {
+      "name": "RoomRefunded",
+      "discriminator": [
+        130,
+        254,
+        121,
+        123,
+        177,
+        246,
+        157,
+        201
+      ]
+    },
+    {
+      "name": "RoomVaultMigrated",
+      "discriminator": [
+        101,
+        212,
+        64,
+        98,
+        162,
+        197,
+        124,
+        88
       ]
     },
     {
@@ -1101,6 +1327,46 @@
       "code": 6038,
       "name": "MathOverflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6039,
+      "name": "BuyInMismatch",
+      "msg": "Envelope principal must equal the room buy-in"
+    },
+    {
+      "code": 6040,
+      "name": "RoomSeatsFull",
+      "msg": "Room seat cap reached"
+    },
+    {
+      "code": 6041,
+      "name": "VaultRefunding",
+      "msg": "Room vault is being refunded"
+    },
+    {
+      "code": 6042,
+      "name": "EnvelopeCountMismatch",
+      "msg": "Opened envelopes must equal the room's counted players"
+    },
+    {
+      "code": 6043,
+      "name": "InvalidBuyIn",
+      "msg": "Invalid buy-in or seat cap for this room vault"
+    },
+    {
+      "code": 6044,
+      "name": "RefundDestinationMismatch",
+      "msg": "Refund destination must be the funder's (or legacy player's) USDC account"
+    },
+    {
+      "code": 6045,
+      "name": "AlreadyRefunded",
+      "msg": "Envelope has already been refunded"
+    },
+    {
+      "code": 6046,
+      "name": "InvalidLegacyLayout",
+      "msg": "Account is not a v1 (pre-upgrade) layout"
     }
   ],
   "types": [
@@ -1312,6 +1578,34 @@
       }
     },
     {
+      "name": "RoomRefunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "envelope",
+            "type": "pubkey"
+          },
+          {
+            "name": "destination",
+            "type": "pubkey"
+          },
+          {
+            "name": "principal_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "remaining_pool_usdc",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "RoomVault",
       "type": {
         "kind": "struct",
@@ -1379,6 +1673,58 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "buy_in_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "max_envelopes",
+            "type": "u16"
+          },
+          {
+            "name": "envelope_count",
+            "type": "u16"
+          },
+          {
+            "name": "refunding",
+            "type": "bool"
+          },
+          {
+            "name": "refunded_count",
+            "type": "u16"
+          },
+          {
+            "name": "layout_version",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoomVaultMigrated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "room_shard",
+            "type": "pubkey"
+          },
+          {
+            "name": "room_vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "envelope_count",
+            "type": "u16"
+          },
+          {
+            "name": "buy_in_usdc",
+            "type": "u64"
+          },
+          {
+            "name": "max_envelopes",
+            "type": "u16"
           }
         ]
       }
@@ -1414,6 +1760,10 @@
           },
           {
             "name": "player",
+            "type": "pubkey"
+          },
+          {
+            "name": "funder",
             "type": "pubkey"
           },
           {
@@ -1479,6 +1829,14 @@
           {
             "name": "bump",
             "type": "u8"
+          },
+          {
+            "name": "funder",
+            "type": "pubkey"
+          },
+          {
+            "name": "refunded",
+            "type": "bool"
           }
         ]
       }

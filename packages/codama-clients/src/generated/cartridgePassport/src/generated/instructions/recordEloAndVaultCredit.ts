@@ -6,7 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { combineCodec, fixDecoderSize, fixEncoderSize, getBooleanDecoder, getBooleanEncoder, getBytesDecoder, getBytesEncoder, getI128Decoder, getI128Encoder, getOptionDecoder, getOptionEncoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type Codec, type Decoder, type Encoder, type Instruction, type InstructionWithAccounts, type InstructionWithData, type Option, type OptionOrNullable, type ReadonlyAccount, type ReadonlySignerAccount, type ReadonlyUint8Array, type WritableAccount } from '@solana/kit';
+import { combineCodec, fixDecoderSize, fixEncoderSize, getAddressDecoder, getAddressEncoder, getBooleanDecoder, getBooleanEncoder, getBytesDecoder, getBytesEncoder, getI128Decoder, getI128Encoder, getOptionDecoder, getOptionEncoder, getStructDecoder, getStructEncoder, getU64Decoder, getU64Encoder, SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, SolanaError, transformEncoder, type AccountMeta, type AccountSignerMeta, type Address, type Codec, type Decoder, type Encoder, type HasAddress, type Instruction, type InstructionWithAccounts, type InstructionWithData, type Option, type OptionOrNullable, type ReadonlyAccount, type ReadonlySignerAccount, type ReadonlyUint8Array, type WritableAccount, type WritableSignerAccount } from '@solana/kit';
 import { getAccountMetaFactory, type InstructionAccountInput, type InstructionAccountInputAddress, type InstructionSignerInput, type ResolvedInstructionAccount, type ResolvedInstructionAccountMeta } from '@solana/program-client-core';
 import { findPassportConfigPda } from '../pdas/index.js';
 import { CARTRIDGE_PASSPORT_PROGRAM_ADDRESS } from '../programs/index.js';
@@ -16,29 +16,36 @@ export const RECORD_ELO_AND_VAULT_CREDIT_DISCRIMINATOR: ReadonlyUint8Array = new
 
 export function getRecordEloAndVaultCreditDiscriminatorBytes(): ReadonlyUint8Array { return fixEncoderSize(getBytesEncoder(), 8).encode(RECORD_ELO_AND_VAULT_CREDIT_DISCRIMINATOR); }
 
-export type RecordEloAndVaultCreditInstruction<TProgram extends string = typeof CARTRIDGE_PASSPORT_PROGRAM_ADDRESS, TAccountAuthority extends string | AccountMeta<string> = string, TAccountPassportConfig extends string | AccountMeta<string> = string, TAccountPassport extends string | AccountMeta<string> = string, TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
-Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountAuthority extends string ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountPassportConfig extends string ? ReadonlyAccount<TAccountPassportConfig> : TAccountPassportConfig, TAccountPassport extends string ? WritableAccount<TAccountPassport> : TAccountPassport, ...TRemainingAccounts]>;
+export type RecordEloAndVaultCreditInstruction<TProgram extends string = typeof CARTRIDGE_PASSPORT_PROGRAM_ADDRESS, TAccountAuthority extends string | AccountMeta<string> = string, TAccountPassportConfig extends string | AccountMeta<string> = string, TAccountPassport extends string | AccountMeta<string> = string, TAccountPayer extends string | AccountMeta<string> = string, TAccountMatchCredit extends string | AccountMeta<string> = string, TAccountSessionEnvelope extends string | AccountMeta<string> = string, TAccountSystemProgram extends string | AccountMeta<string> = "11111111111111111111111111111111", TRemainingAccounts extends readonly AccountMeta<string>[] = []> =
+Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array> & InstructionWithAccounts<[TAccountAuthority extends string ? ReadonlySignerAccount<TAccountAuthority> & AccountSignerMeta<TAccountAuthority> : TAccountAuthority, TAccountPassportConfig extends string ? ReadonlyAccount<TAccountPassportConfig> : TAccountPassportConfig, TAccountPassport extends string ? WritableAccount<TAccountPassport> : TAccountPassport, TAccountPayer extends string ? WritableSignerAccount<TAccountPayer> & AccountSignerMeta<TAccountPayer> : TAccountPayer, TAccountMatchCredit extends string ? WritableAccount<TAccountMatchCredit> : TAccountMatchCredit, TAccountSessionEnvelope extends string ? ReadonlyAccount<TAccountSessionEnvelope> : TAccountSessionEnvelope, TAccountSystemProgram extends string ? ReadonlyAccount<TAccountSystemProgram> : TAccountSystemProgram, ...TRemainingAccounts]>;
 
-export type RecordEloAndVaultCreditInstructionData = { discriminator: ReadonlyUint8Array; roomMeanEloScaled: bigint; placementScoreScaled: bigint; isLiveMode: boolean; isWin: boolean; sharpeScoreScaled: Option<bigint>; brierScoreScaled: Option<bigint>; assetCreditKind: AssetCreditKind; assetCreditUnits: bigint;  };
+export type RecordEloAndVaultCreditInstructionData = { discriminator: ReadonlyUint8Array; roomMeanEloScaled: bigint; placementScoreScaled: bigint; isLiveMode: boolean; isWin: boolean; sharpeScoreScaled: Option<bigint>; brierScoreScaled: Option<bigint>; assetCreditKind: AssetCreditKind; assetCreditUnits: bigint; roomShard: Address;  };
 
-export type RecordEloAndVaultCreditInstructionDataArgs = { roomMeanEloScaled: number | bigint; placementScoreScaled: number | bigint; isLiveMode: boolean; isWin: boolean; sharpeScoreScaled: OptionOrNullable<number | bigint>; brierScoreScaled: OptionOrNullable<number | bigint>; assetCreditKind: AssetCreditKindArgs; assetCreditUnits: number | bigint;  };
+export type RecordEloAndVaultCreditInstructionDataArgs = { roomMeanEloScaled: number | bigint; placementScoreScaled: number | bigint; isLiveMode: boolean; isWin: boolean; sharpeScoreScaled: OptionOrNullable<number | bigint>; brierScoreScaled: OptionOrNullable<number | bigint>; assetCreditKind: AssetCreditKindArgs; assetCreditUnits: number | bigint; roomShard: Address | HasAddress;  };
 
 export function getRecordEloAndVaultCreditInstructionDataEncoder(): Encoder<RecordEloAndVaultCreditInstructionDataArgs> {
-    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['roomMeanEloScaled', getI128Encoder()], ['placementScoreScaled', getI128Encoder()], ['isLiveMode', getBooleanEncoder()], ['isWin', getBooleanEncoder()], ['sharpeScoreScaled', getOptionEncoder(getI128Encoder())], ['brierScoreScaled', getOptionEncoder(getI128Encoder())], ['assetCreditKind', getAssetCreditKindEncoder()], ['assetCreditUnits', getU64Encoder()]]), (value) => ({ ...value, discriminator: RECORD_ELO_AND_VAULT_CREDIT_DISCRIMINATOR }));
+    return transformEncoder(getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)], ['roomMeanEloScaled', getI128Encoder()], ['placementScoreScaled', getI128Encoder()], ['isLiveMode', getBooleanEncoder()], ['isWin', getBooleanEncoder()], ['sharpeScoreScaled', getOptionEncoder(getI128Encoder())], ['brierScoreScaled', getOptionEncoder(getI128Encoder())], ['assetCreditKind', getAssetCreditKindEncoder()], ['assetCreditUnits', getU64Encoder()], ['roomShard', getAddressEncoder()]]), (value) => ({ ...value, discriminator: RECORD_ELO_AND_VAULT_CREDIT_DISCRIMINATOR }));
 }
 
 export function getRecordEloAndVaultCreditInstructionDataDecoder(): Decoder<RecordEloAndVaultCreditInstructionData> {
-    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['roomMeanEloScaled', getI128Decoder()], ['placementScoreScaled', getI128Decoder()], ['isLiveMode', getBooleanDecoder()], ['isWin', getBooleanDecoder()], ['sharpeScoreScaled', getOptionDecoder(getI128Decoder())], ['brierScoreScaled', getOptionDecoder(getI128Decoder())], ['assetCreditKind', getAssetCreditKindDecoder()], ['assetCreditUnits', getU64Decoder()]]);
+    return getStructDecoder([['discriminator', fixDecoderSize(getBytesDecoder(), 8)], ['roomMeanEloScaled', getI128Decoder()], ['placementScoreScaled', getI128Decoder()], ['isLiveMode', getBooleanDecoder()], ['isWin', getBooleanDecoder()], ['sharpeScoreScaled', getOptionDecoder(getI128Decoder())], ['brierScoreScaled', getOptionDecoder(getI128Decoder())], ['assetCreditKind', getAssetCreditKindDecoder()], ['assetCreditUnits', getU64Decoder()], ['roomShard', getAddressDecoder()]]);
 }
 
 export function getRecordEloAndVaultCreditInstructionDataCodec(): Codec<RecordEloAndVaultCreditInstructionDataArgs, RecordEloAndVaultCreditInstructionData> {
     return combineCodec(getRecordEloAndVaultCreditInstructionDataEncoder(), getRecordEloAndVaultCreditInstructionDataDecoder());
 }
 
-export type RecordEloAndVaultCreditAsyncInput<TAccountAuthority extends InstructionSignerInput = InstructionSignerInput, TAccountPassportConfig extends InstructionAccountInput = InstructionAccountInput, TAccountPassport extends InstructionAccountInput = InstructionAccountInput> =  {
+export type RecordEloAndVaultCreditAsyncInput<TAccountAuthority extends InstructionSignerInput = InstructionSignerInput, TAccountPassportConfig extends InstructionAccountInput = InstructionAccountInput, TAccountPassport extends InstructionAccountInput = InstructionAccountInput, TAccountPayer extends InstructionSignerInput = InstructionSignerInput, TAccountMatchCredit extends InstructionAccountInput = InstructionAccountInput, TAccountSessionEnvelope extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput> =  {
   authority: TAccountAuthority;
 passportConfig?: TAccountPassportConfig;
 passport: TAccountPassport;
+/** Receipt rent payer (the relayer; may equal `authority`). */
+payer: TAccountPayer;
+/** A second credit for the same (owner, room) fails here with "already in use". */
+matchCredit: TAccountMatchCredit;
+/** settlement verified in `parse_settled_envelope`. */
+sessionEnvelope: TAccountSessionEnvelope;
+systemProgram?: TAccountSystemProgram;
 roomMeanEloScaled: RecordEloAndVaultCreditInstructionDataArgs["roomMeanEloScaled"];
 placementScoreScaled: RecordEloAndVaultCreditInstructionDataArgs["placementScoreScaled"];
 isLiveMode: RecordEloAndVaultCreditInstructionDataArgs["isLiveMode"];
@@ -47,9 +54,10 @@ sharpeScoreScaled: RecordEloAndVaultCreditInstructionDataArgs["sharpeScoreScaled
 brierScoreScaled: RecordEloAndVaultCreditInstructionDataArgs["brierScoreScaled"];
 assetCreditKind: RecordEloAndVaultCreditInstructionDataArgs["assetCreditKind"];
 assetCreditUnits: RecordEloAndVaultCreditInstructionDataArgs["assetCreditUnits"];
+roomShard: RecordEloAndVaultCreditInstructionDataArgs["roomShard"];
 }
 
-export async function getRecordEloAndVaultCreditInstructionAsync<TAccountAuthority extends InstructionSignerInput, TAccountPassportConfig extends InstructionAccountInput, TAccountPassport extends InstructionAccountInput, TProgramAddress extends Address = typeof CARTRIDGE_PASSPORT_PROGRAM_ADDRESS>(input: RecordEloAndVaultCreditAsyncInput<TAccountAuthority, TAccountPassportConfig, TAccountPassport>, config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } } ): Promise<RecordEloAndVaultCreditInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>, ResolvedInstructionAccountMeta<TAccountPassportConfig, InstructionAccountInputAddress<TAccountPassportConfig>>, ResolvedInstructionAccountMeta<TAccountPassport, InstructionAccountInputAddress<TAccountPassport>>>> {
+export async function getRecordEloAndVaultCreditInstructionAsync<TAccountAuthority extends InstructionSignerInput, TAccountPassportConfig extends InstructionAccountInput, TAccountPassport extends InstructionAccountInput, TAccountPayer extends InstructionSignerInput, TAccountMatchCredit extends InstructionAccountInput, TAccountSessionEnvelope extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof CARTRIDGE_PASSPORT_PROGRAM_ADDRESS>(input: RecordEloAndVaultCreditAsyncInput<TAccountAuthority, TAccountPassportConfig, TAccountPassport, TAccountPayer, TAccountMatchCredit, TAccountSessionEnvelope, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } } ): Promise<RecordEloAndVaultCreditInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>, ResolvedInstructionAccountMeta<TAccountPassportConfig, InstructionAccountInputAddress<TAccountPassportConfig>>, ResolvedInstructionAccountMeta<TAccountPassport, InstructionAccountInputAddress<TAccountPassport>>, ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>, ResolvedInstructionAccountMeta<TAccountMatchCredit, InstructionAccountInputAddress<TAccountMatchCredit>>, ResolvedInstructionAccountMeta<TAccountSessionEnvelope, InstructionAccountInputAddress<TAccountSessionEnvelope>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>> {
   // Program address.
 const programAddressInput = config?.programAddress ?? CARTRIDGE_PASSPORT_PROGRAM_ADDRESS;
 const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
@@ -58,7 +66,7 @@ const programAddress = typeof programAddressInput === 'string' ? programAddressI
 const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
 
  // Original accounts.
-const originalAccounts = { authority: { value: input.authority ?? null, isSigner: true, isWritable: false }, passportConfig: { value: input.passportConfig ?? null, isSigner: false, isWritable: false }, passport: { value: input.passport ?? null, isSigner: false, isWritable: true } }
+const originalAccounts = { authority: { value: input.authority ?? null, isSigner: true, isWritable: false }, passportConfig: { value: input.passportConfig ?? null, isSigner: false, isWritable: false }, passport: { value: input.passport ?? null, isSigner: false, isWritable: true }, payer: { value: input.payer ?? null, isSigner: true, isWritable: true }, matchCredit: { value: input.matchCredit ?? null, isSigner: false, isWritable: true }, sessionEnvelope: { value: input.sessionEnvelope ?? null, isSigner: false, isWritable: false }, systemProgram: { value: input.systemProgram ?? null, isSigner: false, isWritable: false } }
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
@@ -70,14 +78,24 @@ const args = { ...input,  };
 if (!accounts.passportConfig.value) {
 accounts.passportConfig.value = await findPassportConfigPda({ programAddress });
 }
-
-return Object.freeze({ accounts: [getAccountMeta("authority", accounts.authority), getAccountMeta("passportConfig", accounts.passportConfig), getAccountMeta("passport", accounts.passport)], data: getRecordEloAndVaultCreditInstructionDataEncoder().encode(args as RecordEloAndVaultCreditInstructionDataArgs), programAddress } as RecordEloAndVaultCreditInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>, ResolvedInstructionAccountMeta<TAccountPassportConfig, InstructionAccountInputAddress<TAccountPassportConfig>>, ResolvedInstructionAccountMeta<TAccountPassport, InstructionAccountInputAddress<TAccountPassport>>>);
+if (!accounts.systemProgram.value) {
+accounts.systemProgram.value = "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
 }
 
-export type RecordEloAndVaultCreditInput<TAccountAuthority extends InstructionSignerInput = InstructionSignerInput, TAccountPassportConfig extends InstructionAccountInput = InstructionAccountInput, TAccountPassport extends InstructionAccountInput = InstructionAccountInput> =  {
+return Object.freeze({ accounts: [getAccountMeta("authority", accounts.authority), getAccountMeta("passportConfig", accounts.passportConfig), getAccountMeta("passport", accounts.passport), getAccountMeta("payer", accounts.payer), getAccountMeta("matchCredit", accounts.matchCredit), getAccountMeta("sessionEnvelope", accounts.sessionEnvelope), getAccountMeta("systemProgram", accounts.systemProgram)], data: getRecordEloAndVaultCreditInstructionDataEncoder().encode(args as RecordEloAndVaultCreditInstructionDataArgs), programAddress } as RecordEloAndVaultCreditInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>, ResolvedInstructionAccountMeta<TAccountPassportConfig, InstructionAccountInputAddress<TAccountPassportConfig>>, ResolvedInstructionAccountMeta<TAccountPassport, InstructionAccountInputAddress<TAccountPassport>>, ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>, ResolvedInstructionAccountMeta<TAccountMatchCredit, InstructionAccountInputAddress<TAccountMatchCredit>>, ResolvedInstructionAccountMeta<TAccountSessionEnvelope, InstructionAccountInputAddress<TAccountSessionEnvelope>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>);
+}
+
+export type RecordEloAndVaultCreditInput<TAccountAuthority extends InstructionSignerInput = InstructionSignerInput, TAccountPassportConfig extends InstructionAccountInput = InstructionAccountInput, TAccountPassport extends InstructionAccountInput = InstructionAccountInput, TAccountPayer extends InstructionSignerInput = InstructionSignerInput, TAccountMatchCredit extends InstructionAccountInput = InstructionAccountInput, TAccountSessionEnvelope extends InstructionAccountInput = InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput = InstructionAccountInput> =  {
   authority: TAccountAuthority;
 passportConfig: TAccountPassportConfig;
 passport: TAccountPassport;
+/** Receipt rent payer (the relayer; may equal `authority`). */
+payer: TAccountPayer;
+/** A second credit for the same (owner, room) fails here with "already in use". */
+matchCredit: TAccountMatchCredit;
+/** settlement verified in `parse_settled_envelope`. */
+sessionEnvelope: TAccountSessionEnvelope;
+systemProgram?: TAccountSystemProgram;
 roomMeanEloScaled: RecordEloAndVaultCreditInstructionDataArgs["roomMeanEloScaled"];
 placementScoreScaled: RecordEloAndVaultCreditInstructionDataArgs["placementScoreScaled"];
 isLiveMode: RecordEloAndVaultCreditInstructionDataArgs["isLiveMode"];
@@ -86,9 +104,10 @@ sharpeScoreScaled: RecordEloAndVaultCreditInstructionDataArgs["sharpeScoreScaled
 brierScoreScaled: RecordEloAndVaultCreditInstructionDataArgs["brierScoreScaled"];
 assetCreditKind: RecordEloAndVaultCreditInstructionDataArgs["assetCreditKind"];
 assetCreditUnits: RecordEloAndVaultCreditInstructionDataArgs["assetCreditUnits"];
+roomShard: RecordEloAndVaultCreditInstructionDataArgs["roomShard"];
 }
 
-export function getRecordEloAndVaultCreditInstruction<TAccountAuthority extends InstructionSignerInput, TAccountPassportConfig extends InstructionAccountInput, TAccountPassport extends InstructionAccountInput, TProgramAddress extends Address = typeof CARTRIDGE_PASSPORT_PROGRAM_ADDRESS>(input: RecordEloAndVaultCreditInput<TAccountAuthority, TAccountPassportConfig, TAccountPassport>, config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } } ): RecordEloAndVaultCreditInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>, ResolvedInstructionAccountMeta<TAccountPassportConfig, InstructionAccountInputAddress<TAccountPassportConfig>>, ResolvedInstructionAccountMeta<TAccountPassport, InstructionAccountInputAddress<TAccountPassport>>> {
+export function getRecordEloAndVaultCreditInstruction<TAccountAuthority extends InstructionSignerInput, TAccountPassportConfig extends InstructionAccountInput, TAccountPassport extends InstructionAccountInput, TAccountPayer extends InstructionSignerInput, TAccountMatchCredit extends InstructionAccountInput, TAccountSessionEnvelope extends InstructionAccountInput, TAccountSystemProgram extends InstructionAccountInput, TProgramAddress extends Address = typeof CARTRIDGE_PASSPORT_PROGRAM_ADDRESS>(input: RecordEloAndVaultCreditInput<TAccountAuthority, TAccountPassportConfig, TAccountPassport, TAccountPayer, TAccountMatchCredit, TAccountSessionEnvelope, TAccountSystemProgram>, config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } } ): RecordEloAndVaultCreditInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>, ResolvedInstructionAccountMeta<TAccountPassportConfig, InstructionAccountInputAddress<TAccountPassportConfig>>, ResolvedInstructionAccountMeta<TAccountPassport, InstructionAccountInputAddress<TAccountPassport>>, ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>, ResolvedInstructionAccountMeta<TAccountMatchCredit, InstructionAccountInputAddress<TAccountMatchCredit>>, ResolvedInstructionAccountMeta<TAccountSessionEnvelope, InstructionAccountInputAddress<TAccountSessionEnvelope>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>> {
   // Program address.
 const programAddressInput = config?.programAddress ?? CARTRIDGE_PASSPORT_PROGRAM_ADDRESS;
 const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
@@ -97,7 +116,7 @@ const programAddress = typeof programAddressInput === 'string' ? programAddressI
 const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
 
  // Original accounts.
-const originalAccounts = { authority: { value: input.authority ?? null, isSigner: true, isWritable: false }, passportConfig: { value: input.passportConfig ?? null, isSigner: false, isWritable: false }, passport: { value: input.passport ?? null, isSigner: false, isWritable: true } }
+const originalAccounts = { authority: { value: input.authority ?? null, isSigner: true, isWritable: false }, passportConfig: { value: input.passportConfig ?? null, isSigner: false, isWritable: false }, passport: { value: input.passport ?? null, isSigner: false, isWritable: true }, payer: { value: input.payer ?? null, isSigner: true, isWritable: true }, matchCredit: { value: input.matchCredit ?? null, isSigner: false, isWritable: true }, sessionEnvelope: { value: input.sessionEnvelope ?? null, isSigner: false, isWritable: false }, systemProgram: { value: input.systemProgram ?? null, isSigner: false, isWritable: false } }
 const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
 
@@ -105,9 +124,12 @@ const accounts = originalAccounts as Record<keyof typeof originalAccounts, Resol
 const args = { ...input,  };
 
 
+// Resolve default values.
+if (!accounts.systemProgram.value) {
+accounts.systemProgram.value = "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
+}
 
-
-return Object.freeze({ accounts: [getAccountMeta("authority", accounts.authority), getAccountMeta("passportConfig", accounts.passportConfig), getAccountMeta("passport", accounts.passport)], data: getRecordEloAndVaultCreditInstructionDataEncoder().encode(args as RecordEloAndVaultCreditInstructionDataArgs), programAddress } as RecordEloAndVaultCreditInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>, ResolvedInstructionAccountMeta<TAccountPassportConfig, InstructionAccountInputAddress<TAccountPassportConfig>>, ResolvedInstructionAccountMeta<TAccountPassport, InstructionAccountInputAddress<TAccountPassport>>>);
+return Object.freeze({ accounts: [getAccountMeta("authority", accounts.authority), getAccountMeta("passportConfig", accounts.passportConfig), getAccountMeta("passport", accounts.passport), getAccountMeta("payer", accounts.payer), getAccountMeta("matchCredit", accounts.matchCredit), getAccountMeta("sessionEnvelope", accounts.sessionEnvelope), getAccountMeta("systemProgram", accounts.systemProgram)], data: getRecordEloAndVaultCreditInstructionDataEncoder().encode(args as RecordEloAndVaultCreditInstructionDataArgs), programAddress } as RecordEloAndVaultCreditInstruction<TProgramAddress, ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>, ResolvedInstructionAccountMeta<TAccountPassportConfig, InstructionAccountInputAddress<TAccountPassportConfig>>, ResolvedInstructionAccountMeta<TAccountPassport, InstructionAccountInputAddress<TAccountPassport>>, ResolvedInstructionAccountMeta<TAccountPayer, InstructionAccountInputAddress<TAccountPayer>>, ResolvedInstructionAccountMeta<TAccountMatchCredit, InstructionAccountInputAddress<TAccountMatchCredit>>, ResolvedInstructionAccountMeta<TAccountSessionEnvelope, InstructionAccountInputAddress<TAccountSessionEnvelope>>, ResolvedInstructionAccountMeta<TAccountSystemProgram, InstructionAccountInputAddress<TAccountSystemProgram>>>);
 }
 
 export type ParsedRecordEloAndVaultCreditInstruction<TProgram extends string = typeof CARTRIDGE_PASSPORT_PROGRAM_ADDRESS, TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[]> = { programAddress: Address<TProgram>;
@@ -115,12 +137,19 @@ accounts: {
 authority: TAccountMetas[0];
 passportConfig: TAccountMetas[1];
 passport: TAccountMetas[2];
+/** Receipt rent payer (the relayer; may equal `authority`). */
+payer: TAccountMetas[3];
+/** A second credit for the same (owner, room) fails here with "already in use". */
+matchCredit: TAccountMetas[4];
+/** settlement verified in `parse_settled_envelope`. */
+sessionEnvelope: TAccountMetas[5];
+systemProgram: TAccountMetas[6];
 };
 data: RecordEloAndVaultCreditInstructionData; };
 
 export function parseRecordEloAndVaultCreditInstruction<TProgram extends string, TAccountMetas extends readonly AccountMeta[]>(instruction: Instruction<TProgram> & InstructionWithAccounts<TAccountMetas> & InstructionWithData<ReadonlyUint8Array>): ParsedRecordEloAndVaultCreditInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
-  throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, { actualAccountMetas: instruction.accounts.length, expectedAccountMetas: 3 });
+  if (instruction.accounts.length < 7) {
+  throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, { actualAccountMetas: instruction.accounts.length, expectedAccountMetas: 7 });
 }
 let accountIndex = 0;
 const getNextAccount = () => {
@@ -128,5 +157,5 @@ const getNextAccount = () => {
   accountIndex += 1;
   return accountMeta;
 }
-  return { programAddress: instruction.programAddress, accounts: { authority: getNextAccount(), passportConfig: getNextAccount(), passport: getNextAccount() }, data: getRecordEloAndVaultCreditInstructionDataDecoder().decode(instruction.data) };
+  return { programAddress: instruction.programAddress, accounts: { authority: getNextAccount(), passportConfig: getNextAccount(), passport: getNextAccount(), payer: getNextAccount(), matchCredit: getNextAccount(), sessionEnvelope: getNextAccount(), systemProgram: getNextAccount() }, data: getRecordEloAndVaultCreditInstructionDataDecoder().decode(instruction.data) };
 }

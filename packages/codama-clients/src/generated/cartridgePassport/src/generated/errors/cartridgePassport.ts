@@ -19,12 +19,18 @@ export const CARTRIDGE_PASSPORT_ERROR__INVALID_ELIGIBILITY_BITS = 0x1772; // 600
 export const CARTRIDGE_PASSPORT_ERROR__INVALID_MEAN_ELO = 0x1773; // 6003
 /** MathOverflow: Arithmetic overflow */
 export const CARTRIDGE_PASSPORT_ERROR__MATH_OVERFLOW = 0x1774; // 6004
+/** InvalidEnvelope: Session envelope is not the vault-router envelope of this room and wallet */
+export const CARTRIDGE_PASSPORT_ERROR__INVALID_ENVELOPE = 0x1775; // 6005
+/** EnvelopeNotSettled: Session envelope is not settled (or was refunded) */
+export const CARTRIDGE_PASSPORT_ERROR__ENVELOPE_NOT_SETTLED = 0x1776; // 6006
+/** CreditMismatch: Credit units or win flag do not match the settled envelope */
+export const CARTRIDGE_PASSPORT_ERROR__CREDIT_MISMATCH = 0x1777; // 6007
 
-export type CartridgePassportError = typeof CARTRIDGE_PASSPORT_ERROR__INVALID_AUTHORITY | typeof CARTRIDGE_PASSPORT_ERROR__INVALID_ELIGIBILITY_BITS | typeof CARTRIDGE_PASSPORT_ERROR__INVALID_MEAN_ELO | typeof CARTRIDGE_PASSPORT_ERROR__MATH_OVERFLOW | typeof CARTRIDGE_PASSPORT_ERROR__UNAUTHORIZED_AUTHORITY;
+export type CartridgePassportError = typeof CARTRIDGE_PASSPORT_ERROR__CREDIT_MISMATCH | typeof CARTRIDGE_PASSPORT_ERROR__ENVELOPE_NOT_SETTLED | typeof CARTRIDGE_PASSPORT_ERROR__INVALID_AUTHORITY | typeof CARTRIDGE_PASSPORT_ERROR__INVALID_ELIGIBILITY_BITS | typeof CARTRIDGE_PASSPORT_ERROR__INVALID_ENVELOPE | typeof CARTRIDGE_PASSPORT_ERROR__INVALID_MEAN_ELO | typeof CARTRIDGE_PASSPORT_ERROR__MATH_OVERFLOW | typeof CARTRIDGE_PASSPORT_ERROR__UNAUTHORIZED_AUTHORITY;
 
 let cartridgePassportErrorMessages: Record<CartridgePassportError, string> | undefined;
 if (process.env['NODE_ENV'] !== 'production') {
-  cartridgePassportErrorMessages = { [CARTRIDGE_PASSPORT_ERROR__INVALID_AUTHORITY]: `Invalid default authority pubkey`, [CARTRIDGE_PASSPORT_ERROR__INVALID_ELIGIBILITY_BITS]: `Eligibility bitmask contains unsupported flag bits`, [CARTRIDGE_PASSPORT_ERROR__INVALID_MEAN_ELO]: `Room mean ELO must be at least 100.0`, [CARTRIDGE_PASSPORT_ERROR__MATH_OVERFLOW]: `Arithmetic overflow`, [CARTRIDGE_PASSPORT_ERROR__UNAUTHORIZED_AUTHORITY]: `Caller is not authorized to update passport state` };
+  cartridgePassportErrorMessages = { [CARTRIDGE_PASSPORT_ERROR__CREDIT_MISMATCH]: `Credit units or win flag do not match the settled envelope`, [CARTRIDGE_PASSPORT_ERROR__ENVELOPE_NOT_SETTLED]: `Session envelope is not settled (or was refunded)`, [CARTRIDGE_PASSPORT_ERROR__INVALID_AUTHORITY]: `Invalid default authority pubkey`, [CARTRIDGE_PASSPORT_ERROR__INVALID_ELIGIBILITY_BITS]: `Eligibility bitmask contains unsupported flag bits`, [CARTRIDGE_PASSPORT_ERROR__INVALID_ENVELOPE]: `Session envelope is not the vault-router envelope of this room and wallet`, [CARTRIDGE_PASSPORT_ERROR__INVALID_MEAN_ELO]: `Room mean ELO must be at least 100.0`, [CARTRIDGE_PASSPORT_ERROR__MATH_OVERFLOW]: `Arithmetic overflow`, [CARTRIDGE_PASSPORT_ERROR__UNAUTHORIZED_AUTHORITY]: `Caller is not authorized to update passport state` };
 }
 
 export function getCartridgePassportErrorMessage(code: CartridgePassportError): string {

@@ -53,6 +53,17 @@ test.describe("Borel — sealed-conviction live market showdowns", () => {
 
     await expect(page.locator("h1")).toHaveCount(1);
     await expect(page.locator("h1")).toHaveText("Borel");
+
+    // First visit opens the rules; it can be dismissed and reopened from the header.
+    await expect(page.locator("#borel-howto")).toBeVisible({ timeout: 15_000 });
+    await page.locator("#borel-howto-start").click();
+    await expect(page.locator("#borel-howto")).toHaveCount(0);
+    await page.locator("#borel-howto-open").click();
+    await expect(page.locator("#borel-howto")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#borel-howto")).toHaveCount(0);
+    await expect(page.locator("#borel-phase-guide")).toContainText("Build your hand");
+
     await expect(page.locator("#borel-stake-paper")).toBeVisible();
     // The seal button enables once the table has hydrated and live Pyth prices have arrived.
     const seal = page.locator("#borel-seal-btn");
@@ -92,6 +103,7 @@ test.describe("Borel — sealed-conviction live market showdowns", () => {
     // End the paper round at current prices and unseal every hand.
     await page.locator("#borel-force-showdown-btn").click();
     await expect(page.locator("#borel-showdown")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("#borel-phase-guide")).toContainText("Showdown");
     await expect(page.locator("#borel-receipt")).toBeVisible();
     await expect(page.locator("#borel-receipt")).toContainText("Paper round");
 
@@ -123,6 +135,7 @@ test.describe("Borel — sealed-conviction live market showdowns", () => {
       relayer.funded === true;
 
     await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.locator("#borel-howto-start").click({ timeout: 15_000 });
     const seal = page.locator("#borel-seal-btn");
     await expect(seal).toBeEnabled({ timeout: 30_000 });
     await page.locator("#borel-stake-devnet").click();
@@ -150,6 +163,7 @@ test.describe("Borel — sealed-conviction live market showdowns", () => {
   test("3. /play/borel serves the same table and cut routes are gone", async ({ page, request }) => {
     const guards = attachZeroErrorGuards(page);
     await page.goto("/play/borel", { waitUntil: "domcontentloaded" });
+    await page.locator("#borel-howto-start").click({ timeout: 15_000 });
     await expect(page.locator("#borel-seal-btn")).toBeVisible();
 
     for (const removed of ["/play/pulse-runner", "/studio"]) {

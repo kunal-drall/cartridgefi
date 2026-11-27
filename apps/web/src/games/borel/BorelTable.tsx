@@ -37,6 +37,7 @@ import {
   shortHash,
 } from "./format";
 import { HandReceipt, type LegOutcome, type ReceiptLeg } from "./HandReceipt";
+import { HowToPlay, PhaseGuide } from "./HowToPlay";
 import type { MatrixSeat } from "./EnclaveStateMatrix";
 import {
   chainJoin,
@@ -53,6 +54,8 @@ const EnclaveStateMatrix = dynamic(() => import("./EnclaveStateMatrix"), {
 });
 
 type TablePhase = "DRAFT" | "SEALED" | "SHOWDOWN";
+
+const HOW_TO_SEEN_KEY = "borel:how-to-seen:v1";
 
 interface DraftLeg {
   market: BorelMarket;
@@ -425,6 +428,23 @@ export function BorelTable(): React.JSX.Element {
   const [mode, setMode] = React.useState<RoomMode>("BLITZ_3M");
   const [stake, setStake] = React.useState<StakeMode>("PAPER");
   const [phase, setPhase] = React.useState<TablePhase>("DRAFT");
+  const [howToOpen, setHowToOpen] = React.useState<boolean>(false);
+  // First visit shows the rules; read storage after mount so server and client markup match.
+  React.useEffect(() => {
+    try {
+      if (window.localStorage.getItem(HOW_TO_SEEN_KEY) === null) setHowToOpen(true);
+    } catch {
+      setHowToOpen(true);
+    }
+  }, []);
+  const closeHowTo = React.useCallback(() => {
+    setHowToOpen(false);
+    try {
+      window.localStorage.setItem(HOW_TO_SEEN_KEY, "1");
+    } catch {
+      // Storage unavailable (private mode): the button still reopens the rules.
+    }
+  }, []);
   const [roomSerial, setRoomSerial] = React.useState<number>(1);
   const [draft, setDraft] = React.useState<readonly DraftLeg[]>(DEFAULT_DRAFT);
   const [sealing, setSealing] = React.useState<boolean>(false);
@@ -675,6 +695,14 @@ export function BorelTable(): React.JSX.Element {
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="text-lg font-semibold tracking-[-0.018em] text-[#f3f4f6]">Borel</h1>
           <span className="text-sm text-[#9ca3af]">Sealed-conviction live market showdown</span>
+          <button
+            id="borel-howto-open"
+            type="button"
+            onClick={() => setHowToOpen(true)}
+            className="h-7 cursor-pointer rounded-md border border-[#2a2f39] px-2.5 text-xs font-medium text-[#d1d5db] transition-colors hover:border-[#3b82f6] hover:text-[#f3f4f6]"
+          >
+            How to play
+          </button>
         </div>
         <p className="mt-1 font-mono text-[11px] text-[#6b7280] tabular-nums">
           Room <span id="borel-room-code" className="text-[#d1d5db]">{roomCode}</span> ·{" "}
@@ -1116,7 +1144,9 @@ export function BorelTable(): React.JSX.Element {
 
   return (
     <div className="space-y-3">
+      <HowToPlay open={howToOpen} onClose={closeHowTo} />
       {header}
+      <PhaseGuide phase={phase} />
       {statebar}
       {phase === "DRAFT" ? (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-12">

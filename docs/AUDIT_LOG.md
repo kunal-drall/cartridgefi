@@ -60,4 +60,4 @@ Independent read-only review of the relayer and game API added in the Borel pivo
 | M3 | Medium | No price-freshness check on lock/pivot/settle | FIXED — 60 s freshness rule on lock/pivot/settle |
 | L1 | Low | Relayer secret: no leak path found (no client import of server modules, not in `.next/static`, `.env.local` ignored) | Verified |
 
-Verification after fixes: `tsc --noEmit` clean; Playwright 7 passed / 1 skipped (desktop-only Devnet test) on 1440x900 and 390x844. Nothing in this section has been exercised on-chain yet: the Borel relayer was unfunded at audit time.
+Verification after fixes: `tsc --noEmit` clean; Playwright 7 passed / 1 skipped (desktop-only Devnet test) on 1440x900 and 390x844. After funding (17:05 IST) the production app's relayer-signed `join` and `lock` broadcast successfully, and `scripts/prove-live-devnet.ts` completed the full lifecycle (21 confirmed transactions, `docs/DEVNET_PROOF.md`). The forged-event and signature checks have not yet been tested adversarially on-chain.

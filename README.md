@@ -10,6 +10,8 @@
 
 The live app and the proof script exercise the same deployed programs at different depths. The table says which is which.
 
+Both paths have run live on devnet (21-transaction lifecycle on 2026-11-27, links in `docs/DEVNET_PROOF.md`).
+
 | Step | Live app (`/api/borel/*`, relayer-paid) | Proof script (`scripts/prove-live-devnet.ts`) |
 | :--- | :--- | :--- |
 | Join | `cartridge_registry.register_cartridge` (first room), `cartridge_er_room.initialize_room_shard`, `init_stance_and_delegate` (stance delegated to MagicBlock via `DELeGGv…`) | Same, plus `delegate_room_shard` |

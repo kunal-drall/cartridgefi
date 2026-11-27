@@ -4,71 +4,41 @@ import * as React from "react";
 
 const STEPS: ReadonlyArray<{ title: string; body: string; visual: React.ReactNode }> = [
   {
-    title: "Pick 3 markets",
-    body: "Choose three different markets from SOL, BTC, ETH, NVDAx and SPY. Greyed-out markets have no fresh price right now.",
+    title: "Call 3 markets",
+    body: "Pick three markets, call each one Long (up) or Short (down), and put your 1x, 2x and 3x cards on them. The 3x is your Sniper: it triples that move.",
     visual: (
-      <div className="flex gap-1.5">
-        {["SOL", "BTC", "ETH"].map((m) => (
-          <span key={m} className="rounded border border-[#3b82f6] bg-[#2563eb]/15 px-2 py-1 font-mono text-[11px] text-[#f3f4f6]">
-            {m}
-          </span>
-        ))}
+      <div className="flex flex-wrap gap-1.5 font-mono text-[11px] tabular-nums">
+        <span className="rounded border border-[#92400e] bg-[#78350f]/40 px-2 py-1 text-[#fbbf24]">SOL ▲ 3x</span>
+        <span className="rounded border border-[#065f46] bg-[#064e3b]/40 px-2 py-1 text-[#34d399]">BTC ▲ 2x</span>
+        <span className="rounded border border-[#7f1d1d] bg-[#7f1d1d]/30 px-2 py-1 text-[#f87171]">ETH ▼ 1x</span>
       </div>
     ),
   },
   {
-    title: "Call each one",
-    body: "Long if you think it goes up over the round, Short if you think it goes down.",
+    title: "Seal it, then sweat",
+    body: "Sealing publishes only a fingerprint of your hand. Rivals see your rank move with live prices, never your picks. Once per round you can Flip a call or Shield it in cash.",
     visual: (
-      <div className="flex gap-1.5 font-mono text-[11px]">
-        <span className="rounded border border-[#065f46] bg-[#064e3b]/40 px-2 py-1 text-[#34d399]">▲ Long</span>
-        <span className="rounded border border-[#7f1d1d] bg-[#7f1d1d]/30 px-2 py-1 text-[#f87171]">▼ Short</span>
-      </div>
-    ),
-  },
-  {
-    title: "Place your cards",
-    body: "Put 1x, 2x and 3x on your three calls, once each. The 3x card is your Sniper: it triples that market's move.",
-    visual: (
-      <div className="flex gap-1.5 font-mono text-[11px]">
-        <span className="rounded border border-[#2a2f39] px-2 py-1 text-[#d1d5db]">1x</span>
-        <span className="rounded border border-[#2a2f39] px-2 py-1 text-[#d1d5db]">2x</span>
-        <span className="rounded border border-[#92400e] bg-[#78350f]/40 px-2 py-1 text-[#fbbf24]">3x Sniper</span>
-      </div>
-    ),
-  },
-  {
-    title: "Seal your hand",
-    body: "Press Seal. Only a fingerprint of your hand is published, so nobody can see or copy your picks. The round clock starts.",
-    visual: (
-      <div className="flex gap-1.5">
+      <div className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            className="h-7 w-9 rounded border border-[#2a2f39] bg-[repeating-linear-gradient(135deg,#1a1e26_0_4px,#11141b_4px_8px)]"
+            className="h-7 w-6 rounded border border-[#f59e0b]/30 bg-[repeating-linear-gradient(135deg,#1a1e26_0_4px,#11141b_4px_8px)]"
           />
         ))}
-      </div>
-    ),
-  },
-  {
-    title: "Watch the ladder, pivot once",
-    body: "Rivals stay face-down; you only see ranks move with live prices. Once per round you can Flip a call (reverse it) or Shield it (bank the move and park it in cash).",
-    visual: (
-      <div className="flex items-center gap-2 font-mono text-[11px] tabular-nums">
-        <span className="text-[#9ca3af]">#5</span>
-        <span className="text-[#6b7280]">→</span>
+        <span className="ml-1 text-[#9ca3af]">#5</span>
+        <span className="text-[#7d8590]">→</span>
         <span className="text-[#34d399]">#2</span>
-        <span className="ml-2 rounded border border-[#2a2f39] px-2 py-1 text-[#d1d5db]">Flip</span>
-        <span className="rounded border border-[#2a2f39] px-2 py-1 text-[#d1d5db]">Shield</span>
       </div>
     ),
   },
   {
-    title: "Showdown at 00:00",
-    body: "Every hand flips face-up. Your score is each market's % move times its card, added up. Highest score wins. Share your receipt.",
+    title: "Unseal at 00:00",
+    body: "Every hand flips face-up at the bell. Score = each market's % move × its card, added up. Highest score takes the table.",
     visual: (
-      <span className="font-mono text-lg font-semibold tabular-nums text-[#f3f4f6]">00:00</span>
+      <div className="font-mono text-[12px] tabular-nums text-[#d1d5db]">
+        <span className="text-[#34d399]">+1.0% × 3</span> + <span className="text-[#34d399]">0.5% × 2</span> +{" "}
+        <span className="text-[#f87171]">−0.2% × 1</span> = <span className="font-semibold text-[#f3f4f6]">+3.8%</span>
+      </div>
     ),
   },
 ];
@@ -79,7 +49,6 @@ export function HowToPlay({ open, onClose }: { open: boolean; onClose: () => voi
 
   React.useEffect(() => {
     if (!open) return;
-    // Keep the sheet at step 1 on small screens; focusing the footer button must not scroll it.
     startRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === "Escape") onClose();
@@ -101,53 +70,47 @@ export function HowToPlay({ open, onClose }: { open: boolean; onClose: () => voi
         aria-modal="true"
         aria-labelledby="borel-howto-title"
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-t-xl border border-[#22262e] bg-[#0a0d14] shadow-[0_24px_80px_rgba(0,0,0,0.6)] sm:rounded-xl"
+        className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-[#22262e] bg-[#0a0d14] shadow-[0_24px_80px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.10)] sm:rounded-2xl"
       >
-        <header className="border-b border-[#1c2029] px-5 py-4 sm:px-6">
-          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[#6b7280]">How to play</p>
-          <h2 id="borel-howto-title" className="mt-1 text-xl font-semibold tracking-[-0.02em] text-[#f3f4f6]">
-            Three market calls. Hidden from everyone. Revealed at 00:00.
-          </h2>
-          <p className="mt-1.5 text-sm text-[#9ca3af]">
-            Borel is fantasy trading with a sealed hand. Everyone plays the same live window; the best read of the market wins.
-          </p>
-        </header>
+        <div className="overflow-y-auto">
+          <header className="px-5 pb-3 pt-5 sm:px-7 sm:pt-6">
+            <h2
+              id="borel-howto-title"
+              className="text-[24px] font-bold leading-[1.02] tracking-[-0.035em] text-[#f3f4f6] sm:text-[28px]"
+            >
+              Call 3 markets. Hide your hand. Unseal at 00:00.
+            </h2>
+            <p className="mt-2 text-[14px] leading-relaxed text-[#9ca3af]">
+              Fantasy trading with a sealed hand. Everyone plays the same live 3-minute window; the best read wins.
+            </p>
+          </header>
 
-        <ol className="grid grid-cols-1 gap-px bg-[#1c2029] sm:grid-cols-2">
-          {STEPS.map((step, i) => (
-            <li key={step.title} className="flex flex-col gap-2.5 bg-[#0a0d14] px-5 py-4 sm:px-6">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#2a2f39] font-mono text-[11px] text-[#d1d5db]">
+          <ol className="space-y-px px-3 pb-3 sm:px-5">
+            {STEPS.map((step, i) => (
+              <li key={step.title} className="flex gap-3.5 rounded-xl px-2 py-3 sm:px-2">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2563eb]/15 font-mono text-[12px] font-semibold text-[#93c5fd] tabular-nums">
                   {i + 1}
                 </span>
-                <h3 className="text-sm font-semibold text-[#f3f4f6]">{step.title}</h3>
-              </div>
-              <p className="text-[13px] leading-relaxed text-[#9ca3af]">{step.body}</p>
-              <div className="mt-auto pt-1">{step.visual}</div>
-            </li>
-          ))}
-        </ol>
+                <div className="min-w-0 space-y-1.5">
+                  <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-[#f3f4f6]">{step.title}</h3>
+                  <p className="text-[13px] leading-relaxed text-[#9ca3af]">{step.body}</p>
+                  <div className="pt-0.5">{step.visual}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
 
-        <section className="border-t border-[#1c2029] px-5 py-4 sm:px-6">
-          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-[#6b7280]">Example score</p>
-          <div className="mt-2 grid grid-cols-1 gap-1 font-mono text-[12px] tabular-nums text-[#d1d5db] sm:grid-cols-3">
-            <span>SOL Long · +1.0% × 3x = <span className="text-[#34d399]">+3.0%</span></span>
-            <span>BTC Short · −0.5% × 2x = <span className="text-[#34d399]">+1.0%</span></span>
-            <span>ETH Long · +0.2% × 1x = <span className="text-[#34d399]">+0.2%</span></span>
-          </div>
-          <p className="mt-1.5 font-mono text-[12px] text-[#f3f4f6] tabular-nums">Hand score +4.2%</p>
-        </section>
-
-        <footer className="flex flex-col gap-3 border-t border-[#1c2029] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p className="text-[12px] text-[#6b7280]">
-            Paper rooms are free practice against Pacer bots. Devnet rooms send real Solana devnet transactions.
+        <footer className="flex flex-col gap-2.5 border-t border-[#1c2029] bg-[#0a0d14] px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+          <p className="text-[12px] text-[#9ca3af]">
+            Paper rooms are free practice against labelled Pacer bots. Devnet rooms send real devnet transactions.
           </p>
           <button
             ref={startRef}
             id="borel-howto-start"
             type="button"
             onClick={onClose}
-            className="h-10 shrink-0 cursor-pointer rounded-md bg-[#2563eb] px-5 text-sm font-medium text-white transition-colors hover:bg-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]"
+            className="cf-btn h-12 shrink-0 cursor-pointer rounded-lg bg-[#2563eb] px-6 text-[15px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] hover:bg-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#93c5fd]"
           >
             Start playing
           </button>
@@ -158,9 +121,9 @@ export function HowToPlay({ open, onClose }: { open: boolean; onClose: () => voi
 }
 
 const PHASE_STEPS = [
-  { phase: "DRAFT", label: "Build your hand", hint: "Pick 3 markets, call Long or Short, place your 1x / 2x / 3x cards, then press Seal hand." },
-  { phase: "SEALED", label: "Sweat it out", hint: "Your hand is hidden. Watch your rank move with live prices. You can Flip or Shield one call, once." },
-  { phase: "SHOWDOWN", label: "Showdown", hint: "All hands are revealed. Check your final rank, then share your receipt or start the next room." },
+  { phase: "DRAFT", label: "Build your hand", hint: "Pick 3 markets, call Long or Short, place 1x / 2x / 3x, then Seal." },
+  { phase: "SEALED", label: "Sweat it out", hint: "Your hand is hidden. Watch your rank move; Flip or Shield one call, once." },
+  { phase: "SHOWDOWN", label: "Showdown", hint: "Every hand is face-up. Share your receipt or start the next room." },
 ] as const;
 
 /** Persistent "what do I do now" strip that tracks the table phase. */
@@ -171,7 +134,7 @@ export function PhaseGuide({ phase }: { phase: (typeof PHASE_STEPS)[number]["pha
     <section
       id="borel-phase-guide"
       aria-live="polite"
-      className="rounded-xl border border-white/[0.08] bg-[#0a0d14] px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+      className="rounded-xl border border-white/[0.08] bg-[#0a0d14] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
     >
       <ol className="grid grid-cols-3 gap-2">
         {PHASE_STEPS.map((s, i) => (
@@ -189,15 +152,16 @@ export function PhaseGuide({ phase }: { phase: (typeof PHASE_STEPS)[number]["pha
               className={
                 i === activeIndex
                   ? "mt-1.5 block truncate font-mono text-[11px] font-medium text-[#f3f4f6]"
-                  : "mt-1.5 block truncate font-mono text-[11px] text-[#6b7280]"
+                  : "mt-1.5 block truncate font-mono text-[11px] text-[#7d8590]"
               }
             >
-              {i + 1} · {s.label}
+              <span className="hidden sm:inline">{i + 1} · </span>
+              {s.label}
             </span>
           </li>
         ))}
       </ol>
-      <p className="mt-2 text-[13px] leading-snug text-[#d1d5db]">{active.hint}</p>
+      <p className="mt-1.5 text-[13px] leading-snug text-[#d1d5db]">{active.hint}</p>
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AuthSchema, bigintJson, executeBorelTxs, guardRequest, relayerContext, verifySessionAuth } from "@/lib/borel/server-api";
+import { AuthSchema, bigintJson, executeErAction, guardRequest, relayerContext, verifySessionAuth } from "@/lib/borel/server-api";
 import { BorelRuleError, buildPivot, parseRoomId, readRoomState, sessionPubkeyIsValid } from "@/lib/borel/server-chain";
 
 export const runtime = "nodejs";
@@ -33,15 +33,15 @@ export async function POST(req: Request) {
     if (!ctx.funded) {
       return bigintJson({
         status: "unfunded",
-        reason: `Relayer ${ctx.signer.address} is below the funding floor; no sealed hand exists on-chain to pivot, nothing broadcast`,
+        reason: `Relayer ${ctx.signer.address} is below the funding floor; no sealed stance exists on the MagicBlock ER to pivot, nothing broadcast`,
         simulationLogs: [],
       });
     }
     const now = Date.now();
     const state = await readRoomState(room, ctx.payer, ctx.signer.address, now);
-    const { tx, pivot } = await buildPivot(room, sessionPubkey, requested.legIndex, requested.kind, ctx.payer, state, now);
-    const outcome = await executeBorelTxs(ctx, [tx]);
-    if (outcome.status === "ok") return bigintJson({ status: "ok", receipt: outcome.receipts[0], pivot });
+    const { action, pivot } = await buildPivot(room, sessionPubkey, requested.legIndex, requested.kind, state, now);
+    const outcome = await executeErAction(ctx, action);
+    if (outcome.status === "ok") return bigintJson({ status: "ok", receipt: outcome.receipt, pivot });
     return bigintJson({ ...outcome, pivot });
   } catch (err) {
     return bigintJson({ status: "error", reason: err instanceof BorelRuleError || err instanceof Error ? err.message.slice(0, 400) : "Pivot failed" });

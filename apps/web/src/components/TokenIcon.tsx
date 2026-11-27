@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
  * Token marks downloaded once from Jupiter's token registry
  * (lite-api.jup.ag/tokens/v2/search?query=<mint>) and served from /public/tokens.
  * Keys cover both chart symbols (SOL-USD) and plain tickers (SOL).
+ * ETH uses the official ethereum.org diamond (ethereum-org-website/public/images/assets/
+ * eth-diamond-purple.png) placed once on a round badge to match the other marks.
  */
 const TOKEN_ICON_SRC: Readonly<Record<string, string>> = {
   SOL: "/tokens/sol.webp",
@@ -12,6 +14,8 @@ const TOKEN_ICON_SRC: Readonly<Record<string, string>> = {
   WSOL: "/tokens/sol.webp",
   BTC: "/tokens/btc.webp",
   "BTC-USD": "/tokens/btc.webp",
+  ETH: "/tokens/eth.png",
+  "ETH-USD": "/tokens/eth.png",
   USDC: "/tokens/usdc.webp",
   NVDAX: "/tokens/nvdax.webp",
   SPYX: "/tokens/spyx.webp",

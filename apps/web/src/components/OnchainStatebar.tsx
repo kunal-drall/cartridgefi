@@ -5,8 +5,10 @@ import { MagicBlockLockup, SolanaLockup } from "@cartridgefi/ui-system";
 import { cn, shortenAddress } from "@/lib/utils";
 import { useOptionalConsoleVault } from "@/app/(console)/_components/ConsoleVaultContext";
 import { WalletStateReadout } from "@/components/wallet/WalletConnect";
+import { DEVNET_RPC_FALLBACK, DEVNET_RPC_PRIMARY } from "@/lib/devnet-rpc";
 
-const SOLANA_DEVNET_RPC = "https://api.devnet.solana.com";
+/** MagicBlock devnet RPC first; the public endpoint only when it fails at the HTTP / network level. */
+const SOLANA_DEVNET_RPC = [DEVNET_RPC_PRIMARY, DEVNET_RPC_FALLBACK] as const;
 const MAGICBLOCK_ROUTER_RPC = "https://devnet-router.magicblock.app";
 const MAGICBLOCK_TEE_RPC = "https://devnet-tee.magicblock.app";
 
@@ -16,19 +18,32 @@ type ProbeState =
   | { status: "fail"; reason: string };
 
 async function timedRpc(
-  url: string,
+  urls: string | readonly string[],
   method: string,
   timeoutMs: number,
 ): Promise<{ result: unknown; rttMs: number }> {
-  const started = performance.now();
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method }),
-    signal: AbortSignal.timeout(timeoutMs),
-    cache: "no-store",
-  });
+  const endpoints = typeof urls === "string" ? [urls] : urls;
+  let res: Response | null = null;
+  let started = 0;
+  let failure: unknown = null;
+  for (const url of endpoints) {
+    started = performance.now();
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method }),
+        signal: AbortSignal.timeout(timeoutMs),
+        cache: "no-store",
+      });
+      if (res.ok) break;
+    } catch (err) {
+      res = null;
+      failure = err;
+    }
+  }
   const rttMs = Math.round(performance.now() - started);
+  if (!res) throw failure;
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = (await res.json()) as {
     result?: unknown;
@@ -51,7 +66,7 @@ function failReason(err: unknown): string {
 }
 
 function useRpcProbe(
-  url: string,
+  url: string | readonly string[],
   method: string,
   everyMs: number,
 ): ProbeState {
@@ -158,7 +173,7 @@ export interface OnchainStatebarProps {
 
 /**
  * Bottom on-chain status bar. Every value is measured from this browser:
- * - Solana devnet slot via getSlot on api.devnet.solana.com
+ * - Solana devnet slot via getSlot on rpc.magicblock.app/devnet (falls back to api.devnet.solana.com)
  * - MagicBlock router round-trip via getRoutes on devnet-router.magicblock.app
  * - Private ER TEE reachability via getHealth on devnet-tee.magicblock.app
  * - Session signer state from ConsoleVaultContext
@@ -182,7 +197,7 @@ export function OnchainStatebar({
       )}
     >
       <div className="flex h-full min-w-max items-center">
-        <Cell label="Solana devnet" title="getSlot · api.devnet.solana.com">
+        <Cell label="Solana devnet" title="getSlot · rpc.magicblock.app/devnet (fallback api.devnet.solana.com)">
           <ProbeReadout
             probe={devnet}
             render={(slot, rtt) => (

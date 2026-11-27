@@ -1,12 +1,13 @@
 import devnetProof from "@/data/devnet-proof.json";
+import { DEVNET_RPC_PRIMARY, devnetRpcFetch } from "@/lib/devnet-rpc";
+import { RATE_LIMITS, withRateLimit } from "@/lib/relayer/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Configured RPC, else MagicBlock's devnet RPC; `devnetRpcFetch` falls back to public devnet on HTTP errors. */
 const DEVNET_RPC =
-  process.env.CARTRIDGEFI_RELAYER_RPC_URL ??
-  process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
-  "https://api.devnet.solana.com";
+  process.env.CARTRIDGEFI_RELAYER_RPC_URL ?? process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? DEVNET_RPC_PRIMARY;
 const FEE_ATA = devnetProof.accounts.platformFeeAccountAta;
 const CACHE_MS = 30_000;
 
@@ -29,17 +30,9 @@ export interface FeeInflowsResponse {
 }
 
 async function rpc<T>(method: string, params: unknown[]): Promise<T> {
-  const res = await fetch(DEVNET_RPC, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    cache: "no-store",
-    signal: AbortSignal.timeout(8_000),
-  });
-  if (!res.ok) throw new Error(`devnet RPC HTTP ${res.status}`);
-  const json = (await res.json()) as { result?: T; error?: { message?: string } };
-  if (json.error) throw new Error(json.error.message ?? "devnet RPC error");
-  return json.result as T;
+  const { body } = await devnetRpcFetch<T>(method, params, { primary: DEVNET_RPC, timeoutMs: 8_000 });
+  if (body.error) throw new Error(body.error.message ?? "devnet RPC error");
+  return body.result as T;
 }
 
 interface ParsedTx {
@@ -107,7 +100,7 @@ async function load(): Promise<FeeInflowsResponse> {
 }
 
 /** Live platformFeeAccount balance and recent inflows (devnet RPC, cached 30s server-side). */
-export async function GET(): Promise<Response> {
+async function getFeeInflows(): Promise<Response> {
   const now = Date.now();
   if (cached && cached.expiresAt > now) {
     return Response.json(cached.body, { headers: { "cache-control": "no-store" } });
@@ -130,3 +123,5 @@ export async function GET(): Promise<Response> {
     );
   }
 }
+
+export const GET = withRateLimit(RATE_LIMITS.protocolFeeInflows, getFeeInflows);

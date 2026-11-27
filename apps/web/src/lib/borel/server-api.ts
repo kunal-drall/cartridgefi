@@ -1,4 +1,5 @@
 // Server-only: shared plumbing for /api/borel/* route handlers.
+import "server-only";
 import { NextResponse } from "next/server";
 import {
   address,
@@ -6,6 +7,7 @@ import {
   getPublicKeyFromAddress,
   verifySignature,
   type Address,
+  type Instruction,
   type KeyPairSigner,
   type SignatureBytes,
 } from "@solana/kit";
@@ -27,8 +29,9 @@ import {
 } from "../relayer/config";
 import { checkRateLimit, clientIpFromRequest } from "../relayer/rate-limit";
 import { RelayerTxError, signSendAndConfirm, simulateUnsigned, sweepEphemeralKeys } from "../relayer/send";
+import { ErTxError, sendErTransaction } from "../relayer/er";
 import type { ChainReceipt } from "./types";
-import type { BuiltBorelTx, RoomStateSnapshot } from "./server-chain";
+import { erReceipt, type BuiltBorelTx, type RoomStateSnapshot } from "./server-chain";
 
 export function bigintJson(body: unknown, status = 200): NextResponse {
   return new NextResponse(
@@ -209,11 +212,29 @@ export async function executeBorelTxs(ctx: RelayerContext, txs: BuiltBorelTx[]):
   }
 }
 
+/**
+ * Sends one relayer-signed transaction to the MagicBlock Private ER (TEE). ER execution costs 0
+ * lamports, so this never spends relayer SOL; the stance session key co-signs submit_stance.
+ */
+export async function executeErAction(
+  ctx: RelayerContext,
+  action: { label: string; instructions: Instruction[]; extraSigners: KeyPairSigner[] },
+): Promise<{ status: "ok"; receipt: ChainReceipt } | { status: "error"; reason: string }> {
+  try {
+    const tx = await sendErTransaction(ctx.signer, action.instructions, action.extraSigners);
+    return { status: "ok", receipt: erReceipt(action.label, tx.signature, tx.slot) };
+  } catch (err) {
+    if (err instanceof ErTxError) return { status: "error", reason: err.message.slice(0, 600) };
+    return { status: "error", reason: err instanceof Error ? err.message.slice(0, 400) : "MagicBlock ER failure" };
+  }
+}
+
 export interface SnapshotJson {
   roomId: string;
   mode: RoomStateSnapshot["schedule"]["mode"];
   stake: RoomStateSnapshot["schedule"]["stake"];
   stakeLabel: string;
+  staked: boolean;
   phase: RoomStateSnapshot["phase"];
   startsAt: number;
   lockAt: number;
@@ -236,7 +257,10 @@ export function snapshotJson(
     roomId: state.schedule.roomId,
     mode: state.schedule.mode,
     stake: state.schedule.stake,
-    stakeLabel: "Fee-free paper-staked on-chain room (no SPL stake)",
+    stakeLabel: state.schedule.staked
+      ? "Staked room: test-USDC stakes via cartridge_vault_router; only stakers are counted on-chain"
+      : "Fee-free on-chain room (no SPL stake)",
+    staked: state.schedule.staked,
     phase: state.phase,
     startsAt: state.schedule.startsAt,
     lockAt: state.schedule.lockAt,

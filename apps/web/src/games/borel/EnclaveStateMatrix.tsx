@@ -93,7 +93,7 @@ function SeatColumn({ seat, order, reduce }: { seat: MatrixSeat; order: number; 
         <span
           className={cn(
             "max-w-full truncate font-mono text-[9px] tabular-nums sm:text-[10px]",
-            seat.revealed ? "text-[#6b7280]" : "text-[#fbbf24]/80",
+            seat.revealed ? "text-[#7d8590]" : "text-[#fbbf24]/80",
           )}
         >
           {seat.sublabel}

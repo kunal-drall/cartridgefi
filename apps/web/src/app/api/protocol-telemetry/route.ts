@@ -6,6 +6,12 @@ import {
   cartridgeVaultRouter,
 } from "@cartridgefi/codama-clients";
 import devnetProof from "@/data/devnet-proof.json";
+import { DEVNET_RPC_FALLBACK, DEVNET_RPC_PRIMARY } from "@/lib/devnet-rpc";
+import { RATE_LIMITS, withRateLimit } from "@/lib/relayer/rate-limit";
+
+/** Solana devnet reads: configured RPC, else MagicBlock's devnet RPC; public devnet only as fallback. */
+const SOLANA_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? DEVNET_RPC_PRIMARY;
+const SOLANA_RPC_CHAIN = [...new Set([SOLANA_RPC, DEVNET_RPC_PRIMARY, DEVNET_RPC_FALLBACK])];
 
 async function safeServerRpc<T>(
   endpoint: string,
@@ -13,32 +19,32 @@ async function safeServerRpc<T>(
   params: unknown[],
   timeoutMs = 3500,
 ): Promise<{ result: T | null; elapsedMs: number }> {
-  const start = performance.now();
-  try {
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method,
-        params,
-      }),
-      signal: AbortSignal.timeout(timeoutMs),
-      cache: "no-store",
-    });
-    const elapsedMs = Math.max(1, Math.round(performance.now() - start));
-    if (!res.ok) {
-      return { result: null, elapsedMs };
+  // The Solana endpoint falls back on HTTP / network failure; MagicBlock router and TEE probes do not.
+  const endpoints = endpoint === SOLANA_RPC ? SOLANA_RPC_CHAIN : [endpoint];
+  let start = performance.now();
+  for (const url of endpoints) {
+    start = performance.now();
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method,
+          params,
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
+      const parsed = (await res.json()) as { result?: T };
+      return { result: parsed.result ?? null, elapsedMs: Math.max(1, Math.round(performance.now() - start)) };
+    } catch {
+      // Try the next endpoint.
     }
-    const parsed = (await res.json()) as { result?: T };
-    return { result: parsed.result ?? null, elapsedMs };
-  } catch {
-    return {
-      result: null,
-      elapsedMs: Math.max(1, Math.round(performance.now() - start)),
-    };
   }
+  return { result: null, elapsedMs: Math.max(1, Math.round(performance.now() - start)) };
 }
 
 function decodeTokenAmountFromBase64(base64Str: string): string | null {
@@ -129,15 +135,13 @@ export interface RecentOnchainSignature {
 let cachedTelemetry: { expiresAt: number; payload: Record<string, unknown> } | null =
   null;
 
-export async function GET(): Promise<NextResponse> {
+async function getTelemetry(): Promise<NextResponse> {
   const now = Date.now();
   if (cachedTelemetry && cachedTelemetry.expiresAt > now) {
     return NextResponse.json(cachedTelemetry.payload);
   }
 
-  const solanaRpc =
-    process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
-    devnetProof.clusters.solanaDevnetRpc;
+  const solanaRpc = SOLANA_RPC;
   const routerRpc =
     process.env.NEXT_PUBLIC_MAGICBLOCK_ROUTER_URL ??
     devnetProof.clusters.magicblockRouterRpc;
@@ -479,3 +483,5 @@ export async function GET(): Promise<NextResponse> {
 
   return NextResponse.json(payload);
 }
+
+export const GET = withRateLimit(RATE_LIMITS.protocolTelemetry, getTelemetry);

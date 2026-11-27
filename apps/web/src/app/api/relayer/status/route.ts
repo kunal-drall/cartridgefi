@@ -7,11 +7,12 @@ import {
   isRelayerConfigured,
   solscanAccountUrl,
 } from "@/lib/relayer/config";
+import { RATE_LIMITS, withRateLimit } from "@/lib/relayer/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(): Promise<NextResponse> {
+async function getRelayerStatus(): Promise<NextResponse> {
   if (!isRelayerConfigured()) {
     return NextResponse.json(
       {
@@ -50,3 +51,5 @@ export async function GET(): Promise<NextResponse> {
     );
   }
 }
+
+export const GET = withRateLimit(RATE_LIMITS.relayerStatus, getRelayerStatus);

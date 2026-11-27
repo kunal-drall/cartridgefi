@@ -2,10 +2,13 @@
 
 import * as React from "react";
 import QRCode from "qrcode";
-import { Copy, Download, ExternalLink } from "lucide-react";
+import { Copy, Download, ExternalLink, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Conviction } from "@/lib/borel/types";
-import { formatScorePctPrecise } from "./format";
+import { cn } from "@/lib/utils";
+import { FOCUS_RING, displaySign, formatScorePctPrecise, formatTestUsdc } from "./format";
+import { bpsLabel } from "./StakeControls";
+import { outcomeTier } from "./UnsealMoment";
 
 export type LegOutcome = "WIN" | "LOSS" | "FLAT";
 
@@ -30,16 +33,34 @@ export interface HandReceiptProps {
   signature?: string;
   /** Connected wallet (short form) shown as the player; omitted when no wallet is connected. */
   playerLabel?: string;
+  /** Real test-USDC stake for this room (base units, 6 decimals); omitted for unstaked rooms. */
+  stake?: ReceiptStake;
 }
 
-const W = 1200;
-const H = 630;
-const M = 56;
-const EXPORT_SCALE = 2;
+export interface ReceiptStake {
+  readonly stakeUnits: bigint;
+  /** Settled payout; null until the vault reports it. */
+  readonly payoutUnits: bigint | null;
+  readonly feeBps: number | null;
+  readonly poolUnits: bigint | null;
+}
+
+/** "Staked 10.00 → paid 18.81 test-USDC" (or "settling") for the card and the share text. */
+function stakeSummary(stake: ReceiptStake): string {
+  return stake.payoutUnits === null
+    ? `Staked ${formatTestUsdc(stake.stakeUnits)} test-USDC · payout settling`
+    : `Staked ${formatTestUsdc(stake.stakeUnits)} → paid ${formatTestUsdc(stake.payoutUnits)} test-USDC`;
+}
+
+const W = 1080;
+const H = 1080;
+const M = 72;
+const EXPORT_SCALE = 1;
 const SANS = "'Inter Variable', Inter, ui-sans-serif, system-ui, -apple-system, sans-serif";
 const MONO =
   "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
 const NUMERIC: React.CSSProperties = { fontVariantNumeric: "tabular-nums slashed-zero" };
+const SHARE_URL = "https://cartridgefi.vercel.app";
 
 const GLYPH: Record<LegOutcome, string> = { WIN: "▲", LOSS: "▼", FLAT: "■" };
 const TILE: Record<LegOutcome, { fill: string; stroke: string; ink: string }> = {
@@ -55,11 +76,14 @@ export function receiptGlyphs(legs: readonly ReceiptLeg[]): string {
     .join("");
 }
 
+/** Wordle-style share text: header line, spoiler-free glyph row, link. Markets are never named. */
 export function buildShareText(props: HandReceiptProps): string {
   const lines = [
-    `Borel ${props.roomCode} · ${props.playerLabel ? `${props.playerLabel} · ` : ""}${props.modeLabel} · ${props.stakeLabel}`,
-    `${receiptGlyphs(props.legs)}  #${props.rank}/${props.totalSeats}  ${formatScorePctPrecise(props.scoreE9)}`,
-    props.explorerUrl ?? "Paper round · no on-chain transaction",
+    `Borel ${props.roomCode} · #${props.rank}/${props.totalSeats} · ${formatScorePctPrecise(props.scoreE9)}`,
+    `${receiptGlyphs(props.legs)}  1x 2x 3x`,
+    `${props.playerLabel ? `${props.playerLabel} · ` : ""}${props.modeLabel} · ${props.stakeLabel}${props.explorerUrl ? ` · ${props.explorerUrl}` : ""}`,
+    ...(props.stake ? [stakeSummary(props.stake)] : []),
+    SHARE_URL,
   ];
   return lines.join("\n");
 }
@@ -105,6 +129,11 @@ export function HandReceipt(props: HandReceiptProps): React.JSX.Element {
   const svgRef = React.useRef<SVGSVGElement | null>(null);
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const [exporting, setExporting] = React.useState<boolean>(false);
+  // navigator.share exists only on some browsers; detect after mount so SSR markup matches.
+  const [canShare, setCanShare] = React.useState<boolean>(false);
+  React.useEffect(() => {
+    setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
+  }, []);
 
   const qr = React.useMemo(
     () => (props.explorerUrl ? buildQrPath(props.explorerUrl) : null),
@@ -115,11 +144,23 @@ export function HandReceipt(props: HandReceiptProps): React.JSX.Element {
     [props.legs],
   );
   const scorePct = formatScorePctPrecise(props.scoreE9);
-  const scoreInk = props.scoreE9 > 0n ? "#34d399" : props.scoreE9 < 0n ? "#f87171" : "#f3f4f6";
-  const qrBox = 176;
+  const sign = displaySign(props.scoreE9);
+  const scoreInk = sign > 0 ? "#34d399" : sign < 0 ? "#f87171" : "#f3f4f6";
+  const tier = outcomeTier(props.rank, props.totalSeats);
+  const fileName = `borel-${props.roomCode.toLowerCase().replace(/[^a-z0-9-]/g, "")}-receipt.png`;
+  const qrBox = 168;
   const qrQuiet = 3;
   const qrX = W - M - qrBox;
-  const qrY = 392;
+  const qrY = 812;
+  const tileW = 288;
+  const tileGap = (W - M * 2 - tileW * 3) / 2;
+
+  const renderPng = async (): Promise<Blob | null> => {
+    const svg = svgRef.current;
+    const canvas = canvasRef.current;
+    if (!svg || !canvas) return null;
+    return rasterizeSvg(svg, canvas);
+  };
 
   const handleCopy = async (): Promise<void> => {
     try {
@@ -131,16 +172,14 @@ export function HandReceipt(props: HandReceiptProps): React.JSX.Element {
   };
 
   const handleDownload = async (): Promise<void> => {
-    const svg = svgRef.current;
-    const canvas = canvasRef.current;
-    if (!svg || !canvas) return;
     setExporting(true);
     try {
-      const blob = await rasterizeSvg(svg, canvas);
+      const blob = await renderPng();
+      if (!blob) return;
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `borel-${props.roomCode.toLowerCase()}-receipt.png`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -152,8 +191,34 @@ export function HandReceipt(props: HandReceiptProps): React.JSX.Element {
     }
   };
 
+  const handleShare = async (): Promise<void> => {
+    const text = buildShareText(props);
+    setExporting(true);
+    try {
+      const blob = await renderPng();
+      const file = blob ? new File([blob], fileName, { type: "image/png" }) : null;
+      if (file && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text, title: `Borel ${props.roomCode}` });
+      } else {
+        await navigator.share({ text, title: `Borel ${props.roomCode}` });
+      }
+    } catch (error) {
+      // Dismissing the share sheet rejects with AbortError: that is a choice, not a failure.
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        toast.error("Sharing failed; use Copy text instead");
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const actionBtn = cn(
+    "cf-btn inline-flex h-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-[#303642] bg-[#171a20] px-3 text-[13px] font-medium text-[#e5e7eb] hover:bg-[#1d2129] disabled:opacity-60 sm:flex-none",
+    FOCUS_RING,
+  );
+
   return (
-    <figure id="borel-receipt" className="m-0 space-y-2.5">
+    <figure id="borel-receipt" className="m-0 space-y-3">
       <svg
         ref={svgRef}
         xmlns="http://www.w3.org/2000/svg"
@@ -162,38 +227,40 @@ export function HandReceipt(props: HandReceiptProps): React.JSX.Element {
         height={H}
         role="img"
         aria-label={`Unsealed hand receipt ${props.roomCode}: ${receiptGlyphs(props.legs)}, rank ${props.rank} of ${props.totalSeats}, score ${scorePct}`}
-        className="block h-auto w-full rounded-lg border border-[#22262e]"
+        className="mx-auto block h-auto w-full max-w-[480px] rounded-xl border border-[#22262e]"
       >
         <rect width={W} height={H} fill="#0a0d14" />
-        <text x={M} y={78} fill="#f3f4f6" fontFamily={SANS} fontSize={22} fontWeight={600} letterSpacing={-0.5}>
-          Unsealed hand receipt
+        <rect width={W} height={8} fill={tier.ring} />
+        <text x={M} y={128} fill="#f3f4f6" fontFamily={SANS} fontSize={64} fontWeight={700} letterSpacing={-2.4}>
+          Borel
         </text>
-        <text x={M} y={104} fill="#6b7280" fontFamily={SANS} fontSize={14}>
-          Borel · sealed-conviction live market showdown
+        <text x={M} y={176} fill="#9ca3af" fontFamily={SANS} fontSize={28}>
+          Unsealed hand · {props.modeLabel} · {props.stakeLabel}
         </text>
-        <text x={W - M} y={78} fill="#f3f4f6" fontFamily={MONO} fontSize={20} fontWeight={600} textAnchor="end" style={NUMERIC}>
+        <text x={W - M} y={124} fill="#f3f4f6" fontFamily={MONO} fontSize={40} fontWeight={600} textAnchor="end" style={NUMERIC}>
           {props.roomCode}
         </text>
-        <text x={W - M} y={104} fill="#6b7280" fontFamily={MONO} fontSize={13} textAnchor="end">
-          {props.playerLabel ? `${props.playerLabel} · ` : ""}{props.modeLabel} · {props.stakeLabel}
-        </text>
-        <line x1={M} y1={128} x2={W - M} y2={128} stroke="#303642" />
+        {props.playerLabel ? (
+          <text x={W - M} y={172} fill="#9ca3af" fontFamily={MONO} fontSize={26} textAnchor="end" style={NUMERIC}>
+            {props.playerLabel}
+          </text>
+        ) : null}
 
-        {/* Spoiler-free leg tiles: outcome only, ordered 1x → 3x */}
+        {/* Spoiler-free leg tiles: outcome only, ordered 1x → 3x, markets withheld */}
         {orderedLegs.map((leg, i) => {
-          const x = M + i * 136;
+          const x = M + i * (tileW + tileGap);
           const tile = TILE[leg.outcome];
           return (
             <g key={`${leg.conviction}`}>
-              <rect x={x} y={168} width={120} height={120} rx={6} fill={tile.fill} stroke={tile.stroke} strokeWidth={1.5} />
-              <text x={x + 60} y={248} fill={tile.ink} fontFamily={MONO} fontSize={54} textAnchor="middle">
+              <rect x={x} y={232} width={tileW} height={248} rx={20} fill={tile.fill} stroke={tile.stroke} strokeWidth={4} />
+              <text x={x + tileW / 2} y={404} fill={tile.ink} fontFamily={MONO} fontSize={150} textAnchor="middle">
                 {GLYPH[leg.outcome]}
               </text>
-              <text x={x} y={316} fill="#9ca3af" fontFamily={MONO} fontSize={14} style={NUMERIC}>
+              <text x={x} y={526} fill="#d1d5db" fontFamily={MONO} fontSize={28} fontWeight={600} style={NUMERIC}>
                 {leg.conviction}x{leg.conviction === 3 ? " sniper" : ""}
               </text>
               {leg.pivot ? (
-                <text x={x} y={336} fill="#6b7280" fontFamily={MONO} fontSize={12}>
+                <text x={x + tileW} y={526} fill="#9ca3af" fontFamily={MONO} fontSize={24} textAnchor="end">
                   {leg.pivot === "FLIP" ? "flipped" : "shielded"}
                 </text>
               ) : null}
@@ -201,107 +268,131 @@ export function HandReceipt(props: HandReceiptProps): React.JSX.Element {
           );
         })}
 
-        <line x1={500} y1={168} x2={500} y2={336} stroke="#22262e" />
-        <text x={530} y={190} fill="#6b7280" fontFamily={SANS} fontSize={13} fontWeight={500}>
+        <line x1={M} y1={572} x2={W - M} y2={572} stroke="#303642" strokeWidth={2} />
+        <text x={M} y={626} fill="#9ca3af" fontFamily={SANS} fontSize={26} fontWeight={500}>
           Final rank
         </text>
-        <text x={524} y={300} fill="#f3f4f6" fontFamily={MONO} fontSize={112} fontWeight={600} letterSpacing={-5} style={NUMERIC}>
+        <text x={M - 8} y={772} fill={tier.ink} fontFamily={MONO} fontSize={176} fontWeight={600} letterSpacing={-10} style={NUMERIC}>
           #{props.rank}
         </text>
-        <text x={530} y={330} fill="#6b7280" fontFamily={MONO} fontSize={16} style={NUMERIC}>
-          of {props.totalSeats} seats
+        <text x={M} y={826} fill="#9ca3af" fontFamily={MONO} fontSize={28} style={NUMERIC}>
+          of {props.totalSeats} seats · {tier.label.toLowerCase()}
         </text>
+        {props.stake ? (
+          <text x={M} y={870} fill="#fbbf24" fontFamily={MONO} fontSize={24} fontWeight={600} style={NUMERIC}>
+            {stakeSummary(props.stake)}
+          </text>
+        ) : null}
 
-        <line x1={800} y1={168} x2={800} y2={336} stroke="#22262e" />
-        <text x={830} y={190} fill="#6b7280" fontFamily={SANS} fontSize={13} fontWeight={500}>
+        <text x={W - M} y={626} fill="#9ca3af" fontFamily={SANS} fontSize={26} fontWeight={500} textAnchor="end">
           Hand score
         </text>
         <text
-          x={830}
-          y={278}
+          x={W - M}
+          y={732}
           fill={scoreInk}
           fontFamily={MONO}
-          fontSize={Math.min(64, Math.floor(300 / (scorePct.length * 0.6)))}
+          fontSize={Math.min(96, Math.floor(820 / scorePct.length))}
           fontWeight={600}
-          letterSpacing={-1.5}
+          letterSpacing={-3}
+          textAnchor="end"
           style={NUMERIC}
         >
           {scorePct}
         </text>
-        <text x={830} y={330} fill="#6b7280" fontFamily={MONO} fontSize={14}>
-          Σ return × conviction
+        <text x={W - M} y={776} fill="#9ca3af" fontFamily={MONO} fontSize={24} textAnchor="end">
+          Σ move × card
         </text>
 
-        <line x1={M} y1={368} x2={W - M} y2={368} stroke="#303642" />
-        <text x={M} y={414} fill="#6b7280" fontFamily={SANS} fontSize={13}>
-          Hand commitment (sha256, published at seal)
+        <text x={M} y={912} fill="#9ca3af" fontFamily={SANS} fontSize={22}>
+          Hand commitment · sha256, published at seal
         </text>
-        <text x={M} y={442} fill="#d1d5db" fontFamily={MONO} fontSize={14} style={NUMERIC}>
-          {props.commitment.slice(0, 32)}
+        <text x={M} y={948} fill="#d1d5db" fontFamily={MONO} fontSize={24} style={NUMERIC}>
+          {props.commitment.slice(0, 20)}…{props.commitment.slice(-12)}
         </text>
-        <text x={M} y={464} fill="#d1d5db" fontFamily={MONO} fontSize={14} style={NUMERIC}>
-          {props.commitment.slice(32)}
-        </text>
-        <text x={M} y={512} fill="#6b7280" fontFamily={SANS} fontSize={13}>
-          {props.signature ? "Settlement transaction" : "Settlement"}
-        </text>
-        <text x={M} y={540} fill="#d1d5db" fontFamily={MONO} fontSize={14} style={NUMERIC}>
+        <text x={M} y={990} fill="#9ca3af" fontFamily={MONO} fontSize={22} style={NUMERIC}>
           {props.signature
-            ? `${props.signature.slice(0, 22)}…${props.signature.slice(-22)}`
+            ? `Settle tx ${props.signature.slice(0, 12)}…${props.signature.slice(-8)}`
             : "Paper round · no on-chain transaction"}
         </text>
-        <text x={M} y={H - 24} fill="#6b7280" fontFamily={MONO} fontSize={11}>
-          ▲ leg finished up · ▼ leg finished down · ■ flat or shielded · markets withheld
+        <text x={M} y={H - 36} fill="#7d8590" fontFamily={MONO} fontSize={20}>
+          cartridgefi.vercel.app · ▲ up ▼ down ■ flat · markets withheld
         </text>
 
         {qr ? (
           <g>
-            <rect x={qrX} y={qrY} width={qrBox} height={qrBox} fill="#f3f4f6" />
+            <rect x={qrX} y={qrY} width={qrBox} height={qrBox} rx={8} fill="#f3f4f6" />
             <path
               d={qr.d}
               fill="#0b0c0e"
               shapeRendering="crispEdges"
               transform={`translate(${qrX + (qrQuiet * qrBox) / (qr.size + qrQuiet * 2)} ${qrY + (qrQuiet * qrBox) / (qr.size + qrQuiet * 2)}) scale(${qrBox / (qr.size + qrQuiet * 2)})`}
             />
-            <text x={qrX - 16} y={qrY + 16} fill="#9ca3af" fontFamily={SANS} fontSize={12} textAnchor="end">
-              Scan for transaction
-            </text>
-            <text x={qrX - 16} y={qrY + 34} fill="#6b7280" fontFamily={MONO} fontSize={11} textAnchor="end">
-              solscan.io · devnet
-            </text>
           </g>
-        ) : (
-          <g>
-            <rect x={qrX} y={qrY} width={qrBox} height={qrBox} fill="none" stroke="#303642" strokeDasharray="4 4" />
-            <text x={qrX + qrBox / 2} y={qrY + qrBox / 2 + 4} fill="#6b7280" fontFamily={MONO} fontSize={12} textAnchor="middle">
-              no transaction
-            </text>
-          </g>
-        )}
+        ) : null}
       </svg>
 
-      <figcaption className="flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-[#9ca3af]">
-        {props.explorerUrl ? (
-          <a
-            href={props.explorerUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-[#93c5fd] hover:underline"
+      <figcaption className="space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-[#9ca3af]">
+          {props.explorerUrl ? (
+            <a
+              href={props.explorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn("inline-flex items-center gap-1 rounded text-[#93c5fd] hover:underline", FOCUS_RING)}
+            >
+              Solscan transaction
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          ) : (
+            <span>Paper round · nothing was broadcast</span>
+          )}
+          <span>Spoiler-free: markets stay hidden</span>
+        </div>
+        {props.stake ? (
+          <dl
+            id="borel-receipt-stake"
+            className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg border border-[#f59e0b]/25 bg-[#0d0b07] px-3 py-2 font-mono text-[11px] tabular-nums sm:grid-cols-4"
           >
-            Solscan transaction
-            <ExternalLink className="h-2.5 w-2.5" />
-          </a>
-        ) : (
-          <span>Paper round · nothing was broadcast</span>
-        )}
-        <span className="flex items-center gap-2">
-          <button
-            id="borel-receipt-copy-btn"
-            type="button"
-            onClick={() => void handleCopy()}
-            className="cf-btn inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-[#303642] bg-[#171a20] px-3 text-xs font-medium text-[#e5e7eb] hover:bg-[#1d2129]"
-          >
-            <Copy className="h-3.5 w-3.5" />
+            <div>
+              <dt className="text-[#9ca3af]">Staked</dt>
+              <dd className="text-[#e5e7eb]">{formatTestUsdc(props.stake.stakeUnits)}</dd>
+            </div>
+            <div>
+              <dt className="text-[#9ca3af]">Pool</dt>
+              <dd className="text-[#e5e7eb]">{props.stake.poolUnits === null ? "—" : formatTestUsdc(props.stake.poolUnits)}</dd>
+            </div>
+            <div>
+              <dt className="text-[#9ca3af]">Fee {props.stake.feeBps === null ? "1%" : bpsLabel(BigInt(props.stake.feeBps))}</dt>
+              <dd className="text-[#e5e7eb]">
+                {props.stake.poolUnits === null || props.stake.feeBps === null
+                  ? "—"
+                  : formatTestUsdc((props.stake.poolUnits * BigInt(props.stake.feeBps)) / 10_000n)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[#9ca3af]">Payout</dt>
+              <dd className="font-semibold text-[#fbbf24]">
+                {props.stake.payoutUnits === null ? "settling" : formatTestUsdc(props.stake.payoutUnits)}
+              </dd>
+            </div>
+          </dl>
+        ) : null}
+        <div className="flex flex-wrap gap-2 sm:justify-center">
+          {canShare ? (
+            <button
+              id="borel-receipt-share-btn"
+              type="button"
+              onClick={() => void handleShare()}
+              disabled={exporting}
+              className={cn(actionBtn, "border-[#3b82f6]/60 bg-[#2563eb]/20 text-[#f3f4f6] hover:bg-[#2563eb]/30")}
+            >
+              <Share2 className="h-4 w-4" />
+              Share
+            </button>
+          ) : null}
+          <button id="borel-receipt-copy-btn" type="button" onClick={() => void handleCopy()} className={actionBtn}>
+            <Copy className="h-4 w-4" />
             Copy text
           </button>
           <button
@@ -309,12 +400,12 @@ export function HandReceipt(props: HandReceiptProps): React.JSX.Element {
             type="button"
             onClick={() => void handleDownload()}
             disabled={exporting}
-            className="cf-btn inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-[#303642] bg-[#171a20] px-3 text-xs font-medium text-[#e5e7eb] hover:bg-[#1d2129] disabled:opacity-60"
+            className={actionBtn}
           >
-            <Download className="h-3.5 w-3.5" />
+            <Download className="h-4 w-4" />
             {exporting ? "Rendering…" : "Download PNG"}
           </button>
-        </span>
+        </div>
       </figcaption>
 
       <canvas

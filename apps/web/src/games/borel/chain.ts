@@ -29,6 +29,8 @@ export interface JoinStep {
   roomId: string | null;
   vrfSeed: string | null;
   clock: RoomClock | null;
+  /** Server join note (e.g. the ER join is deferred until the stake lands in a staked room). */
+  erNote?: string | null;
 }
 
 function clockOf(s: client.BorelRoomSnapshot | undefined): RoomClock | null {
@@ -47,6 +49,11 @@ function sessionSigner(): Promise<KeyPairSigner> {
   return sessionSignerPromise;
 }
 
+/** Read-only access to the per-tab session signer; stakes must be signed by the key that joined the room. */
+export function chainSessionSigner(): Promise<KeyPairSigner> {
+  return sessionSigner();
+}
+
 async function sessionPubkey(): Promise<string> {
   return (await sessionSigner()).address;
 }
@@ -62,9 +69,13 @@ function lastReceipt(receipts: readonly ChainReceipt[], fallback: string): Chain
   return last ? { kind: "receipt", receipt: last } : { kind: "info", message: fallback };
 }
 
-export async function chainJoin(mode: RoomMode): Promise<JoinStep> {
+/**
+ * Joins the current DEVNET room. `staked: true` seats the player in the staked variant (`…-S`): stake
+ * before sealing there, because the vault only pays out when every counted player has staked.
+ */
+export async function chainJoin(mode: RoomMode, opts: { staked?: boolean } = {}): Promise<JoinStep> {
   const session = await sessionPubkey();
-  const r = await client.joinRoom({ mode, stake: "DEVNET", sessionPubkey: session });
+  const r = await client.joinRoom({ mode, stake: "DEVNET", sessionPubkey: session, ...(opts.staked ? { staked: true } : {}) });
   // With a connected wallet, the wallet signs ONE delegation of this session key for this room, so the
   // player identity is the wallet while later locks / pivots stay popup-free. Anonymous play is unchanged.
   if (client.isBorelOk(r)) {
@@ -76,6 +87,7 @@ export async function chainJoin(mode: RoomMode): Promise<JoinStep> {
       roomId: r.roomId,
       vrfSeed: r.vrfSeed || null,
       clock: clockOf(r),
+      erNote: r.erNote ?? null,
     };
   }
   const snapshot = r.status === "unfunded" ? r.snapshot : undefined;
@@ -120,7 +132,13 @@ export async function chainPivot(
 
 export async function chainSettle(roomId: string | null): Promise<ChainOutcome> {
   if (!roomId) return { kind: "error", message: "No Devnet room joined" };
-  const r = await client.settleRoom(roomId);
+  let r = await client.settleRoom(roomId);
+  // Settlement is a resumable on-chain sequence (VRF callback, unseal, evaluate, commit to L1); the
+  // relayer reports a pending step as "call settle again".
+  for (let attempt = 0; attempt < 3 && r.status === "error" && r.reason.includes("call settle again"); attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+    r = await client.settleRoom(roomId);
+  }
   return client.isBorelOk(r) ? lastReceipt(r.receipts, "settled · no transaction") : failure(r);
 }
 

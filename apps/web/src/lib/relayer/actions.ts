@@ -1,5 +1,6 @@
 // Server-only: low-level instruction helpers for relayer-built transactions.
 // Transactions are always assembled server-side from validated params — never from client bytes.
+import "server-only";
 import { address, getUtf8Encoder, type Address, type Instruction } from "@solana/kit";
 import type { SerializedInstructionPayload } from "@cartridgefi/sdk";
 import { COMPUTE_BUDGET_PROGRAM_ID, MEMO_PROGRAM_ID, SYSTEM_PROGRAM_ID, getRelayerRpc } from "./config";

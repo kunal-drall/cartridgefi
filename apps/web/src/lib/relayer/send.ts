@@ -1,4 +1,5 @@
 // Server-only: compile, sign, send and confirm relayer transactions on Solana Devnet.
+import "server-only";
 import {
   address,
   appendTransactionMessageInstructions,
@@ -19,9 +20,12 @@ import {
 } from "@solana/kit";
 import { getRelayerRpc } from "./config";
 import { sweepTransferIx } from "./actions";
+import { reserveRelayerSpend, type SpendReservation } from "./spend-guard";
 
 const CONFIRM_TIMEOUT_MS = 45_000;
 const CONFIRM_POLL_MS = 600;
+/** Re-broadcast interval for a transaction the cluster has not seen yet. */
+const REBROADCAST_MS = 2_500;
 
 export class RelayerTxError extends Error {
   constructor(
@@ -42,10 +46,49 @@ export interface ConfirmedRelayerTx {
   slot: number;
 }
 
+/**
+ * Signs, sends and confirms a relayer-paid transaction. The spend guard runs first: it throws
+ * `RelayerBudgetError` ("Relayer budget reached: …") before anything is signed when the daily
+ * lamport budget or the per-room join cap is used up.
+ */
 export async function signSendAndConfirm(
   feePayer: KeyPairSigner,
   instructions: Instruction[],
   extraSigners: KeyPairSigner[],
+): Promise<ConfirmedRelayerTx> {
+  const reservation = reserveRelayerSpend(feePayer.address, instructions);
+  let broadcast = false;
+  try {
+    const confirmed = await signSendAndConfirmUnguarded(feePayer, instructions, extraSigners, () => {
+      broadcast = true;
+    });
+    if (reservation.estimate.spendClass === "funding") await reconcileSpend(reservation, confirmed.signature);
+    return confirmed;
+  } finally {
+    // Preflight rejections and signing failures never reach the cluster and cost nothing.
+    if (!broadcast) reservation.release();
+  }
+}
+
+/** Best-effort: charge the confirmed fee-payer balance delta instead of the pre-send estimate. */
+async function reconcileSpend(reservation: SpendReservation, signature: string): Promise<void> {
+  try {
+    const tx = await getRelayerRpc()
+      .getTransaction(signature as Signature, { encoding: "json", maxSupportedTransactionVersion: 0, commitment: "confirmed" })
+      .send();
+    const pre = tx?.meta?.preBalances[0];
+    const post = tx?.meta?.postBalances[0];
+    if (pre !== undefined && post !== undefined) reservation.reconcile(BigInt(pre) - BigInt(post));
+  } catch {
+    // Keep the conservative estimate.
+  }
+}
+
+async function signSendAndConfirmUnguarded(
+  feePayer: KeyPairSigner,
+  instructions: Instruction[],
+  extraSigners: KeyPairSigner[],
+  onBroadcast: () => void,
 ): Promise<ConfirmedRelayerTx> {
   const rpc = getRelayerRpc();
   const blockhash = await latestBlockhash();
@@ -74,15 +117,26 @@ export async function signSendAndConfirm(
     await rpc
       .sendTransaction(wire, { encoding: "base64", preflightCommitment: "confirmed", maxRetries: 3n })
       .send();
+    onBroadcast();
   } catch (err) {
     const logs = extractLogs(err);
     throw new RelayerTxError(describeRpcError(err), logs);
   }
 
   const deadline = Date.now() + CONFIRM_TIMEOUT_MS;
+  let lastBroadcast = Date.now();
   while (Date.now() < deadline) {
     const { value } = await rpc.getSignatureStatuses([signature as Signature]).send();
     const status = value[0];
+    if (!status && Date.now() - lastBroadcast >= REBROADCAST_MS) {
+      // Devnet drops transactions under load: re-send the same signed bytes (same signature, idempotent)
+      // until it lands or the blockhash expires.
+      lastBroadcast = Date.now();
+      await rpc
+        .sendTransaction(wire, { encoding: "base64", skipPreflight: true, maxRetries: 0n })
+        .send()
+        .catch(() => undefined);
+    }
     if (status) {
       if (status.err) {
         throw new RelayerTxError(`Transaction ${signature} failed on-chain: ${JSON.stringify(status.err, bigintReplacer)}`);

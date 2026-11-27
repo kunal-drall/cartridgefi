@@ -1321,7 +1321,233 @@ async function main(): Promise<void> {
   console.log(`\nAppended ${receipts.length} receipts to docs/DEVNET_PROOF.md`);
 }
 
-main().catch((err: unknown) => {
+// ===========================================================================
+// App mode: `node scripts/prove-live-devnet.ts --app http://localhost:3100`
+// Drives /api/borel/* exactly like the browser (ephemeral ed25519 session keys signing each request),
+// for two players in one DEVNET room, and checks that sealed hands stay unreadable on the TEE.
+// ===========================================================================
+
+function canonicalJson(value: unknown): string {
+  if (typeof value === "bigint") return JSON.stringify(value.toString());
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/** Mirrors apps/web/src/lib/borel/auth.ts borelAuthMessage + the browser's session-key signature. */
+async function signedAuth(session: KeyPairSigner, action: "lock" | "pivot" | "room", roomId: string, params: unknown) {
+  const expiresAt = Date.now() + 60_000;
+  const message = new TextEncoder().encode(
+    `borel-auth:v1:${canonicalJson({ action, roomId, sessionPubkey: session.address, params, expiresAt })}`,
+  );
+  const signature = base58Decoder.decode(await signBytes(session.keyPair.privateKey, message));
+  return { expiresAt, signature };
+}
+
+interface AppReceipt {
+  label: string;
+  signature: string;
+  cluster: "devnet" | "magicblock-er";
+  explorerUrl: string;
+}
+
+async function teeToken(signer: KeyPairSigner): Promise<string> {
+  const ch = (await (await fetch(`${MAGICBLOCK_TEE_RPC}/auth/challenge?pubkey=${signer.address}`)).json()) as { challenge: string };
+  const sig = await signBytes(signer.keyPair.privateKey, new TextEncoder().encode(ch.challenge));
+  const res = (await (
+    await fetch(`${MAGICBLOCK_TEE_RPC}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pubkey: signer.address, challenge: ch.challenge, signature: base58Decoder.decode(sig) }),
+    })
+  ).json()) as { token: string };
+  return res.token;
+}
+
+async function appMain(base: string): Promise<void> {
+  const api = async (path: string, init?: { method?: string; body?: unknown; headers?: Record<string, string> }): Promise<Record<string, unknown>> => {
+    for (let attempt = 0; attempt < 15; attempt++) {
+      const res = await fetch(`${base}${path}`, {
+        method: init?.method ?? "GET",
+        headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+        ...(init?.body ? { body: JSON.stringify(init.body) } : {}),
+      });
+      if (res.status === 429) {
+        const wait = Number(res.headers.get("retry-after") ?? "5");
+        console.log(`  429 on ${path}; retrying in ${wait}s`);
+        await sleep(wait * 1000);
+        continue;
+      }
+      const text = await res.text();
+      try {
+        return JSON.parse(text) as Record<string, unknown>;
+      } catch {
+        // Shared dev server mid-recompile (HTML error page): the route did not run, so retrying is safe.
+        console.log(`  non-JSON response on ${path} (HTTP ${res.status}); retrying in 4s`);
+        await sleep(4000);
+      }
+    }
+    throw new Error(`${path}: no JSON response after retries`);
+  };
+  const receipts: { step: string; r: AppReceipt }[] = [];
+  const keep = (step: string, list: unknown) => {
+    for (const r of (Array.isArray(list) ? list : [list]) as AppReceipt[]) {
+      if (r && typeof r.signature === "string") {
+        receipts.push({ step, r });
+        console.log(`  ${r.cluster === "magicblock-er" ? "ER" : "L1"} ${step}: ${r.label}\n     ${r.explorerUrl}`);
+      }
+    }
+  };
+  const must = (body: Record<string, unknown>, what: string) => {
+    if (body.status !== "ok") throw new Error(`${what}: ${JSON.stringify(body).slice(0, 800)}`);
+    return body;
+  };
+
+  const players = [
+    {
+      label: "Player A",
+      session: await generateKeyPairSigner(),
+      hand: [
+        { market: "SOL/USD", direction: "LONG", conviction: 3 },
+        { market: "BTC/USD", direction: "SHORT", conviction: 1 },
+        { market: "ETH/USD", direction: "LONG", conviction: 2 },
+      ],
+      pivot: { legIndex: 2, kind: "FLIP" },
+    },
+    {
+      label: "Player B",
+      session: await generateKeyPairSigner(),
+      hand: [
+        { market: "ETH/USD", direction: "SHORT", conviction: 3 },
+        { market: "BTC/USD", direction: "LONG", conviction: 2 },
+        { market: "SOL/USD", direction: "SHORT", conviction: 1 },
+      ],
+      pivot: { legIndex: 1, kind: "SHIELD" },
+    },
+  ] as const;
+
+  // 1. Join (both land in the same joinable room).
+  let roomId = "";
+  let lockAt = 0;
+  let endsAt = 0;
+  let roomShard = "";
+  for (const p of players) {
+    let j = await api("/api/borel/join", { method: "POST", body: { mode: "BLITZ_3M", stake: "DEVNET", sessionPubkey: p.session.address } });
+    must(j, `${p.label} join`);
+    if (roomId && j.roomId !== roomId) throw new Error("Players landed in different rooms; rerun earlier in the lobby");
+    roomId = String(j.roomId);
+    lockAt = Number(j.lockAt);
+    endsAt = Number(j.endsAt);
+    roomShard = String(j.roomShard);
+    if (j.erNote) console.log(`  ${p.label} ER join deferred: ${String(j.erNote)}`);
+    keep(`${p.label} join`, (j.receipts as AppReceipt[]).slice(-2));
+  }
+  console.log(`Room ${roomId} RoomShard ${roomShard} lockAt ${new Date(lockAt).toISOString()} endsAt ${new Date(endsAt).toISOString()}`);
+
+  // 2. Lock (sealed hand → submit_stance on the TEE).
+  const stancesSigs: string[] = [];
+  for (const p of players) {
+    const salt = createHash("sha256").update(`${p.session.address}:${Date.now()}`).digest("hex");
+    const canonical = p.hand.map((l) => `${l.market}|${l.direction}|${l.conviction}`).join(";");
+    const commitment = createHash("sha256").update(`${canonical}#${salt}`).digest("hex");
+    const params = { hand: p.hand, commitment, salt };
+    const l = must(
+      await api("/api/borel/lock", {
+        method: "POST",
+        body: { roomId, sessionPubkey: p.session.address, hand: p.hand, commitment, salt, auth: await signedAuth(p.session, "lock", roomId, params) },
+      }),
+      `${p.label} lock`,
+    );
+    keep(`${p.label} lock`, l.receipt);
+    stancesSigs.push((l.receipt as AppReceipt).signature);
+    console.log(`  ${p.label} on-chain entry prices: ${JSON.stringify((l.hand as { market: string; entryPriceE9: string }[]).map((x) => `${x.market}=${x.entryPriceE9}`))}`);
+  }
+
+  // 3. Privacy while sealed: a stranger (and no token) cannot read the stance or the submit_stance instruction.
+  const stranger = await generateKeyPairSigner();
+  const strangerUrl = `${MAGICBLOCK_TEE_RPC}?token=${await teeToken(stranger)}`;
+  const privacy: string[] = [];
+  for (const sig of stancesSigs) {
+    for (const [who, url] of [["stranger token", strangerUrl], ["no token", MAGICBLOCK_TEE_RPC]] as const) {
+      const tx = await rpcCall<{ transaction: { message: { instructions: unknown[] } }; meta: { logMessages: string[] } } | null>(url, "getTransaction", [
+        sig,
+        { encoding: "json", maxSupportedTransactionVersion: 0 },
+      ]);
+      const ixCount = tx?.transaction.message.instructions.length ?? 0;
+      const logCount = tx?.meta.logMessages.length ?? 0;
+      privacy.push(`getTransaction(${sig.slice(0, 8)}…) as ${who}: ${ixCount} instructions, ${logCount} log lines`);
+      if (ixCount > 0 || logCount > 0) throw new Error(`Sealed submit_stance ${sig} is readable by a ${who}`);
+    }
+  }
+  const strangerSigs = await rpcCall<{ signature: string }[]>(strangerUrl, "getSignaturesForAddress", [roomShard, { limit: 50 }]);
+  privacy.push(`getSignaturesForAddress(RoomShard) as stranger: ${strangerSigs.length} signature(s), sealed stance txs hidden: ${stancesSigs.every((s) => !strangerSigs.some((x) => x.signature === s))}`);
+  const publicRoom = must(await api(`/api/borel/room?roomId=${roomId}`), "public room read");
+  const leaked = (publicRoom.rows as { scoreE9?: string; hand?: unknown }[]).filter((r) => r.scoreE9 !== undefined || r.hand !== undefined);
+  privacy.push(`GET /api/borel/room (unauthenticated) in the lobby: ${(publicRoom.rows as unknown[]).length} rival rows returned, ${leaked.length} with score or hand`);
+  if ((publicRoom.rows as unknown[]).length > 0 && publicRoom.phase === "LOBBY") throw new Error("Room API returned rival rows in the lobby");
+  if (leaked.length > 0) throw new Error("Room API leaked a score or hand before settle");
+  for (const line of privacy) console.log(`  privacy: ${line}`);
+
+  // 4. Pivot once each, after lockAt.
+  while (Date.now() < lockAt + 1_500) await sleep(1000);
+  for (const p of players) {
+    const pv = must(
+      await api("/api/borel/pivot", {
+        method: "POST",
+        body: { roomId, sessionPubkey: p.session.address, pivot: p.pivot, auth: await signedAuth(p.session, "pivot", roomId, p.pivot) },
+      }),
+      `${p.label} pivot`,
+    );
+    keep(`${p.label} pivot`, pv.receipt);
+  }
+  const a = players[0];
+  const authA = await signedAuth(a.session, "room", roomId, {});
+  // Room-read auth travels in headers, never the URL.
+  const viewA = must(
+    await api(`/api/borel/room?roomId=${roomId}`, {
+      headers: { "x-borel-session": a.session.address, "x-borel-signature": authA.signature, "x-borel-expires-at": String(authA.expiresAt) },
+    }),
+    "A room read",
+  );
+  const rowsA = viewA.rows as { label: string; rank: number; scoreE9?: string; isYou?: boolean; hand?: unknown; pivotUsed: boolean }[];
+  console.log(`  ladder as Player A while sealed: ${JSON.stringify(rowsA.map((r) => ({ label: r.label, rank: r.rank, score: r.scoreE9 ?? "hidden", hand: r.hand ? "visible" : "hidden", pivotUsed: r.pivotUsed })))}`);
+  if (rowsA.some((r) => !r.isYou && (r.scoreE9 !== undefined || r.hand !== undefined || r.pivotUsed))) throw new Error("Rival score/hand/pivot leaked before settle");
+  privacy.push(`Signed GET as Player A while sealed: own score only; ${rowsA.filter((r) => !r.isYou).length} rival rows with rank only (no score, hand or pivotUsed)`);
+
+  // 5. Settle after 00:00 (VRF, unseal, evaluate, undelegate, commit).
+  while (Date.now() < endsAt + 2_000) await sleep(1000);
+  let settled: Record<string, unknown> | null = null;
+  for (let attempt = 0; attempt < 6 && !settled; attempt++) {
+    const s = await api("/api/borel/settle", { method: "POST", body: { roomId } });
+    keep("settle", s.receipts ?? []);
+    if (s.status === "ok") settled = s;
+    else {
+      console.log(`  settle pending: ${String(s.reason)}`);
+      await sleep(3000);
+    }
+  }
+  if (!settled) throw new Error("Settle did not complete");
+  const finalRoom = must(await api(`/api/borel/room?roomId=${roomId}`), "final room read");
+  console.log(`  final phase ${String(finalRoom.phase)} VRF seed ${String(finalRoom.vrfSeed)}`);
+  console.log(`  final rows: ${JSON.stringify(finalRoom.rows)}`);
+  keep("final room", (finalRoom.receipts as AppReceipt[]).filter((r) => /^MagicBlock TEE/.test(r.label)));
+
+  const out = resolve(dirname(new URL(import.meta.url).pathname), "../artifacts/borel-app-devnet-run.json");
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(
+    out,
+    JSON.stringify({ roomId, roomShard, vrfSeed: finalRoom.vrfSeed, phase: finalRoom.phase, privacy, rows: finalRoom.rows, receipts }, null, 2),
+  );
+  console.log(`\nWrote ${out}`);
+}
+
+const appFlag = process.argv.indexOf("--app");
+(appFlag >= 0 ? appMain(process.argv[appFlag + 1] ?? "http://localhost:3100") : main()).catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : err);
   process.exit(1);
 });

@@ -8,19 +8,22 @@
 
 ## How a room works
 
-The live app and the proof script exercise the same deployed programs at different depths. The table says which is which.
+Devnet rooms in the live app run the full private path against the deployed programs. Solana L1 handles account creation, delegation, the seat registry and the final commit. The MagicBlock Private ER does every hand write: the devnet TEE at `devnet-tee.magicblock.app`, validator `MTEWGuqx…`. The relayer (`Fc54gfod…`) pays every L1 fee, and ER transactions cost 0 lamports, so players never pay or sign a transaction.
 
-Both paths have run live on devnet (21-transaction lifecycle on 2026-11-27, links in `docs/DEVNET_PROOF.md`).
+How a hand is authorized: the browser's ephemeral ed25519 session key signs each API request. A connected wallet can delegate that key once per room. The server then releases a per-room stance session key, derived from relayer key material, which is the only key `submit_stance` accepts for that stance. It is released only for a valid session signature. A full app-driven room is recorded in `docs/DEVNET_PROOF.md` ("Borel app room on the Private ER"). `node scripts/prove-live-devnet.ts --app http://localhost:3100` replays one through the API.
 
-| Step | Live app (`/api/borel/*`, relayer-paid) | Proof script (`scripts/prove-live-devnet.ts`) |
+| Step | Layer | What the app sends (`/api/borel/*`) |
 | :--- | :--- | :--- |
-| Join | `cartridge_registry.register_cartridge` (first room), `cartridge_er_room.initialize_room_shard`, `init_stance_and_delegate` (stance delegated to MagicBlock via `DELeGGv…`) | Same, plus `delegate_room_shard` |
-| Seal | sha256 commitment published as a devnet memo; the hand itself is AES-GCM encrypted with a server-held key until showdown | `submit_stance` on the MagicBlock ER under a Permission Program (`ACLseo…`) ACL |
-| Sweat | Scores recomputed from live Pyth prices with bigint `10^9` fixed-point math; only ranks are public | — |
-| Pivot | One `FLIP`/`SHIELD`, memo-recorded, enforced by the relayer | Second `submit_stance`, capped on-chain by `max_rebalances` |
-| Showdown | Hands revealed as memos at settle; tie-break seed from a blockhash, labelled "not VRF" | `request_settlement_vrf`, `trigger_showdown_unseal`, `undelegate_player_stance`, `settle_and_commit_shard` |
+| Join | L1 | First player only: `register_cartridge` (v2 manifest: `max_rebalances = 2`, `fog_of_war_bps = 9000`), then `initialize_room_shard` and `delegate_room_shard` to the TEE validator. Every player: a relayer-funded derived player key, `init_stance_and_delegate` to the TEE, and an HMAC join memo (the seat registry) |
+| | ER | `join_room_and_init_permission`. This creates a private Permission Program (`ACLseo…`) ACL whose members are the player key and the relayer |
+| Seal | ER | `submit_stance` (before `lockAt`). The hand's three markets go into weight slots 1–3 (`±conviction × 1000`) with fresh Pyth entry prices set by the server, never by the client. Slot 0, priced in-program by the ER oracle, stays empty. While the ACL is private, the TEE returns nothing for the stance to anyone but its members. It also redacts the transaction (no instructions, no logs) and leaves it out of the room's signature list |
+| Sweat | server | The relayer is an ACL member: it reads only the stances whose join it performed, and ranks them with bigint `10^9` math. Rival ranks come from a price snapshot refreshed at most every 10 s. Rivals get rank and rank delta only: no score, no hand, no pivot use, and nothing at all in the lobby. Your live score goes only to your signed session (auth in request headers). Each client IP gets at most 2 seats per room |
+| Pivot | ER | A second `submit_stance`: `FLIP` negates the leg, `SHIELD` zeroes it, and the pivot price is stored in the stance. The program's `max_rebalances = 2` rejects any third move |
+| Settle | L1 + ER | An HMAC settle memo with Pyth prices at 00:00: Hermes historical where the API key grants the feed, otherwise the latest quote, but only within 8 s of 00:00. Then `request_settlement_vrf`, whose MagicBlock VRF callback writes `RoomShard.vrf_seed` (the tie-break seed). Then, for each stance, `trigger_showdown_unseal` + `evaluate_player_score` (permission closed, so the stance becomes public), then `undelegate_player_stance`. Finally `settle_and_commit_shard`, whose commit + undelegation lands on L1 as a Delegation Program transaction paid by the validator. Stake payouts run after that, when anyone staked |
 
-**Not yet possible with the current keys:** SPL stakes, fee routing into `platformFeeAccount` and `record_elo`. These need the original devnet authority (`D7ba9q…`), which holds the test mint and the passport admin role. The historical run that exercised them is in `docs/DEVNET_PROOF.md`. On-chain stances use four slots `[SOL, BTC, ETH, NVDAx]`, so SPY legs are scored off-chain only.
+**Still off-chain:** Borel's score (FLIP/SHIELD bank the move up to the pivot price) is computed by the server from the on-chain stance data. The program's own `final_score` uses its direction-neutral formula without pivot banking, so the two can differ. Paper rooms never touch the chain.
+
+**Not yet possible with the current keys:** SPL stakes, fee routing into `platformFeeAccount` and `record_elo`. These need the original devnet authority (`D7ba9q…`), which holds the test mint and the passport admin role. The historical run that exercised them is in `docs/DEVNET_PROOF.md`. On-chain stances have four weight slots. Borel leaves slot 0 (priced by the ER oracle) empty and writes the hand's three markets, SPY included, to slots 1–3.
 
 **Stakes:** rooms default to paper play. Devnet rooms send real devnet transactions through a server-side relayer when it is funded. When it isn't, the app says so and shows simulation results instead of signatures. Nothing in the UI fabricates a transaction.
 

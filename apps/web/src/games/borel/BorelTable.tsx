@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { ExternalLink, Lock, Shield, Repeat2 } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { CircleHelp, ExternalLink, Lock, Shield, Repeat2 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import devnetProof from "@/data/devnet-proof.json";
 import {
   BOREL_MARKETS,
@@ -27,28 +27,48 @@ import {
 } from "@/lib/borel/scoring";
 import { usePythPrices } from "@/lib/borel/pyth";
 import { useBorelIdentity } from "@/lib/wallet/identity";
+import { claim as claimStake, getStake, stake as stakeRoom, type StakeStatusOk } from "@/lib/borel/stakes-client";
+import { useOptionalBorelWallet } from "@/components/wallet/WalletProvider";
 import { cn } from "@/lib/utils";
 import { TokenIcon } from "@/components/TokenIcon";
 import { PACER_PROFILES, buildPacerHand, type PriceBookE9 } from "./pacers";
 import {
   EQUITY_MARKETS,
+  FOCUS_RING,
   MARKET_SHORT,
+  displaySign,
   formatClock,
   formatPriceE9,
   formatScorePctPrecise,
+  formatTestUsdc,
+  scoreToneClass,
   shortHash,
 } from "./format";
 import { HandReceipt, type LegOutcome, type ReceiptLeg } from "./HandReceipt";
 import { HowToPlay, PhaseGuide } from "./HowToPlay";
-import { LiveLadder, SeatAvatar, Sparkline, seatName, type LadderRow } from "./LiveLadder";
+import { LiveLadder, SeatAvatar, Sparkline, seatName, type LadderRow, type RankMove } from "./LiveLadder";
+import { UnsealMoment, outcomeTier } from "./UnsealMoment";
 import type { MatrixSeat } from "./EnclaveStateMatrix";
 import {
+  STAKES_ENABLED,
+  StakeConnectHint,
+  StakePayoutPanel,
+  StakePicker,
+  StakesPausedNote,
+  stakeChoiceUnits,
+  type ClaimState,
+  type MyStake,
+  type StakeChoice,
+} from "./StakeControls";
+import {
   chainJoin,
+  chainSessionSigner,
   chainLock,
   chainPivot,
   chainSettle,
   chainTieBreakSeed,
   type ChainOutcome,
+  type JoinStep,
 } from "./chain";
 
 const EnclaveStateMatrix = dynamic(() => import("./EnclaveStateMatrix"), {
@@ -96,16 +116,13 @@ function randomSaltHex(): string {
 }
 
 function outcomeOf(scoreE9: bigint): LegOutcome {
-  if (scoreE9 > 0n) return "WIN";
-  if (scoreE9 < 0n) return "LOSS";
+  const sign = displaySign(scoreE9);
+  if (sign > 0) return "WIN";
+  if (sign < 0) return "LOSS";
   return "FLAT";
 }
 
-function scoreTone(scoreE9: bigint): string {
-  if (scoreE9 > 0n) return "text-[#34d399]";
-  if (scoreE9 < 0n) return "text-[#f87171]";
-  return "text-[#d1d5db]";
-}
+const scoreTone = scoreToneClass;
 
 /* ------------------------------------------------------------------------ */
 
@@ -116,6 +133,8 @@ function Segmented<T extends string>({
   disabled,
   idPrefix,
   labels,
+  shortLabels,
+  ariaLabel,
 }: {
   options: readonly T[];
   value: T;
@@ -123,9 +142,12 @@ function Segmented<T extends string>({
   disabled?: boolean;
   idPrefix: string;
   labels: Record<T, string>;
+  /** Phone labels (below `sm`); the full label is used from `sm` up. */
+  shortLabels?: Record<T, string>;
+  ariaLabel: string;
 }): React.JSX.Element {
   return (
-    <div className="inline-flex rounded-lg border border-white/[0.08] bg-[#0b0c0e] p-0.5">
+    <div role="group" aria-label={ariaLabel} className="inline-flex shrink-0 rounded-lg border border-white/[0.08] bg-[#0b0c0e] p-0.5">
       {options.map((opt) => (
         <button
           key={opt}
@@ -135,11 +157,19 @@ function Segmented<T extends string>({
           aria-pressed={value === opt}
           onClick={() => onChange(opt)}
           className={cn(
-            "cf-btn h-8 cursor-pointer rounded-md px-2 font-mono text-[11px] font-medium disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:text-[12px]",
-            value === opt ? "bg-[#1d2129] text-[#f3f4f6]" : "text-[#6b7280] hover:text-[#d1d5db]",
+            "cf-btn h-11 min-w-11 cursor-pointer rounded-md px-2.5 font-mono text-[12px] font-medium disabled:cursor-not-allowed disabled:opacity-60 sm:px-3",
+            FOCUS_RING,
+            value === opt ? "bg-[#1d2129] text-[#f3f4f6]" : "text-[#9ca3af] hover:text-[#e5e7eb]",
           )}
         >
-          {labels[opt]}
+          {shortLabels ? (
+            <>
+              <span className="sm:hidden">{shortLabels[opt]}</span>
+              <span className="hidden sm:inline">{labels[opt]}</span>
+            </>
+          ) : (
+            labels[opt]
+          )}
         </button>
       ))}
     </div>
@@ -153,21 +183,21 @@ function FeedBadge({
   market: BorelMarket;
   status: "live" | "stale" | "closed" | "error" | undefined;
 }): React.JSX.Element | null {
-  if (status === "live" || status === undefined) {
-    return EQUITY_MARKETS.has(market) && status === undefined ? (
-      <span className="font-mono text-[10px] text-[#6b7280]">connecting</span>
-    ) : null;
-  }
+  // Inline on the card's single header row: it can change width there but never the card's height.
+  const label = status === undefined ? (EQUITY_MARKETS.has(market) ? "connecting" : null) : status === "live" ? null : status;
+  if (label === null) return null;
   return (
     <span
       className={cn(
-        "rounded border px-1 font-mono text-[10px]",
-        status === "error"
-          ? "border-[#ef4444]/40 text-[#f87171]"
-          : "border-[#f59e0b]/40 text-[#fbbf24]",
+        "shrink-0 rounded border px-1 font-mono text-[10px] leading-4",
+        label === "connecting"
+          ? "border-white/10 text-[#9ca3af]"
+          : label === "error"
+            ? "border-[#ef4444]/40 text-[#f87171]"
+            : "border-[#f59e0b]/40 text-[#fbbf24]",
       )}
     >
-      {status}
+      {label}
     </span>
   );
 }
@@ -175,6 +205,7 @@ function FeedBadge({
 const TOKEN_SYMBOL: Partial<Record<BorelMarket, string>> = {
   "SOL/USD": "SOL",
   "BTC/USD": "BTC",
+  "ETH/USD": "ETH",
   "NVDAx/USD": "NVDAX",
   "SPY/USD": "SPYX",
 };
@@ -232,7 +263,7 @@ function DraftCard({
           <span className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[#f3f4f6]">{leg.market}</span>
           <FeedBadge market={leg.market} status={status[leg.market]} />
         </div>
-        <span className="shrink-0 font-mono text-[13px] text-[#d1d5db] tabular-nums [font-variant-numeric:tabular-nums_slashed-zero]">
+        <span className="min-w-[88px] shrink-0 text-right font-mono text-[13px] text-[#d1d5db] tabular-nums [font-variant-numeric:tabular-nums_slashed-zero]">
           {formatPriceE9(pricesE9[leg.market])}
         </span>
       </div>
@@ -241,7 +272,9 @@ function DraftCard({
         {BOREL_MARKETS.map((m) => {
           const taken = takenMarkets.has(m) && leg.market !== m;
           const feed = status[m];
-          const blocked = feed === "closed" || feed === "error";
+          // Only a closed equity session blocks a pick; a feed still connecting stays tappable and
+          // the Seal button waits for its first price instead.
+          const blocked = feed === "closed";
           const reason = unavailableReason(m, feed);
           return (
             <button
@@ -253,7 +286,8 @@ function DraftCard({
               title={reason ?? (taken ? "Used by another leg" : m)}
               onClick={() => onChange({ ...leg, market: m })}
               className={cn(
-                "cf-btn flex h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border font-mono text-[10px] font-medium leading-none disabled:cursor-not-allowed disabled:opacity-25",
+                "cf-btn flex h-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border font-mono text-[11px] font-medium leading-none disabled:cursor-not-allowed disabled:opacity-35",
+                FOCUS_RING,
                 leg.market === m
                   ? "border-[#3b82f6] bg-[#2563eb]/15 text-[#f3f4f6] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                   : "border-white/[0.07] bg-[#0d1017] text-[#9ca3af] hover:border-white/20",
@@ -277,12 +311,13 @@ function DraftCard({
               aria-pressed={leg.direction === d}
               onClick={() => onChange({ ...leg, direction: d })}
               className={cn(
-                "cf-btn h-10 cursor-pointer rounded-md font-mono text-[12px] font-semibold",
+                "cf-btn h-11 cursor-pointer rounded-md font-mono text-[13px] font-semibold",
+                FOCUS_RING,
                 leg.direction === d
                   ? d === "LONG"
                     ? "bg-[#10b981]/15 text-[#34d399] shadow-[inset_0_0_0_1px_rgba(16,185,129,0.45)]"
                     : "bg-[#ef4444]/15 text-[#f87171] shadow-[inset_0_0_0_1px_rgba(239,68,68,0.45)]"
-                  : "text-[#6b7280] hover:text-[#d1d5db]",
+                  : "text-[#7d8590] hover:text-[#d1d5db]",
               )}
             >
               {d === "LONG" ? "▲ Long" : "▼ Short"}
@@ -296,14 +331,16 @@ function DraftCard({
               id={`borel-leg-${index}-card-${c}`}
               type="button"
               aria-pressed={leg.conviction === c}
+              aria-label={c === 3 ? "3x Sniper card" : `${c}x card`}
               onClick={() => onAssignConviction(c)}
               className={cn(
-                "cf-btn h-11 w-11 cursor-pointer rounded-lg border font-mono text-[13px] font-semibold tabular-nums",
+                "cf-btn h-12 w-11 cursor-pointer rounded-lg border font-mono text-[13px] font-semibold tabular-nums",
+                FOCUS_RING,
                 leg.conviction === c
                   ? c === 3
                     ? "border-[#f59e0b] bg-[#f59e0b]/15 text-[#fbbf24]"
                     : "border-[#3b82f6] bg-[#2563eb]/20 text-[#f3f4f6]"
-                  : "border-white/[0.07] bg-[#0d1017] text-[#6b7280] hover:text-[#d1d5db]",
+                  : "border-white/[0.07] bg-[#0d1017] text-[#7d8590] hover:text-[#d1d5db]",
               )}
             >
               {c}x
@@ -377,7 +414,7 @@ function LiveLegCard({
       <div className={cn("font-mono text-[17px] font-semibold leading-none tabular-nums sm:text-2xl", scoreTone(scoreE9))}>
         {formatScorePctPrecise(scoreE9)}
       </div>
-      <div className="truncate font-mono text-[10px] text-[#6b7280] tabular-nums">
+      <div className="truncate font-mono text-[10px] text-[#7d8590] tabular-nums">
         {pivot ? (pivot.kind === "FLIP" ? "Flipped" : "Shielded") : revealed ? "out" : "now"}{" "}
         <span className="text-[#9ca3af]">{formatPriceE9(nowPriceE9)}</span>
       </div>
@@ -399,15 +436,15 @@ function ReceiptLine({ entry }: { entry: ReceiptEntry }): React.JSX.Element {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-[#93c5fd] tabular-nums hover:underline"
         >
-          {o.receipt.cluster === "magicblock-er" ? "ER" : "Devnet"} {shortHash(o.receipt.signature, 5, 5)}
+          {o.receipt.cluster === "magicblock-er" ? "Private ER" : "Devnet"} {shortHash(o.receipt.signature, 5, 5)}
           <ExternalLink className="h-2.5 w-2.5" />
         </a>
       ) : o.kind === "unfunded" ? (
         <span className="text-[#fbbf24]">relayer unfunded · paper</span>
       ) : o.kind === "paper" ? (
-        <span className="text-[#6b7280]">paper · not broadcast</span>
+        <span className="text-[#7d8590]">paper · not broadcast</span>
       ) : o.kind === "info" ? (
-        <span className="text-[#6b7280]">{o.message}</span>
+        <span className="text-[#7d8590]">{o.message}</span>
       ) : (
         <span className="text-[#f87171]">{o.message}</span>
       )}
@@ -458,6 +495,36 @@ export function BorelTable(): React.JSX.Element {
   const [vrfSeed, setVrfSeed] = React.useState<string>("");
   const [seedSource, setSeedSource] = React.useState<string | null>(null);
   const [roomId, setRoomId] = React.useState<string | null>(null);
+  /** Commitment shown in the brief "Sealed" stamp right after the seal; null when hidden. */
+  const [sealStamp, setSealStamp] = React.useState<string | null>(null);
+  const [unsealOpen, setUnsealOpen] = React.useState<boolean>(false);
+  const [youMove, setYouMove] = React.useState<RankMove | null>(null);
+  const [announcement, setAnnouncement] = React.useState<string>("");
+  const prevYouRankRef = React.useRef<number | null>(null);
+  const reduceMotion = useReducedMotion() ?? false;
+
+  // Real test-USDC stakes (DEVNET + connected wallet only). Errors never block play: the room continues unstaked.
+  const wallet = useOptionalBorelWallet();
+  const usdcBalanceUnits = wallet?.usdc && wallet.usdc.decimals === 6 ? wallet.usdc.atomic : null;
+  const openWalletPanel = React.useCallback(() => wallet?.setPanelOpen(true), [wallet]);
+  const [stakeChoice, setStakeChoice] = React.useState<StakeChoice>("NONE");
+  const [myStake, setMyStake] = React.useState<MyStake>({ status: "idle" });
+  const myStakeRef = React.useRef<MyStake>({ status: "idle" });
+  const [stakeStatus, setStakeStatus] = React.useState<StakeStatusOk | null>(null);
+  const [stakeNote, setStakeNote] = React.useState<string>("Waiting for settlement…");
+  const [claimState, setClaimState] = React.useState<ClaimState>({ status: "idle" });
+  /** Optional status line from the relayer about the room's ER / TEE seat (shown only when present). */
+  const [erNote, setErNote] = React.useState<string | null>(null);
+  const updateMyStake = React.useCallback((next: MyStake) => {
+    myStakeRef.current = next;
+    setMyStake(next);
+  }, []);
+
+  React.useEffect(() => {
+    if (sealStamp === null) return;
+    const id = window.setTimeout(() => setSealStamp(null), 1_700);
+    return () => window.clearTimeout(id);
+  }, [sealStamp]);
 
   // First observed price per market: the deterministic baseline for momentum pacers.
   const baselineRef = React.useRef<Partial<Record<BorelMarket, bigint>>>({});
@@ -491,6 +558,21 @@ export function BorelTable(): React.JSX.Element {
   }, [seats, livePrices, vrfSeed]);
   const youRow = ranked.find((r) => r.seat.isYou);
 
+  // Rank feedback while sealed: flash your ladder row and announce the move to screen readers.
+  const youRank = phase === "SEALED" ? youRow?.rank : undefined;
+  React.useEffect(() => {
+    if (youRank === undefined) {
+      prevYouRankRef.current = null;
+      return;
+    }
+    const prev = prevYouRankRef.current;
+    prevYouRankRef.current = youRank;
+    if (prev === null || prev === youRank) return;
+    const direction = youRank < prev ? "up" : "down";
+    setYouMove({ key: Date.now(), direction, rank: youRank });
+    setAnnouncement(`You moved ${direction} to rank ${youRank}`);
+  }, [youRank]);
+
   // Per-seat score history (1e9 fixed-point) drives the ladder sparklines while the room is live.
   const [history, setHistory] = React.useState<Readonly<Record<string, readonly bigint[]>>>({});
   React.useEffect(() => {
@@ -505,6 +587,8 @@ export function BorelTable(): React.JSX.Element {
     });
   }, [ranked, phase]);
 
+  const closeUnseal = React.useCallback(() => setUnsealOpen(false), []);
+
   const pushReceipt = React.useCallback((label: string, outcome: ChainOutcome) => {
     setReceipts((prev) => [...prev, { label, outcome }]);
   }, []);
@@ -512,6 +596,10 @@ export function BorelTable(): React.JSX.Element {
   const runShowdown = React.useCallback(() => {
     setFinalPrices({ ...pricesE9 });
     setPhase("SHOWDOWN");
+    setUnsealOpen(true);
+    setAnnouncement("Showdown. Every hand is unsealed.");
+    // Phones are usually scrolled to the pivot bar: bring the result hero into view behind the overlay.
+    window.scrollTo({ top: 0, behavior: "auto" });
     if (stake === "DEVNET") {
       void (async () => {
         let o = await chainSettle(roomId);
@@ -525,6 +613,21 @@ export function BorelTable(): React.JSX.Element {
         if (seed) {
           setVrfSeed(seed.seed);
           setSeedSource(seed.source);
+        }
+        if (STAKES_ENABLED && roomId && myStakeRef.current.status === "ok") {
+          const sessionPubkey = (await chainSessionSigner()).address;
+          // Payouts land in the vault a few seconds after settle; poll briefly, then leave a manual note.
+          for (let attempt = 0; attempt < 6; attempt += 1) {
+            const st = await getStake({ roomId, sessionPubkey });
+            if (st.status === "ok") {
+              setStakeStatus(st);
+              if (st.settled) break;
+              setStakeNote("Vault settling payouts…");
+            } else {
+              setStakeNote(st.reason);
+            }
+            await new Promise((resolve) => window.setTimeout(resolve, 3_000));
+          }
         }
       })();
     }
@@ -590,6 +693,9 @@ export function BorelTable(): React.JSX.Element {
       setHistory({});
       setCommitment(digest);
       setReceipts([]);
+      updateMyStake({ status: "idle" });
+      setStakeStatus(null);
+      setClaimState({ status: "idle" });
       setFinalPrices(null);
       setVrfSeed("");
       setSeedSource(null);
@@ -598,21 +704,62 @@ export function BorelTable(): React.JSX.Element {
       setEndsAtMs(start + durationMs);
       setLockAtMs(0);
       setPhase("SEALED");
+      setSealStamp(digest);
 
       if (stake === "DEVNET") {
-        const joined = await chainJoin(mode);
-        pushReceipt("Join room", joined.outcome);
-        if (joined.roomId) setRoomId(joined.roomId);
-        if (joined.vrfSeed) setVrfSeed(joined.vrfSeed);
-        if (joined.clock) {
-          // DEVNET rooms run on the server schedule: seal before lockAt, pivot until endsAt, settle after.
-          setEndsAtMs(joined.clock.endsAt);
-          setLockAtMs(joined.clock.lockAt);
+        const amountUnits = stakeChoiceUnits(stakeChoice);
+        // Staked rooms are separate on-chain rooms (`…-S`): pick one only when this player will stake.
+        const wantsStake = STAKES_ENABLED && amountUnits > 0n && connectedWallet !== null;
+        const applyRoom = (j: JoinStep): void => {
+          setRoomId(j.roomId);
+          setVrfSeed(j.vrfSeed ?? "");
+          setErNote(j.erNote ?? null);
+          if (j.clock) {
+            // DEVNET rooms run on the server schedule: seal before lockAt, pivot until endsAt, settle after.
+            setEndsAtMs(j.clock.endsAt);
+            setLockAtMs(j.clock.lockAt);
+          }
+        };
+        const joinedOk = (j: JoinStep): boolean => j.outcome.kind !== "unfunded" && j.outcome.kind !== "error";
+        let room = await chainJoin(mode, wantsStake ? { staked: true } : {});
+        pushReceipt(wantsStake ? "Join staked room" : "Join room", room.outcome);
+        applyRoom(room);
+        if (wantsStake) {
+          // The stake must land before the hand locks in a staked room. A seat that never staked must not
+          // lock there (the vault only pays out when every counted player staked), so it moves to the open room.
+          const label = `Stake ${formatTestUsdc(amountUnits)} test-USDC`;
+          let failReason: string | null = null;
+          if (!room.roomId || !joinedOk(room)) {
+            failReason = "Staked room unavailable";
+          } else if (!room.clock || Date.now() >= room.clock.lockAt - 8_000) {
+            failReason = "Stake window closed";
+          } else if (usdcBalanceUnits !== null && usdcBalanceUnits < amountUnits) {
+            failReason = "Not enough test-USDC";
+          } else {
+            updateMyStake({ status: "pending", amountUnits });
+            const staked = await stakeRoom({ roomId: room.roomId, signer: await chainSessionSigner(), amountUnits });
+            if (staked.status === "ok") {
+              const receipt = staked.receipts[staked.receipts.length - 1] ?? null;
+              updateMyStake({ status: "ok", amountUnits: staked.amountUnits, receipt });
+              pushReceipt(label, receipt ? { kind: "receipt", receipt } : { kind: "info", message: "staked" });
+              wallet?.refreshBalances();
+            } else {
+              failReason = staked.reason;
+            }
+          }
+          if (failReason !== null) {
+            updateMyStake({ status: "error", reason: failReason });
+            pushReceipt(label, { kind: "error", message: `stake failed · moved to open room · ${failReason}` });
+            room = await chainJoin(mode);
+            pushReceipt("Join open room", room.outcome);
+            applyRoom(room);
+          }
         }
-        if (joined.clock && Date.now() >= joined.clock.lockAt) {
+        // Only reached for the open room, or for a staked room whose stake confirmed above.
+        if (room.clock && Date.now() >= room.clock.lockAt) {
           pushReceipt("Lock hand", { kind: "error", message: "Lock window closed for this room" });
         } else {
-          pushReceipt("Lock hand", await chainLock(joined.roomId, lockedYou, digest, salt));
+          pushReceipt("Lock hand", await chainLock(room.roomId, lockedYou, digest, salt));
         }
       } else {
         pushReceipt("Lock hand", { kind: "paper" });
@@ -639,7 +786,29 @@ export function BorelTable(): React.JSX.Element {
     }
   };
 
+  const handleClaim = async (): Promise<void> => {
+    if (!roomId || claimState.status === "pending") return;
+    setClaimState({ status: "pending" });
+    const sessionPubkey = (await chainSessionSigner()).address;
+    const r = await claimStake({ roomId, sessionPubkey });
+    if (r.status === "ok") {
+      setClaimState({ status: "ok", payoutUnits: r.payoutUnits, receipt: r.receipt });
+      pushReceipt(`Claim ${formatTestUsdc(r.payoutUnits)} test-USDC`, { kind: "receipt", receipt: r.receipt });
+      setAnnouncement(`Claimed ${formatTestUsdc(r.payoutUnits)} test-USDC`);
+      wallet?.refreshBalances();
+    } else {
+      setClaimState({ status: "error", reason: r.reason });
+    }
+  };
+
   const handleNextRoom = (): void => {
+    setUnsealOpen(false);
+    setYouMove(null);
+    updateMyStake({ status: "idle" });
+    setStakeStatus(null);
+    setErNote(null);
+    setStakeNote("Waiting for settlement…");
+    setClaimState({ status: "idle" });
     setPhase("DRAFT");
     setSeats([]);
     setCommitment("");
@@ -704,10 +873,19 @@ export function BorelTable(): React.JSX.Element {
   const progressPct =
     phase === "SEALED" ? Math.min(100, Math.max(0, ((durationMs - remainingMs) / durationMs) * 100)) : phase === "SHOWDOWN" ? 100 : 0;
   const finalStretch = phase === "SEALED" && remainingMs <= 15_000;
+  const secondsLeft = Math.max(0, Math.ceil(remainingMs / 1000));
+  const critical = finalStretch && secondsLeft <= 5;
+  const clockInk = critical ? "text-[#f87171]" : finalStretch ? "text-[#fbbf24]" : "text-[#f3f4f6]";
+
+  // Screen-reader call-outs at 10 s and 5 s; the visible clock itself stays aria-live="off".
+  React.useEffect(() => {
+    if (phase !== "SEALED") return;
+    if (secondsLeft === 10 || secondsLeft === 5) setAnnouncement(`${secondsLeft} seconds to showdown`);
+  }, [phase, secondsLeft]);
 
   const header = (
     <section className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-[#0a0d14] shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]">
-      <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-4">
+      <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5">
             <h1 className="text-[26px] font-bold leading-[0.98] tracking-[-0.035em] text-[#f3f4f6]">Borel</h1>
@@ -724,67 +902,109 @@ export function BorelTable(): React.JSX.Element {
               {phase === "DRAFT" ? "Drafting" : phase === "SEALED" ? "Sealed · live" : "Showdown"}
             </span>
           </div>
-          <p className="mt-1.5 truncate font-mono text-[11px] text-[#6b7280] tabular-nums">
-            Room <span id="borel-room-code" className="text-[#d1d5db]">{roomCode}</span> · {MODE_LABEL[mode]} ·{" "}
+          <p className="mt-2 text-[14px] font-medium leading-snug tracking-[-0.01em] text-[#e5e7eb]">
+            Call 3 markets. Hide your hand. Unseal at 00:00.
+          </p>
+          <p className="mt-1 truncate font-mono text-[11px] text-[#9ca3af] tabular-nums">
+            Room <span id="borel-room-code" className="text-[#e5e7eb]">{roomCode}</span> · {MODE_LABEL[mode]} ·{" "}
             {ranked.length || PACER_PROFILES.length + 1} seats · {stake === "PAPER" ? "Paper" : "Devnet"}
           </p>
         </div>
         <div className="shrink-0 text-right">
-          <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#6b7280]">
-            {phase === "DRAFT" ? "Round" : phase === "SEALED" ? "Bell in" : "Final"}
-          </div>
           <div
+            className={cn(
+              "font-mono text-[10px] uppercase tracking-[0.14em]",
+              finalStretch ? clockInk : "text-[#9ca3af]",
+            )}
+          >
+            {phase === "DRAFT" ? "Round" : phase === "SEALED" ? (finalStretch ? "Showdown in" : "Bell in") : "Final"}
+          </div>
+          <motion.div
+            key={finalStretch ? `s-${secondsLeft}` : "steady"}
             id="borel-clock"
             role="timer"
             aria-live="off"
+            aria-label={`${formatClock(remainingMs)} remaining`}
+            initial={finalStretch && !reduceMotion ? { scale: critical ? 1.22 : 1.12 } : false}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+            style={{ transformOrigin: "100% 50%" }}
             className={cn(
               "font-mono text-[34px] font-semibold leading-none tabular-nums [font-variant-numeric:tabular-nums_slashed-zero] sm:text-[40px]",
-              finalStretch ? "text-[#fbbf24]" : "text-[#f3f4f6]",
+              clockInk,
             )}
           >
             {formatClock(remainingMs)}
-          </div>
+          </motion.div>
         </div>
       </div>
-      <div className="flex items-center gap-2 border-t border-white/[0.06] px-4 py-2.5">
-        <div className={cn("min-w-0 flex-wrap items-center gap-2", phase === "DRAFT" ? "flex" : "hidden sm:flex")}>
-        <Segmented
-          idPrefix="borel-mode"
-          options={["BLITZ_3M", "MACRO_15M"] as const}
-          labels={MODE_LABEL}
-          value={mode}
-          onChange={setMode}
-          disabled={phase !== "DRAFT"}
-        />
-        <Segmented
-          idPrefix="borel-stake"
-          options={["PAPER", "DEVNET"] as const}
-          labels={{ PAPER: "Paper", DEVNET: "Devnet" }}
-          value={stake}
-          onChange={setStake}
-          disabled={phase !== "DRAFT"}
-        />
+      <div className="flex items-center gap-2 border-t border-white/[0.06] px-4 py-2">
+        <div className={cn("min-w-0 items-center gap-2", phase === "DRAFT" ? "flex" : "hidden sm:flex")}>
+          <Segmented
+            idPrefix="borel-mode"
+            ariaLabel="Round length"
+            options={["BLITZ_3M", "MACRO_15M"] as const}
+            labels={MODE_LABEL}
+            shortLabels={{ BLITZ_3M: "3 min", MACRO_15M: "15 min" }}
+            value={mode}
+            onChange={setMode}
+            disabled={phase !== "DRAFT"}
+          />
+          <Segmented
+            idPrefix="borel-stake"
+            ariaLabel="Stakes"
+            options={["PAPER", "DEVNET"] as const}
+            labels={{ PAPER: "Paper", DEVNET: "Devnet" }}
+            value={stake}
+            onChange={setStake}
+            disabled={phase !== "DRAFT"}
+          />
         </div>
         {phase === "DRAFT" ? null : (
-          <span className="font-mono text-[11px] text-[#6b7280] sm:hidden">Settings locked until next room</span>
+          <span className="font-mono text-[11px] text-[#9ca3af] sm:hidden">Settings locked until next room</span>
         )}
         <button
           id="borel-howto-open"
           type="button"
           onClick={() => setHowToOpen(true)}
           aria-label="How to play"
-          className="ml-auto h-9 shrink-0 cursor-pointer rounded-lg border border-white/10 px-3 text-xs font-medium text-[#d1d5db] transition-colors hover:border-[#3b82f6] hover:text-[#f3f4f6]"
+          className={cn(
+            "cf-btn ml-auto inline-flex h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-white/10 px-2.5 text-xs font-medium text-[#d1d5db] hover:border-[#3b82f6] hover:text-[#f3f4f6] sm:px-3",
+            FOCUS_RING,
+          )}
         >
-          <span className="sm:hidden">Rules</span>
+          <CircleHelp className="h-4 w-4 sm:hidden" aria-hidden="true" />
           <span className="hidden sm:inline">How to play</span>
         </button>
       </div>
-      <div className="absolute inset-x-0 bottom-0 h-[2px] bg-white/[0.04]" aria-hidden="true">
+      {phase === "DRAFT" && stake === "DEVNET" ? (
+        <div className="border-t border-white/[0.06] px-4 py-2">
+          {!STAKES_ENABLED ? (
+            <StakesPausedNote />
+          ) : connectedWallet ? (
+            <StakePicker
+              value={stakeChoice}
+              onChange={setStakeChoice}
+              balanceUnits={usdcBalanceUnits}
+              onGetUsdc={openWalletPanel}
+            />
+          ) : (
+            <StakeConnectHint onConnect={openWalletPanel} />
+          )}
+        </div>
+      ) : null}
+      <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/[0.04]" aria-hidden="true">
         <motion.div
-          className={cn("h-full", finalStretch ? "bg-[#f59e0b]" : phase === "SHOWDOWN" ? "bg-[#3b82f6]" : "bg-[#34d399]")}
+          className={cn(
+            "h-full",
+            critical ? "bg-[#ef4444]" : finalStretch ? "bg-[#f59e0b]" : phase === "SHOWDOWN" ? "bg-[#3b82f6]" : "bg-[#34d399]",
+          )}
           initial={false}
-          animate={{ width: `${progressPct}%` }}
-          transition={{ duration: 0.3, ease: "linear" }}
+          animate={{ width: `${progressPct}%`, opacity: finalStretch && !reduceMotion ? [1, 0.45, 1] : 1 }}
+          transition={{
+            width: { duration: 0.3, ease: "linear" },
+            opacity: finalStretch && !reduceMotion ? { duration: 1, repeat: Infinity, ease: "easeInOut" } : { duration: 0 },
+          }}
         />
       </div>
     </section>
@@ -793,7 +1013,7 @@ export function BorelTable(): React.JSX.Element {
   const statebar = (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-white/[0.06] bg-[#0b0c0e] px-3 py-2 font-mono text-[11px] text-[#9ca3af] tabular-nums">
       <span className="inline-flex items-center gap-1.5">
-        <span className={cn("h-1.5 w-1.5 rounded-full", liveFeeds > 0 ? "bg-[#10b981]" : "bg-[#6b7280]")} />
+        <span className={cn("h-1.5 w-1.5 rounded-full", liveFeeds > 0 ? "bg-[#10b981]" : "bg-[#7d8590]")} />
         Pyth {liveFeeds}/{BOREL_MARKETS.length} live
       </span>
       <span className="hidden sm:inline">
@@ -806,9 +1026,9 @@ export function BorelTable(): React.JSX.Element {
         href={ER_ROOM_SOLSCAN}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 text-[#93c5fd] hover:underline"
+        className={cn("-my-3 inline-flex items-center gap-1 rounded py-3 text-[#93c5fd] hover:underline", FOCUS_RING)}
       >
-        Devnet · ER room program
+        Devnet · Private ER (TEE) room
         <ExternalLink className="h-2.5 w-2.5" />
       </a>
       <span id="borel-tiebreak-seed" className="hidden md:inline">
@@ -819,6 +1039,11 @@ export function BorelTable(): React.JSX.Element {
             ? "published at settle"
             : "seat-id hash (paper)"}
       </span>
+      {erNote && stake === "DEVNET" ? (
+        <span id="borel-er-note" className="text-[#d1d5db]">
+          {erNote}
+        </span>
+      ) : null}
       {unfunded ? (
         <span id="borel-unfunded-banner" className="text-[#fbbf24]">
           Devnet relayer unfunded — playing on paper
@@ -836,20 +1061,21 @@ export function BorelTable(): React.JSX.Element {
     isYou: row.seat.isYou,
     hand: row.seat.hand,
     pivot: row.seat.pivot,
+    stakeUnits: STAKES_ENABLED && row.seat.isYou && myStake.status === "ok" ? myStake.amountUnits : undefined,
   }));
 
   const lobby = (
     <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0a0d14] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
       <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
         <h2 className="text-sm font-semibold text-[#f3f4f6]">At the table</h2>
-        <span className="font-mono text-[11px] text-[#6b7280] tabular-nums">{PACER_PROFILES.length + 1} seats</span>
+        <span className="font-mono text-[11px] text-[#7d8590] tabular-nums">{PACER_PROFILES.length + 1} seats</span>
       </div>
       <ul className="divide-y divide-white/[0.05]">
         <li className="flex items-center gap-3 bg-[#0f1726] px-4 py-2.5">
           <SeatAvatar id="you" label="You" size={32} />
           <div className="min-w-0 flex-1">
             <div className="truncate font-mono text-[13px] font-semibold text-[#f3f4f6] tabular-nums">{youLabel}</div>
-            <div className="text-[11px] text-[#6b7280]">Drafting your hand</div>
+            <div className="text-[11px] text-[#7d8590]">Drafting your hand</div>
           </div>
           <span className="font-mono text-[10px] text-[#93c5fd]">YOU</span>
         </li>
@@ -858,13 +1084,13 @@ export function BorelTable(): React.JSX.Element {
             <SeatAvatar id={p.id} label={p.label} size={32} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-medium text-[#d1d5db]">{seatName(p.label)}</div>
-              <div className="truncate text-[11px] text-[#6b7280]">{p.strategy}</div>
+              <div className="truncate text-[11px] text-[#7d8590]">{p.strategy}</div>
             </div>
-            <span className="font-mono text-[10px] text-[#6b7280]">PACER</span>
+            <span className="font-mono text-[10px] text-[#7d8590]">PACER</span>
           </li>
         ))}
       </ul>
-      <p className="border-t border-white/[0.05] px-4 py-2.5 text-[11px] leading-relaxed text-[#6b7280]">
+      <p className="border-t border-white/[0.05] px-4 py-2.5 text-[11px] leading-relaxed text-[#7d8590]">
         Pacers are deterministic bots that lock their hands from the same live prices at your seal.
       </p>
     </section>
@@ -928,25 +1154,31 @@ export function BorelTable(): React.JSX.Element {
     </div>
   );
 
+  const pendingFeeds = BOREL_MARKETS.filter((m) => status[m] === undefined).length;
+  const feedNote =
+    pendingFeeds === BOREL_MARKETS.length
+      ? "Connecting to Pyth price feeds…"
+      : BOREL_MARKETS.map((m) => unavailableReason(m, status[m]))
+          .filter((r): r is string => r !== null)
+          .join(" · ") || "All five Pyth feeds live";
+
   const handCards = (
     <section aria-label="Your hand" className="space-y-2.5">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-[#f3f4f6]">
+        <h2 className="shrink-0 text-sm font-semibold text-[#f3f4f6]">
           {phase === "DRAFT" ? "Draft your hand" : phase === "SEALED" ? "Your sealed hand" : "Your hand · face-up"}
         </h2>
-        <span className="truncate font-mono text-[11px] text-[#6b7280] tabular-nums">
+        <span className="truncate font-mono text-[11px] text-[#7d8590] tabular-nums">
           {phase === "DRAFT"
             ? "3 markets · long or short · 1x 2x 3x"
             : youRow
-              ? `Total ${formatScorePctPrecise(youRow.scoreE9)} · #${youRow.rank}`
+              ? `Total ${formatScorePctPrecise(youRow.scoreE9)} · #${youRow.rank}${STAKES_ENABLED && myStake.status === "pending" ? " · staking…" : ""}`
               : ""}
         </span>
       </div>
       {phase === "DRAFT" ? (
-        <p id="borel-feed-notes" className="min-h-4 font-mono text-[11px] text-[#6b7280]">
-          {BOREL_MARKETS.map((m) => unavailableReason(m, status[m]))
-            .filter((r): r is string => r !== null)
-            .join(" · ") || "All five Pyth feeds live"}
+        <p id="borel-feed-notes" className="h-4 truncate font-mono text-[11px] leading-4 text-[#9ca3af]" title={feedNote}>
+          {feedNote}
         </p>
       ) : null}
       {legCards}
@@ -972,18 +1204,48 @@ export function BorelTable(): React.JSX.Element {
       ? `Waiting for a live ${missingPrice.market} price`
       : closedLeg
         ? `${closedLeg.market} market is closed; it will score flat until it reopens`
-        : "Hand is valid. Sealing publishes only its sha256 commitment.";
+        : "Ready. Sealing publishes only a sha256 fingerprint.";
 
-  const primaryBtn =
-    "cf-btn inline-flex h-12 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#2563eb] px-6 text-[15px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_24px_-12px_rgba(37,99,235,0.8)] hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-50";
+  const primaryBtn = cn(
+    "cf-btn inline-flex h-12 cursor-pointer items-center justify-center gap-2 rounded-lg bg-[#2563eb] px-6 text-[15px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_24px_-12px_rgba(37,99,235,0.8)] hover:bg-[#1d4ed8] disabled:cursor-not-allowed disabled:opacity-50",
+    FOCUS_RING,
+  );
+  const secondaryBtn = cn(
+    "cf-btn inline-flex h-12 cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/15 bg-[#171a20] text-[14px] font-semibold text-[#f3f4f6] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[#1d2129] disabled:cursor-not-allowed disabled:opacity-50",
+    FOCUS_RING,
+  );
 
   const actionBar = (
     <div className="fixed inset-x-0 bottom-7 z-40 border-t border-white/[0.08] bg-[rgba(10,13,20,0.94)] px-4 pb-3 pt-3 shadow-[0_-12px_32px_-12px_rgba(0,0,0,0.8)] backdrop-blur-xl lg:static lg:z-auto lg:rounded-xl lg:border lg:bg-[#0a0d14] lg:p-4 lg:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] lg:backdrop-blur-none">
       {phase === "DRAFT" ? (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <p className="font-mono text-[11px] leading-snug text-[#9ca3af]" aria-live="polite">
-            {draftMessage}
-          </p>
+          <div className="min-w-0 space-y-1.5">
+            <ul id="borel-hand-summary" aria-label="Hand you are about to seal" className="flex gap-1.5">
+              {[...draft]
+                .sort((x, y) => y.conviction - x.conviction)
+                .map((l) => (
+                  <li
+                    key={l.market}
+                    className={cn(
+                      "inline-flex h-7 items-center gap-1 rounded-md border px-1.5 font-mono text-[12px] font-semibold tabular-nums",
+                      l.conviction === 3
+                        ? "border-[#f59e0b]/50 bg-[#f59e0b]/10 text-[#fbbf24]"
+                        : "border-white/10 bg-[#0d1017] text-[#e5e7eb]",
+                    )}
+                  >
+                    <MarketMark market={l.market} size={14} />
+                    {MARKET_SHORT[l.market]}
+                    <span className={l.direction === "LONG" ? "text-[#34d399]" : "text-[#f87171]"} aria-label={l.direction}>
+                      {l.direction === "LONG" ? "▲" : "▼"}
+                    </span>
+                    {l.conviction}x
+                  </li>
+                ))}
+            </ul>
+            <p className="h-4 truncate font-mono text-[11px] leading-4 text-[#9ca3af]" aria-live="polite">
+              {draftMessage}
+            </p>
+          </div>
           <button
             id="borel-seal-btn"
             type="button"
@@ -999,18 +1261,32 @@ export function BorelTable(): React.JSX.Element {
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-[13px] font-semibold text-[#f3f4f6]">
-              Pivot <span className="font-normal text-[#6b7280]">· {you.pivot ? "spent" : "one use"}</span>
+              Pivot <span className="font-normal text-[#9ca3af]">· {you.pivot ? "spent" : "one use"}</span>
             </span>
-            {stake === "PAPER" ? (
-              <button
-                id="borel-force-showdown-btn"
-                type="button"
-                onClick={runShowdown}
-                className="cf-btn h-8 cursor-pointer rounded-md px-1 font-mono text-[11px] text-[#9ca3af] underline decoration-white/20 underline-offset-4 hover:text-[#f3f4f6]"
+            <span className="flex items-center gap-1">
+              {stake === "PAPER" ? (
+                <button
+                  id="borel-force-showdown-btn"
+                  type="button"
+                  onClick={runShowdown}
+                  className={cn(
+                    "cf-btn -my-2 h-11 cursor-pointer rounded-md px-2 font-mono text-[11px] text-[#9ca3af] underline decoration-white/20 underline-offset-4 hover:text-[#f3f4f6]",
+                    FOCUS_RING,
+                  )}
+                >
+                  Ring the bell now
+                </button>
+              ) : null}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "min-w-[52px] text-right font-mono text-[17px] font-semibold tabular-nums lg:hidden",
+                  clockInk,
+                )}
               >
-                Ring the bell now
-              </button>
-            ) : null}
+                {formatClock(remainingMs)}
+              </span>
+            </span>
           </div>
           {you.pivot ? (
             <p id="borel-pivot-spent" className="font-mono text-xs text-[#9ca3af] tabular-nums">
@@ -1029,6 +1305,7 @@ export function BorelTable(): React.JSX.Element {
                     onClick={() => setPivotLeg(i)}
                     className={cn(
                       "cf-btn flex h-11 cursor-pointer items-center justify-center gap-1.5 rounded-lg border font-mono text-[12px] tabular-nums",
+                      FOCUS_RING,
                       pivotLeg === i
                         ? "border-[#3b82f6] bg-[#2563eb]/15 text-[#f3f4f6]"
                         : "border-white/[0.08] bg-[#0d1017] text-[#9ca3af] hover:border-white/20",
@@ -1045,7 +1322,7 @@ export function BorelTable(): React.JSX.Element {
                   type="button"
                   onClick={() => handlePivot("FLIP")}
                   disabled={pivotLocked}
-                  className="cf-btn inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/15 bg-[#171a20] text-[13px] font-semibold text-[#f3f4f6] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[#1d2129] disabled:cursor-not-allowed disabled:opacity-50"
+                  className={secondaryBtn}
                 >
                   <Repeat2 className="h-4 w-4" />
                   Flip
@@ -1055,13 +1332,13 @@ export function BorelTable(): React.JSX.Element {
                   type="button"
                   onClick={() => handlePivot("SHIELD")}
                   disabled={pivotLocked}
-                  className="cf-btn inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-white/15 bg-[#171a20] text-[13px] font-semibold text-[#f3f4f6] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:bg-[#1d2129] disabled:cursor-not-allowed disabled:opacity-50"
+                  className={secondaryBtn}
                 >
                   <Shield className="h-4 w-4" />
                   Shield
                 </button>
               </div>
-              <p className="mt-2 hidden text-[11px] leading-relaxed text-[#6b7280] lg:block">
+              <p className="mt-2 hidden text-[11px] leading-relaxed text-[#7d8590] lg:block">
                 {serverClock && nowMs < lockAtMs
                   ? `Devnet room starts in ${Math.ceil((lockAtMs - nowMs) / 1000)}s — pivots open at the lock.`
                   : "Flip banks the move so far and reverses the leg. Shield banks it and parks the leg in cash."}
@@ -1072,7 +1349,7 @@ export function BorelTable(): React.JSX.Element {
       ) : phase === "SHOWDOWN" && youRow ? (
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 font-mono tabular-nums">
-            <div className="text-[11px] text-[#6b7280]">Final</div>
+            <div className="text-[11px] text-[#7d8590]">Final</div>
             <div className="text-[15px] font-semibold text-[#f3f4f6]">
               #{youRow.rank} of {ranked.length}{" "}
               <span className={scoreTone(youRow.scoreE9)}>{formatScorePctPrecise(youRow.scoreE9)}</span>
@@ -1098,43 +1375,44 @@ export function BorelTable(): React.JSX.Element {
       </section>
     ) : null;
 
-  const won = youRow ? youRow.rank <= 3 : false;
+  const tier = youRow ? outcomeTier(youRow.rank, ranked.length) : null;
   const showdown =
-    phase === "SHOWDOWN" && youRow ? (
+    phase === "SHOWDOWN" && youRow && tier ? (
       <motion.section
         id="borel-showdown"
-        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-        className={cn(
-          "relative overflow-hidden rounded-xl border bg-[#0a0d14] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]",
-          won ? "border-[#f59e0b]/40" : "border-[#3b82f6]/35",
-        )}
+        className="relative overflow-hidden rounded-xl border bg-[#0a0d14] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+        style={{ borderColor: `${tier.ring}66` }}
       >
+        <span className="absolute inset-x-0 top-0 h-[3px]" style={{ background: tier.ring }} aria-hidden="true" />
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#9ca3af]">Showdown · 00:00</div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#9ca3af]">Showdown · 00:00</span>
+              <span
+                className="rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.1em]"
+                style={{ color: tier.ink, borderColor: tier.ring }}
+              >
+                {tier.label}
+              </span>
+            </div>
             <div className="mt-2 flex items-baseline gap-3">
               <span
-                className={cn(
-                  "font-mono text-[56px] font-semibold leading-[0.9] tracking-[-0.04em] tabular-nums",
-                  youRow.rank === 1 ? "text-[#fbbf24]" : "text-[#f3f4f6]",
-                )}
+                className="font-mono text-[56px] font-semibold leading-[0.9] tracking-[-0.04em] tabular-nums"
+                style={{ color: tier.ink }}
               >
                 #{youRow.rank}
               </span>
               <span className="text-sm text-[#9ca3af]">of {ranked.length} seats</span>
             </div>
-            <p className="mt-2 text-[13px] text-[#d1d5db]">
-              {youRow.rank === 1
-                ? "You took the table. Every hand is face-up and final prices are frozen at the bell."
-                : won
-                  ? "Podium finish. Every hand is face-up and final prices are frozen at the bell."
-                  : "Every hand is face-up. Final prices are frozen at the bell."}
+            <p className="mt-2 text-[14px] text-[#d1d5db]">
+              {tier.copy} You beat {ranked.length - youRow.rank} of {ranked.length - 1} rivals. Final prices are frozen at the bell.
             </p>
           </div>
           <div className="sm:text-right">
-            <div className="font-mono text-[11px] text-[#6b7280]">Hand score</div>
+            <div className="font-mono text-[11px] text-[#9ca3af]">Hand score</div>
             <div className={cn("font-mono text-[28px] font-semibold leading-none tabular-nums", scoreTone(youRow.scoreE9))}>
               {formatScorePctPrecise(youRow.scoreE9)}
             </div>
@@ -1158,6 +1436,21 @@ export function BorelTable(): React.JSX.Element {
         playerLabel={connectedWallet ? youLabel : undefined}
         explorerUrl={settleReceipt?.outcome.kind === "receipt" ? settleReceipt.outcome.receipt.explorerUrl : undefined}
         signature={settleReceipt?.outcome.kind === "receipt" ? settleReceipt.outcome.receipt.signature : undefined}
+        stake={
+          STAKES_ENABLED && myStake.status === "ok"
+            ? {
+                stakeUnits: myStake.amountUnits,
+                payoutUnits:
+                  claimState.status === "ok"
+                    ? claimState.payoutUnits
+                    : stakeStatus?.settled
+                      ? stakeStatus.payoutUnits
+                      : null,
+                feeBps: stakeStatus?.vault?.feeBps ?? null,
+                poolUnits: stakeStatus?.vault?.poolUnits ?? null,
+              }
+            : undefined
+        }
       />
     ) : null;
 
@@ -1170,6 +1463,7 @@ export function BorelTable(): React.JSX.Element {
         rankAtSeal={rankAtSeal}
         revealed={revealedAll}
         phaseNote={revealedAll ? "Final · all hands face-up" : "Hands sealed until 00:00"}
+        youMove={revealedAll ? null : youMove}
       />
       {matrix}
     </div>
@@ -1178,6 +1472,40 @@ export function BorelTable(): React.JSX.Element {
   return (
     <div className={cn("space-y-3", phase === "SEALED" ? "pb-44 lg:pb-0" : "pb-28 lg:pb-0")}>
       <HowToPlay open={howToOpen} onClose={closeHowTo} />
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
+      <AnimatePresence>
+        {sealStamp ? (
+          <motion.div
+            key="seal-stamp"
+            id="borel-seal-stamp"
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-x-0 top-[38%] z-50 flex justify-center px-4"
+            initial={reduceMotion ? false : { opacity: 0, scale: 1.25, rotate: -6 }}
+            animate={{ opacity: 1, scale: 1, rotate: -2 }}
+            exit={reduceMotion ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, scale: 0.96, transition: { duration: 0.3 } }}
+            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 22 }}
+          >
+            <div className="flex items-center gap-3 rounded-xl border-2 border-[#f59e0b] bg-[#14100a]/95 px-5 py-3 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.9)]">
+              <Lock className="h-6 w-6 text-[#fbbf24]" />
+              <div>
+                <div className="text-[22px] font-bold uppercase leading-none tracking-[0.08em] text-[#fbbf24]">Sealed</div>
+                <div className="mt-1 font-mono text-[11px] text-[#d6b77a] tabular-nums">sha256 {shortHash(sealStamp, 8, 6)}</div>
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      {unsealOpen && phase === "SHOWDOWN" && youRow ? (
+        <UnsealMoment
+          rank={youRow.rank}
+          totalSeats={ranked.length}
+          scoreE9={youRow.scoreE9}
+          legs={receiptLegs}
+          onClose={closeUnseal}
+        />
+      ) : null}
       {header}
       <PhaseGuide phase={phase} />
       {statebar}
@@ -1198,6 +1526,15 @@ export function BorelTable(): React.JSX.Element {
               {handCards}
               {actionBar}
               {commitmentStrip}
+              {STAKES_ENABLED && phase === "SHOWDOWN" && myStake.status === "ok" ? (
+                <StakePayoutPanel
+                  myStake={myStake}
+                  status={stakeStatus}
+                  statusNote={stakeNote}
+                  claimState={claimState}
+                  onClaim={() => void handleClaim()}
+                />
+              ) : null}
               {receiptBlock}
               {receiptsPanel}
             </div>

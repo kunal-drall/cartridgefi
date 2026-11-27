@@ -329,31 +329,43 @@ async function fetchHermesWithPushFallback(
   return out;
 }
 
-/** Shared in-process cache so many SSE clients and scoring routes cost one upstream read. */
+/**
+ * Shared in-process quote cache: ONE entry holding every market, fetched single-flight and sliced per
+ * request, so upstream reads stay at most one per (latency + QUOTE_CACHE_MS) per instance no matter how
+ * many SSE clients, REST pollers, scoring routes or market subsets are active.
+ */
 const QUOTE_CACHE_MS = 900;
-const quoteCache = new Map<
-  string,
-  { expiresAt: number; promise: Promise<Partial<Record<BorelMarket, PythQuote>>> }
->();
+const ALL_MARKETS = Object.keys(PYTH_FEEDS) as BorelMarket[];
+let quoteCache: {
+  promise: Promise<Partial<Record<BorelMarket, PythQuote>>>;
+  /** Null while the upstream read is in flight; the entry is reused until it settles + QUOTE_CACHE_MS. */
+  settledAt: number | null;
+} | null = null;
 
 function serverTransport(): PythTransport {
   return typeof process !== "undefined" && process.env.PYTH_API_KEY ? "hermes" : "solana-push-feed";
 }
 
-async function cachedQuotes(
-  markets: readonly BorelMarket[],
-): Promise<Partial<Record<BorelMarket, PythQuote>>> {
-  const key = [...markets].sort().join(",");
-  const hit = quoteCache.get(key);
+async function cachedQuotes(): Promise<Partial<Record<BorelMarket, PythQuote>>> {
   const now = Date.now();
-  if (hit && hit.expiresAt > now) return hit.promise;
+  if (quoteCache && (quoteCache.settledAt === null || now - quoteCache.settledAt < QUOTE_CACHE_MS)) {
+    return quoteCache.promise;
+  }
   const apiKey = process.env.PYTH_API_KEY;
   const rpcUrl = process.env.PYTH_SOLANA_RPC_URL ?? DEFAULT_MAINNET_RPC;
-  const promise = (
-    apiKey ? fetchHermesWithPushFallback(markets, apiKey, rpcUrl) : fetchPushFeedQuotes(markets, rpcUrl)
-  ).catch(() => ({}));
-  quoteCache.set(key, { expiresAt: now + QUOTE_CACHE_MS, promise });
-  return promise;
+  const entry: NonNullable<typeof quoteCache> = {
+    promise: (apiKey
+      ? fetchHermesWithPushFallback(ALL_MARKETS, apiKey, rpcUrl)
+      : fetchPushFeedQuotes(ALL_MARKETS, rpcUrl)
+    )
+      .catch(() => ({}) as Partial<Record<BorelMarket, PythQuote>>)
+      .finally(() => {
+        entry.settledAt = Date.now();
+      }),
+    settledAt: null,
+  };
+  quoteCache = entry;
+  return entry.promise;
 }
 
 /**
@@ -364,7 +376,7 @@ export async function fetchLatestPricesE9(
   markets: readonly BorelMarket[],
 ): Promise<LatestPricesResult> {
   const transport = serverTransport();
-  const quotes = await cachedQuotes(markets);
+  const quotes = await cachedQuotes();
   const now = Date.now();
   const result: LatestPricesResult = { pricesE9: {}, status: {}, publishTimeMs: {}, transport };
   for (const market of markets) {
@@ -537,19 +549,31 @@ export function usePythPrices(markets: readonly BorelMarket[]): PythPricesState 
       }, 2_000);
     };
 
+    // The server ends each stream after ~50 s (serverless maxDuration); a stream that lived at least
+    // MIN_HEALTHY_STREAM_MS reconnects, a stream that keeps dying fast falls back to REST polling.
+    const MIN_HEALTHY_STREAM_MS = 10_000;
+    let fastEnds = 0;
+    let reconnectId: number | null = null;
     const startStream = async (): Promise<void> => {
+      reconnectId = null;
+      const openedAt = Date.now();
       try {
         const res = await fetch(`/api/pyth/stream?${query}`, {
           signal: abort.signal,
           cache: "no-store",
           headers: { Accept: "text/event-stream" },
         });
-        if (res.status !== 200 || !res.body) {
+        // Over the stream limit the server answers 200 + `x-borel-stream: fallback` instead of a 429.
+        if (res.status !== 200 || !res.body || res.headers.get("x-borel-stream") === "fallback") {
+          void res.body?.cancel();
           startPolling();
           return;
         }
         await readSse(res.body, ingest);
-        if (!disposed) startPolling();
+        if (disposed) return;
+        fastEnds = Date.now() - openedAt < MIN_HEALTHY_STREAM_MS ? fastEnds + 1 : 0;
+        if (fastEnds >= 3) startPolling();
+        else reconnectId = window.setTimeout(() => void startStream(), 500);
       } catch {
         if (!disposed) startPolling();
       }
@@ -563,6 +587,7 @@ export function usePythPrices(markets: readonly BorelMarket[]): PythPricesState 
       disposed = true;
       abort.abort();
       window.clearInterval(statusId);
+      if (reconnectId !== null) window.clearTimeout(reconnectId);
       if (pollId !== null) window.clearInterval(pollId);
       if (rafId !== null) window.cancelAnimationFrame(rafId);
     };

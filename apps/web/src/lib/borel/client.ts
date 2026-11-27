@@ -27,13 +27,17 @@ export interface BorelRoomSnapshot {
   readonly roomId: string;
   readonly mode: RoomMode;
   readonly stake: StakeMode;
-  /** Honest stake label: rooms are fee-free / paper-staked on-chain (no SPL stake). */
+  /** Human-readable stake label for the room (open rooms are unstaked; `-S` rooms take test-USDC stakes). */
   readonly stakeLabel: string;
+  /** True for staked rooms (id ending in `-S`), where wallets stake test-USDC through cartridge_vault_router. */
+  readonly staked?: boolean;
+  /** Join-time status from the server, e.g. a deferred MagicBlock ER join in staked rooms. */
+  readonly erNote?: string;
   readonly phase: RoomPhase;
   readonly startsAt: number;
   readonly lockAt: number;
   readonly endsAt: number;
-  /** 32-byte tie-break seed (hex); "" until settle. Derived from a Devnet blockhash, not MagicBlock VRF. */
+  /** 32-byte tie-break seed (hex); "" until settle. `seedSource` says where it came from (MagicBlock VRF on DEVNET rooms). */
   readonly vrfSeed: string;
   readonly seedSource: string | null;
   readonly roomShard: string;
@@ -165,6 +169,8 @@ export async function joinRoom(args: {
   mode: RoomMode;
   stake: StakeMode;
   sessionPubkey: string;
+  /** DEVNET only: join the staked variant of the room (`…-S`), where only stakers are counted on-chain. */
+  staked?: boolean;
 }): Promise<BorelResult<BorelRoomSnapshot>> {
   const body = await post("/api/borel/join", args);
   return body.status === "ok" ? reviveSnapshot(body) : settleFailure(body);
@@ -174,12 +180,12 @@ export async function joinRoom(args: {
 export async function getRoom(roomId: string, signer?: KeyPairSigner): Promise<BorelResult<BorelRoomSnapshot>> {
   const qs = new URLSearchParams({ roomId });
   const auth = signer ? await signAuth(signer, "room", roomId, {}) : null;
-  if (signer && auth) {
-    qs.set("sessionPubkey", signer.address);
-    qs.set("expiresAt", String(auth.expiresAt));
-    qs.set("signature", auth.signature);
-  }
-  const body = await call(`/api/borel/room?${qs.toString()}`);
+  // The session signature goes in headers, never the URL (kept out of server logs and history).
+  const headers: Record<string, string> =
+    signer && auth
+      ? { "x-borel-session": signer.address, "x-borel-expires-at": String(auth.expiresAt), "x-borel-signature": auth.signature }
+      : {};
+  const body = await call(`/api/borel/room?${qs.toString()}`, { headers });
   return body.status === "ok" ? reviveSnapshot(body) : settleFailure(body);
 }
 

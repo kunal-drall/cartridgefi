@@ -5,7 +5,7 @@ import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import type { LockedHand, PivotAction } from "@/lib/borel/types";
 import { TokenIcon } from "@/components/TokenIcon";
 import { cn } from "@/lib/utils";
-import { MARKET_SHORT, formatScorePctPrecise } from "./format";
+import { MARKET_SHORT, displaySign, formatScorePctPrecise, formatTestUsdcCompact, scoreToneClass } from "./format";
 
 /** Seat identity tones: restrained, distinct, and never neon. */
 const SEAT_TONES: Readonly<Record<string, { ring: string; fill: string; text: string }>> = {
@@ -22,6 +22,7 @@ const FALLBACK_TONE = { ring: "#4b5563", fill: "#15181f", text: "#d1d5db" };
 const TOKEN_FOR_SHORT: Readonly<Record<string, string>> = {
   SOL: "SOL",
   BTC: "BTC",
+  ETH: "ETH",
   NVDAx: "NVDAX",
   SPY: "SPYX",
 };
@@ -92,7 +93,8 @@ export function Sparkline({
   className?: string;
 }): React.JSX.Element {
   const last = points.length > 0 ? points[points.length - 1]! : 0n;
-  const stroke = last > 0n ? "#34d399" : last < 0n ? "#f87171" : "#6b7280";
+  const lastSign = displaySign(last);
+  const stroke = lastSign > 0 ? "#34d399" : lastSign < 0 ? "#f87171" : "#7d8590";
   if (points.length < 2) {
     return (
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={className} aria-hidden="true">
@@ -185,6 +187,15 @@ export interface LadderRow {
   isYou: boolean;
   hand: LockedHand;
   pivot?: PivotAction;
+  /** Your real test-USDC stake in this room (base units, 6 decimals), when one confirmed. */
+  stakeUnits?: bigint;
+}
+
+/** Your latest rank move while sealed; `key` changes on every move so the row flash replays. */
+export interface RankMove {
+  readonly key: number;
+  readonly direction: "up" | "down";
+  readonly rank: number;
 }
 
 export function LiveLadder({
@@ -193,12 +204,14 @@ export function LiveLadder({
   rankAtSeal,
   revealed,
   phaseNote,
+  youMove,
 }: {
   rows: readonly LadderRow[];
   history: Readonly<Record<string, readonly bigint[]>>;
   rankAtSeal: Readonly<Record<string, number>>;
   revealed: boolean;
   phaseNote: string;
+  youMove?: RankMove | null;
 }): React.JSX.Element {
   const reduce = useReducedMotion();
   const sorted = [...rows].sort((a, b) => a.rank - b.rank);
@@ -221,7 +234,7 @@ export function LiveLadder({
             </span>
           )}
         </div>
-        <span className="truncate font-mono text-[11px] text-[#6b7280]">{phaseNote}</span>
+        <span className="truncate font-mono text-[11px] text-[#7d8590]">{phaseNote}</span>
       </div>
       <LayoutGroup>
         <ol className="divide-y divide-white/[0.05]">
@@ -242,6 +255,19 @@ export function LiveLadder({
                 )}
               >
                 {row.isYou ? <span className="absolute inset-y-0 left-0 w-[3px] bg-[#3b82f6]" aria-hidden="true" /> : null}
+                {row.isYou && youMove && !reduce ? (
+                  <motion.span
+                    key={youMove.key}
+                    aria-hidden="true"
+                    className={cn(
+                      "pointer-events-none absolute inset-0",
+                      youMove.direction === "up" ? "bg-[#10b981]" : "bg-[#ef4444]",
+                    )}
+                    initial={{ opacity: 0.22 }}
+                    animate={{ opacity: 0 }}
+                    transition={{ duration: 0.9, ease: [0.23, 1, 0.32, 1] }}
+                  />
+                ) : null}
                 <span
                   className={cn(
                     "w-6 shrink-0 text-center font-mono text-base font-semibold tabular-nums sm:w-7",
@@ -255,14 +281,25 @@ export function LiveLadder({
                   <div className={cn("truncate text-[13px]", row.isYou ? "font-semibold text-[#f3f4f6]" : "font-medium text-[#d1d5db]")}>
                     {name}
                   </div>
-                  <div className="truncate text-[11px] text-[#6b7280]">
-                    {row.isYou
-                      ? revealed
-                        ? "Your hand"
-                        : "Your sealed hand"
-                      : revealed
-                        ? row.strategy
-                        : "Pacer · hand sealed"}
+                  <div className="flex min-w-0 items-center gap-1 text-[11px] text-[#7d8590]">
+                    {row.stakeUnits !== undefined ? (
+                      <span
+                        id="borel-ladder-stake"
+                        className="shrink-0 rounded border border-[#f59e0b]/45 bg-[#f59e0b]/10 px-1 font-mono text-[10px] font-semibold leading-4 text-[#fbbf24] tabular-nums"
+                        title="Your test-USDC stake in this room"
+                      >
+                        {formatTestUsdcCompact(row.stakeUnits)} USDC
+                      </span>
+                    ) : null}
+                    <span className="truncate">
+                      {row.isYou
+                        ? revealed
+                          ? "Your hand"
+                          : "Your sealed hand"
+                        : revealed
+                          ? row.strategy
+                          : "Pacer · hand sealed"}
+                    </span>
                   </div>
                 </div>
                 <Sparkline points={history[row.id] ?? []} className="hidden shrink-0 sm:block" />
@@ -275,7 +312,7 @@ export function LiveLadder({
                   <div
                     className={cn(
                       "font-mono text-[13px] font-semibold tabular-nums [font-variant-numeric:tabular-nums_slashed-zero]",
-                      row.scoreE9 > 0n ? "text-[#34d399]" : row.scoreE9 < 0n ? "text-[#f87171]" : "text-[#d1d5db]",
+                      scoreToneClass(row.scoreE9),
                     )}
                   >
                     {formatScorePctPrecise(row.scoreE9)}
@@ -283,7 +320,7 @@ export function LiveLadder({
                   <div
                     className={cn(
                       "font-mono text-[10px] tabular-nums",
-                      moved > 0 ? "text-[#34d399]" : moved < 0 ? "text-[#f87171]" : "text-[#6b7280]",
+                      moved > 0 ? "text-[#34d399]" : moved < 0 ? "text-[#f87171]" : "text-[#7d8590]",
                     )}
                   >
                     {moved > 0 ? `▲ ${moved}` : moved < 0 ? `▼ ${-moved}` : "—"} from #{start}

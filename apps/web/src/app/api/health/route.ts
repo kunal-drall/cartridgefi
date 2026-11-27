@@ -4,12 +4,12 @@ import {
   CARTRIDGE_PROGRAM_IDS,
   MAGICBLOCK_CONSTANTS,
 } from "@cartridgefi/shared-types";
+import { DEVNET_RPC_PRIMARY } from "@/lib/devnet-rpc";
 
 const CONFIGURED_CORE_API =
   process.env.CARTRIDGEFI_API_URL ?? process.env.NEXT_PUBLIC_CORE_API_URL;
 const CORE_API_URL = CONFIGURED_CORE_API ?? "http://127.0.0.1:8787";
-const DEVNET_RPC_URL =
-  process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? "https://api.devnet.solana.com";
+const DEVNET_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? DEVNET_RPC_PRIMARY;
 
 export async function GET(): Promise<NextResponse> {
   // When running on Cloud Run (`K_SERVICE`) or Vercel (`VERCEL=1`) without an external

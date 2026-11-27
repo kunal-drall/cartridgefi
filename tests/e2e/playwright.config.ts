@@ -14,7 +14,7 @@ export default defineConfig({
     trace: "off",
     headless: true,
     launchOptions: {
-      args: ["--disable-dev-shm-usage"],
+      args: ["--no-sandbox", "--disable-dev-shm-usage"],
     },
   },
   projects: [

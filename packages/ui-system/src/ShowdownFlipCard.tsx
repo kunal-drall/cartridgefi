@@ -25,12 +25,11 @@ export interface ShowdownFlipCardProps {
   className?: string;
 }
 
-const CIPHER_WIDTHS = ["w-4/5", "w-3/5", "w-2/3"] as const;
+const CIPHER_WIDTHS = ["w-3/4", "w-1/2", "w-2/3"] as const;
 
 /**
- * GPU-composited 380ms 3D spring flip card (`cubic-bezier(0.22, 1, 0.36, 1)`)
- * transitioning from MagicBlock Private ER TEE Fog-of-War (`ACLseoPoyC...`)
- * to the T - 15s Showdown unsealed conviction vector.
+ * Cryptographic TEE Commitment Seal-to-Unseal Order Card (`data-unsealed="true" | "false"`).
+ * Zero purple glow; clean matte carbon surfaces with hardware-attested commitment digest.
  */
 export function ShowdownFlipCard({
   id,
@@ -52,148 +51,126 @@ export function ShowdownFlipCard({
         data-unsealed={unsealed ? "true" : "false"}
         className="cf-flip-inner grid w-full grid-cols-1"
       >
-        {/* FRONT FACE: Private ER TEE Encrypted Fog-of-War */}
+        {/* FRONT FACE: Sealed TEE Commitment */}
         <div
           style={{ gridArea: "1 / 1" }}
           aria-hidden={unsealed}
-          className="cf-flip-face flex flex-col justify-between rounded-2xl border border-[#8B5CF6]/35 bg-[#0C0F19]/95 p-4 shadow-[inset_0_1px_0_0_rgba(139,92,246,0.28),0_18px_40px_-14px_rgba(0,0,0,0.75)]"
+          className="cf-flip-face flex flex-col justify-between rounded-lg border border-[#22262e] bg-[#111317] p-3.5"
         >
           <div>
             <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#8B5CF6]/40 bg-[#8B5CF6]/15 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-[#C4B5FD]">
-                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                  <rect
-                    x="2"
-                    y="5.2"
-                    width="8"
-                    height="5.5"
-                    rx="1.2"
-                    stroke="currentColor"
-                    strokeWidth="1.25"
-                  />
-                  <path
-                    d="M3.75 5.2V3.7C3.75 2.46 4.76 1.45 6 1.45C7.24 1.45 8.25 2.46 8.25 3.7V5.2"
-                    stroke="currentColor"
-                    strokeWidth="1.25"
-                  />
-                </svg>
-                TEE FOG · {teeProgramShort}
+              <span className="inline-flex items-center gap-1.5 rounded border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-2 py-0.5 font-mono text-[10px] font-medium text-[#fbbf24]">
+                SEALED ({teeProgramShort})
               </span>
-              <span className="font-mono text-xs font-semibold text-slate-200 tabular-nums">
-                #{rank} · {publicDeltaBpsFormatted}
+              <span className="font-mono text-xs font-medium text-[#d1d5db] tabular-nums">
+                Rank #{rank} ({publicDeltaBpsFormatted})
               </span>
             </div>
 
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <span translate="no" className="font-display text-sm font-bold text-slate-100">
+            <div className="mt-2.5 flex items-center justify-between gap-2">
+              <span translate="no" className="text-xs font-semibold text-[#f3f4f6]">
                 {playerHandle}
               </span>
-              <span className="font-mono text-[11px] text-slate-400 tabular-nums">
+              <span className="font-mono text-[11px] text-[#6b7280] tabular-nums">
                 {cipherDigest}
               </span>
             </div>
 
-            {/* Redacted TEE Cipher Allocation Bars */}
-            <div className="mt-3 space-y-2 rounded-xl border border-white/[0.06] bg-[#050609]/90 p-3">
+            <div className="mt-2.5 space-y-1.5 rounded border border-[#22262e] bg-[#0b0c0e] p-2.5">
               {CIPHER_WIDTHS.map((widthClass, idx) => (
                 <div key={idx} className="flex items-center justify-between gap-3">
-                  <span className="font-mono text-[10px] text-slate-500 select-none">
-                    LEG_0{idx + 1}
+                  <span className="font-mono text-[10px] text-[#6b7280] select-none">
+                    Leg 0{idx + 1}
                   </span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
-                    <div
-                      className={`h-full ${widthClass} rounded-full bg-[#8B5CF6]/35`}
-                    />
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-sm bg-[#171a20]">
+                    <div className={`h-full ${widthClass} bg-[#303642]`} />
                   </div>
-                  <span className="font-mono text-[10px] text-[#C4B5FD]/80 select-none">
-                    SEALED
+                  <span className="font-mono text-[10px] text-[#9ca3af] select-none">
+                    ENCRYPTED
                   </span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-2 pt-1 text-[11px] text-slate-400">
-            <span>Zero copy-trade weight leakage</span>
+          <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-[#6b7280]">
+            <span>Weights hidden in Intel TDX enclave</span>
             {onToggleUnseal ? (
               <button
                 id={`${id}-unseal-btn`}
                 type="button"
                 onClick={onToggleUnseal}
-                className="cursor-pointer rounded-lg border border-[#FFB020]/35 bg-[#FFB020]/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-[#FFB020] transition-colors hover:bg-[#FFB020]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB020]"
+                className="cf-btn cursor-pointer rounded border border-[#303642] bg-[#171a20] px-2 py-0.5 font-mono text-[10px] font-medium text-[#e5e7eb] hover:bg-[#1d2129] active:scale-[0.97]"
               >
                 Unseal T-15s
               </button>
             ) : (
-              <span className="font-mono text-[10px] text-[#FFB020] tabular-nums">
-                Unseals T - 15s
+              <span className="font-mono text-[10px] text-[#9ca3af] tabular-nums">
+                Unseals T-15s
               </span>
             )}
           </div>
         </div>
 
-        {/* BACK FACE: T - 15s Unsealed Showdown Conviction Vector */}
+        {/* BACK FACE: Unsealed Conviction Weights */}
         <div
           style={{ gridArea: "1 / 1" }}
           aria-hidden={!unsealed}
-          className="cf-flip-back flex flex-col justify-between rounded-2xl border border-[#00F59B]/40 bg-[#0B1218]/95 p-4 shadow-[inset_0_1px_0_0_rgba(0,245,155,0.28),0_18px_40px_-14px_rgba(0,0,0,0.75)]"
+          className="cf-flip-back flex flex-col justify-between rounded-lg border border-[#303642] bg-[#111317] p-3.5"
         >
           <div>
             <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#FFB020]/45 bg-[#FFB020]/15 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-[#FCD34D]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#FFB020]" aria-hidden="true" />
-                SHOWDOWN UNSEALED
+              <span className="inline-flex items-center gap-1.5 rounded border border-[#10b981]/30 bg-[#10b981]/10 px-2 py-0.5 font-mono text-[10px] font-medium text-[#34d399]">
+                UNSEALED AT T-15S
               </span>
-              <span className="font-mono text-xs font-bold text-[#00F59B] tabular-nums">
-                #{rank} · {finalScoreFormatted}
+              <span className="font-mono text-xs font-semibold text-[#34d399] tabular-nums">
+                Rank #{rank} ({finalScoreFormatted})
               </span>
             </div>
 
-            <div className="mt-3 flex items-center justify-between gap-2">
-              <span translate="no" className="font-display text-sm font-bold text-white">
+            <div className="mt-2.5 flex items-center justify-between gap-2">
+              <span translate="no" className="text-xs font-semibold text-[#f3f4f6]">
                 {playerHandle}
               </span>
               <span
                 translate="no"
-                className="inline-flex items-center gap-1 rounded border border-[#00F59B]/25 bg-[#00F59B]/10 px-1.5 py-0.5 font-mono text-[10px] text-[#00F59B]"
+                className="rounded border border-[#22262e] bg-[#0b0c0e] px-1.5 py-0.5 font-mono text-[10px] text-[#9ca3af]"
               >
                 VRF {vrfProofShort}
               </span>
             </div>
 
-            {/* Revealed Conviction Weights */}
-            <div className="mt-3 space-y-2 rounded-xl border border-white/[0.08] bg-[#050609]/90 p-3">
+            <div className="mt-2.5 space-y-1.5 rounded border border-[#22262e] bg-[#0b0c0e] p-2.5">
               {allocations.map((leg) => {
-                const barColor =
-                  leg.tone === "amber"
-                    ? "bg-[#FFB020]"
-                    : leg.tone === "cyan"
-                      ? "bg-[#00D4FF]"
-                      : "bg-[#00F59B]";
-                const textColor =
-                  leg.tone === "amber"
-                    ? "text-[#FCD34D]"
-                    : leg.tone === "cyan"
-                      ? "text-[#67E8F9]"
-                      : "text-[#00F59B]";
+                const isShort = leg.label.trim().startsWith("-");
+                const barColor = isShort
+                  ? "bg-[#ef4444]"
+                  : leg.tone === "amber"
+                    ? "bg-[#f59e0b]"
+                    : "bg-[#10b981]";
+                const textColor = isShort
+                  ? "text-[#f87171]"
+                  : leg.tone === "amber"
+                    ? "text-[#fbbf24]"
+                    : "text-[#34d399]";
 
                 return (
                   <div key={leg.symbol} className="flex items-center justify-between gap-2.5">
                     <span
                       translate="no"
-                      className="w-20 truncate font-mono text-[11px] font-medium text-slate-200"
+                      className="w-20 truncate font-mono text-[11px] font-medium text-[#d1d5db]"
                     >
                       {leg.symbol}
                     </span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.07]">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-sm bg-[#171a20]">
                       <div
                         style={{ width: `${Math.max(8, Math.min(100, leg.barWidthPct))}%` }}
-                        className={`h-full rounded-full ${barColor}`}
+                        className={`h-full ${barColor}`}
                       />
                     </div>
                     <span
                       translate="no"
-                      className={`w-20 text-right font-mono text-[11px] font-semibold tabular-nums ${textColor}`}
+                      className={`w-20 text-right font-mono text-[11px] font-medium tabular-nums ${textColor}`}
                     >
                       {leg.label}
                     </span>
@@ -203,18 +180,16 @@ export function ShowdownFlipCard({
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-2 pt-1 text-[11px] text-slate-300">
-            <span className="font-mono text-[10px] text-slate-400">
-              Committed to Solana L1 via Magic Actions
-            </span>
+          <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px] text-[#6b7280]">
+            <span className="font-mono text-[10px]">Settled on Solana Devnet L1</span>
             {onToggleUnseal ? (
               <button
                 id={`${id}-reseal-btn`}
                 type="button"
                 onClick={onToggleUnseal}
-                className="cursor-pointer rounded-lg border border-white/15 bg-white/[0.05] px-2 py-0.5 font-mono text-[10px] font-medium text-slate-200 transition-colors hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B]"
+                className="cf-btn cursor-pointer rounded border border-[#303642] bg-[#171a20] px-2 py-0.5 font-mono text-[10px] font-medium text-[#d1d5db] hover:bg-[#1d2129] active:scale-[0.97]"
               >
-                Re-seal Fog
+                Seal view
               </button>
             ) : null}
           </div>

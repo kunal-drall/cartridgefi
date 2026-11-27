@@ -1,65 +1,44 @@
 "use client";
 
 import * as React from "react";
-import {
-  CARTRIDGE_DEVNET_AUTHORITIES,
-  CARTRIDGE_PROGRAM_IDS,
-  MAGICBLOCK_CONSTANTS,
-  SOLANA_CANONICAL_MINTS,
-  SUPPORTED_DEPOSIT_CHAINS,
-  type SupportedDepositChain,
-} from "@cartridgefi/shared-types";
-import { ActionButton, GlassCard, GlassPill, LivePulseDot } from "@cartridgefi/ui-system";
+import { Copy, ExternalLink, KeyRound, RefreshCw, Wallet, X } from "lucide-react";
+import devnetProof from "@/data/devnet-proof.json";
 import {
   formatAtomicUsdc,
   formatEloInteger,
   formatShareUnits6,
+  formatSolLamports,
   useConsoleVault,
-  type ConsoleAuthMethod,
 } from "./ConsoleVaultContext";
+import { toast } from "sonner";
 
-const CHAIN_META: Record<
-  SupportedDepositChain,
-  { label: string; token: string; routeSecs: string }
-> = {
-  solana: { label: "Solana", token: "Native USDC / SOL", routeSecs: "0.4s" },
-  base: { label: "Base", token: "Base USDC -> Solana USDC", routeSecs: "1.6s" },
-  ethereum: { label: "Ethereum", token: "Mainnet USDC / ETH", routeSecs: "2.4s" },
-  arbitrum: { label: "Arbitrum", token: "Arb USDC -> Solana USDC", routeSecs: "1.8s" },
-  bnb: { label: "BNB Chain", token: "BNB USDT -> Solana USDC", routeSecs: "2.1s" },
-  monad: { label: "Monad", token: "Monad USDC -> Solana USDC", routeSecs: "1.4s" },
-  polygon: { label: "Polygon", token: "Polygon USDC -> Solana USDC", routeSecs: "1.9s" },
-};
-
-const AUTH_OPTIONS: readonly { id: ConsoleAuthMethod; label: string; detail: string }[] = [
-  { id: "passkey", label: "Passkey FaceID", detail: "WebAuthn Self-Custody" },
-  { id: "apple", label: "Apple Pay / ID", detail: "Instant USD -> USDC" },
-  { id: "google", label: "Google Pay", detail: "1-Tap Card Onramp" },
-  { id: "solana-wallet", label: "Solana Wallet", detail: "Wallet Standard v1" },
-];
-
-const TOPUP_AMOUNTS = [25, 50, 100, 250] as const;
+const PAPER_MARGIN_PRESETS = [50, 100, 250, 500] as const;
 
 export function UnifiedCashierModal(): React.JSX.Element | null {
   const {
     isCashierOpen,
     closeCashier,
     cashUsdcAtomic,
+    onchainSolLamports,
+    onchainSplAtomic,
     earnedStocks,
     marketEloScaled,
-    sessionKeyActive,
     sessionKeyPubkey,
-    authMethod,
-    setAuthMethod,
+    playerWallet,
+    connectedBrowserWalletName,
+    detectedWallets,
+    connectBrowserWallet,
+    rotateSessionKeypair,
+    refreshOnchainBalances,
     mintDevnetUsdc,
-    depositToUnifiedCash,
+    requestDevnetSolAirdrop,
     lastCashierReceipt,
   } = useConsoleVault();
 
-  const [selectedChain, setSelectedChain] = React.useState<SupportedDepositChain>("base");
-  const [selectedAmount, setSelectedAmount] = React.useState<number>(100);
-  const [isMinting, setIsMinting] = React.useState<boolean>(false);
-  const [isDepositing, setIsDepositing] = React.useState<boolean>(false);
+  const [selectedPreset, setSelectedPreset] = React.useState<number>(100);
+  const [busyAction, setBusyAction] = React.useState<
+    "paper" | "sol" | "refresh" | null
+  >(null);
 
   React.useEffect(() => {
     if (!isCashierOpen) return;
@@ -72,33 +51,14 @@ export function UnifiedCashierModal(): React.JSX.Element | null {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isCashierOpen, closeCashier]);
 
-  if (!isCashierOpen) {
-    return null;
-  }
+  if (!isCashierOpen) return null;
 
-  const activeChainInfo = CHAIN_META[selectedChain];
-
-  const handleMintDevnet = async (): Promise<void> => {
-    setIsMinting(true);
+  const copyAddress = async (value: string, label: string): Promise<void> => {
     try {
-      await mintDevnetUsdc(100);
-    } finally {
-      setIsMinting(false);
-    }
-  };
-
-  const handleFiatOrChainDeposit = async (mode: "fiat" | "chain"): Promise<void> => {
-    setIsDepositing(true);
-    try {
-      const label =
-        mode === "fiat"
-          ? authMethod === "google"
-            ? "Google Pay Instant Onramp -> Solana USDC"
-            : "Apple Pay / Passkey Instant Onramp -> Solana USDC"
-          : `${activeChainInfo.label} Intent Solver (${activeChainInfo.routeSecs}) -> Solana USDC`;
-      await depositToUnifiedCash(label, selectedAmount);
-    } finally {
-      setIsDepositing(false);
+      await navigator.clipboard.writeText(value);
+      toast.success(`Copied ${label}`);
+    } catch {
+      toast.error("Clipboard unavailable");
     }
   };
 
@@ -113,287 +73,298 @@ export function UnifiedCashierModal(): React.JSX.Element | null {
           closeCashier();
         }
       }}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-0 backdrop-blur-md sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-0 sm:items-center sm:p-4"
     >
-      <GlassCard
+      <div
         id="unified-cashier-modal-card"
-        variant="stage"
-        accent="emerald"
-        className="max-h-[92vh] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-t-3xl p-4 sm:rounded-2xl sm:p-6"
+        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-xl border border-[#303642] bg-[#111317] p-5 sm:rounded-lg"
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 border-b border-white/[0.08] pb-4">
+        <div className="flex items-start justify-between gap-3 border-b border-[#22262e] pb-4">
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <GlassPill tone="emerald" size="xs">
-                Unified 7-Chain &amp; Apple Pay Cashier
-              </GlassPill>
-              <GlassPill tone="cyan" size="xs">
-                Kora $0 Gas · 0 Popups
-              </GlassPill>
-            </div>
             <h2
               id="cashier-modal-title"
-              className="mt-2 font-display text-xl font-bold text-white sm:text-2xl"
+              className="text-base font-semibold text-[#f3f4f6]"
             >
-              Unified Cash &amp; Earned Stock Vault
+              Wallet, Session Signer &amp; Margin
             </h2>
-            <p className="mt-1 text-xs text-slate-400">
-              All 7 chains and Apple Pay / Google Pay settle 100% into canonical Solana{" "}
-              <code translate="no" className="font-mono text-slate-200">
-                USDC ({SOLANA_CANONICAL_MINTS.USDC.slice(0, 6)}…{SOLANA_CANONICAL_MINTS.USDC.slice(-4)})
-              </code>
-              .
+            <p className="mt-1 text-xs text-[#9ca3af]">
+              Connect a browser Solana wallet or sign zero-popup Ephemeral Rollup updates with your local WebCrypto Ed25519 keypair.
             </p>
           </div>
-
           <button
             id="close-cashier-modal-btn"
             type="button"
             onClick={closeCashier}
-            aria-label="Close Unified Cashier Modal"
-            className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-white/12 bg-white/[0.04] text-slate-300 transition-colors hover:border-white/25 hover:bg-white/[0.1] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B]"
+            aria-label="Close Wallet Modal"
+            className="cf-btn inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-[#303642] bg-[#171a20] text-[#9ca3af] hover:text-white active:scale-[0.97]"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M4 4L12 12M12 4L4 12"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-              />
-            </svg>
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Live Unified Balance + 1-Tap Devnet Faucet */}
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-12">
-          <div className="rounded-2xl border border-white/10 bg-[#050609]/95 p-4 sm:col-span-7">
-            <div className="flex items-center justify-between text-xs text-slate-400">
-              <span>Unified Cash Balance</span>
-              <span className="font-mono text-[11px] text-[#00F59B] tabular-nums">
-                Market ELO {formatEloInteger(marketEloScaled)}
+        {/* Active On-Chain Keys & Live Devnet Balances */}
+        <div className="mt-4 space-y-3">
+          <div className="rounded-md border border-[#22262e] bg-[#0b0c0e] p-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-[#9ca3af]">
+                Active Solana Devnet Address
               </span>
-            </div>
-            <div
-              id="cashier-modal-usdc-balance"
-              className="mt-1 font-mono text-3xl font-bold text-white tabular-nums"
-            >
-              {formatAtomicUsdc(cashUsdcAtomic)}{" "}
-              <span className="text-xs font-medium text-slate-400">USDC</span>
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-[11px] text-slate-400 tabular-nums">
-              <LivePulseDot tone={sessionKeyActive ? "emerald" : "amber"} size="sm" />
-              <span translate="no">
-                Session Key: {sessionKeyPubkey.slice(0, 8)}…{sessionKeyPubkey.slice(-4)}
-              </span>
-            </div>
-          </div>
-
-          {/* 1-Tap Devnet Faucet Box */}
-          <div className="flex flex-col justify-between rounded-2xl border border-[#00F59B]/35 bg-[#00F59B]/[0.07] p-4 sm:col-span-5">
-            <div>
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[#00F59B]">
-                Instant Judge &amp; Devnet Sandbox
-              </span>
-              <p className="mt-1 text-xs leading-snug text-slate-200">
-                Mint $100.00 Devnet USDC &amp; initialize scoped zero-popup MagicBlock Session Key.
-              </p>
-            </div>
-            <ActionButton
-              id="mint-devnet-usdc-btn"
-              variant="emerald"
-              size="md"
-              disabled={isMinting}
-              onClick={() => {
-                void handleMintDevnet();
-              }}
-              className="mt-3 w-full"
-            >
-              {isMinting ? "Minting Devnet USDC…" : "Mint 100 Devnet USDC"}
-            </ActionButton>
-          </div>
-        </div>
-
-        {/* Auth & Passkey Selector */}
-        <div className="mt-4">
-          <div className="mb-2 flex items-center justify-between text-xs">
-            <span className="font-medium text-slate-300">1-Tap Passkey, Apple Pay &amp; Wallet Onboarding</span>
-            <span translate="no" className="font-mono text-[11px] text-slate-400">
-              Kora Sponsor: {CARTRIDGE_DEVNET_AUTHORITIES.koraSponsor.slice(0, 6)}…
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {AUTH_OPTIONS.map((opt) => {
-              const selected = authMethod === opt.id;
-              return (
+              <div className="flex items-center gap-1.5">
                 <button
-                  key={opt.id}
-                  id={`cashier-auth-${opt.id}`}
                   type="button"
-                  onClick={() => setAuthMethod(opt.id)}
-                  className={`cursor-pointer rounded-xl border p-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B] ${
-                    selected
-                      ? "border-[#00F59B]/55 bg-[#00F59B]/12 text-white"
-                      : "border-white/10 bg-[#050609]/80 text-slate-300 hover:border-white/25"
-                  }`}
+                  onClick={async () => {
+                    setBusyAction("refresh");
+                    await refreshOnchainBalances();
+                    setBusyAction(null);
+                  }}
+                  className="cf-btn inline-flex cursor-pointer items-center gap-1 rounded border border-[#303642] bg-[#171a20] px-2 py-0.5 text-[11px] text-[#d1d5db] hover:text-white"
                 >
-                  <div className="text-xs font-semibold">{opt.label}</div>
-                  <div className="mt-0.5 font-mono text-[10px] text-slate-400">{opt.detail}</div>
+                  <RefreshCw
+                    className={`h-3 w-3 ${busyAction === "refresh" ? "animate-spin" : ""}`}
+                  />
+                  Refresh RPC
                 </button>
-              );
-            })}
-          </div>
-        </div>
+                {playerWallet ? (
+                  <a
+                    href={`https://solscan.io/account/${playerWallet}?cluster=devnet`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded border border-[#303642] bg-[#171a20] px-2 py-0.5 text-[11px] text-[#93c5fd] hover:text-white"
+                  >
+                    Solscan
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                ) : null}
+              </div>
+            </div>
 
-        {/* Deposit Amount + 7-Chain & Apple Pay Action */}
-        <div className="mt-4 rounded-2xl border border-white/[0.08] bg-[#050609]/90 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-xs font-medium text-slate-300">
-              Select Amount &amp; Source Chain (Auto-Bridges &lt;= 4s)
-            </span>
-            <div className="flex items-center gap-1.5" role="group" aria-label="Top-up USDC amount">
-              {TOPUP_AMOUNTS.map((amt) => (
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <code className="truncate font-mono text-xs text-[#f3f4f6] tabular-nums">
+                {playerWallet || "Generating Ed25519 keypair…"}
+              </code>
+              {playerWallet ? (
+                <button
+                  type="button"
+                  onClick={() => void copyAddress(playerWallet, "wallet address")}
+                  className="cf-btn shrink-0 cursor-pointer rounded p-1 text-[#9ca3af] hover:bg-[#171a20] hover:text-white"
+                  title="Copy address"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#22262e] pt-3">
+              <div>
+                <div className="text-[11px] text-[#6b7280]">Devnet SOL (On-Chain)</div>
+                <div className="mt-0.5 font-mono text-xs font-semibold text-[#f3f4f6] tabular-nums">
+                  {formatSolLamports(onchainSolLamports)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-[#6b7280]">Devnet SPL (On-Chain)</div>
+                <div className="mt-0.5 font-mono text-xs font-semibold text-[#f3f4f6] tabular-nums">
+                  {formatAtomicUsdc(onchainSplAtomic, false)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] text-[#6b7280]">Paper Margin</div>
+                <div
+                  id="cashier-modal-usdc-balance"
+                  className="mt-0.5 font-mono text-xs font-semibold text-[#34d399] tabular-nums"
+                >
+                  {formatAtomicUsdc(cashUsdcAtomic)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Browser Wallet Standard Discovery + Ed25519 Session Key Rotation */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              id="connect-browser-wallet-btn"
+              type="button"
+              onClick={() => void connectBrowserWallet()}
+              className="cf-btn flex cursor-pointer items-center justify-between rounded-md border border-[#303642] bg-[#171a20] px-3 py-2.5 text-left text-xs hover:bg-[#1d2129] active:scale-[0.98]"
+            >
+              <span className="flex items-center gap-2 font-medium text-[#f3f4f6]">
+                <Wallet className="h-4 w-4 text-[#3b82f6]" />
+                {connectedBrowserWalletName
+                  ? `Connected: ${connectedBrowserWalletName}`
+                  : detectedWallets.length > 0
+                    ? `Connect ${detectedWallets[0]?.name}`
+                    : "Connect Browser Wallet"}
+              </span>
+              <span className="font-mono text-[10px] text-[#9ca3af]">
+                {detectedWallets.length > 0
+                  ? `${detectedWallets.length} detected`
+                  : "Phantom / Solflare"}
+              </span>
+            </button>
+
+            <button
+              id="rotate-session-key-btn"
+              type="button"
+              onClick={() => void rotateSessionKeypair()}
+              className="cf-btn flex cursor-pointer items-center justify-between rounded-md border border-[#303642] bg-[#171a20] px-3 py-2.5 text-left text-xs hover:bg-[#1d2129] active:scale-[0.98]"
+            >
+              <span className="flex items-center gap-2 font-medium text-[#f3f4f6]">
+                <KeyRound className="h-4 w-4 text-[#34d399]" />
+                Rotate Session Keypair
+              </span>
+              <span className="font-mono text-[10px] text-[#9ca3af]">
+                {sessionKeyPubkey ? `${sessionKeyPubkey.slice(0, 4)}…` : "Ed25519"}
+              </span>
+            </button>
+          </div>
+
+          {/* Funding Controls: Real Devnet SOL Airdrop + Paper Margin Credit */}
+          <div className="rounded-md border border-[#22262e] bg-[#0b0c0e] p-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[#e5e7eb]">
+                Session Funding &amp; Devnet Faucet
+              </span>
+              <span className="font-mono text-[11px] text-[#9ca3af] tabular-nums">
+                ELO {formatEloInteger(marketEloScaled)}
+              </span>
+            </div>
+
+            <div className="mt-2.5 grid grid-cols-4 gap-1.5">
+              {PAPER_MARGIN_PRESETS.map((amt) => (
                 <button
                   key={amt}
-                  id={`cashier-amount-${amt}`}
                   type="button"
-                  onClick={() => setSelectedAmount(amt)}
-                  className={`cursor-pointer rounded-lg border px-2.5 py-1 font-mono text-xs font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D4FF] ${
-                    selectedAmount === amt
-                      ? "border-[#00D4FF]/60 bg-[#00D4FF]/15 text-[#67E8F9]"
-                      : "border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/25"
+                  onClick={() => setSelectedPreset(amt)}
+                  className={`cf-btn cursor-pointer rounded border py-1.5 font-mono text-xs font-medium tabular-nums ${
+                    selectedPreset === amt
+                      ? "border-[#3b82f6] bg-[#2563eb]/20 text-white"
+                      : "border-[#22262e] bg-[#111317] text-[#9ca3af] hover:text-white"
                   }`}
                 >
                   ${amt}
                 </button>
               ))}
             </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                id="mint-devnet-usdc-btn"
+                type="button"
+                disabled={busyAction !== null}
+                onClick={async () => {
+                  setBusyAction("paper");
+                  try {
+                    await mintDevnetUsdc(selectedPreset);
+                  } finally {
+                    setBusyAction(null);
+                  }
+                }}
+                className="cf-btn h-9 cursor-pointer rounded-md bg-[#2563eb] px-3 text-xs font-medium text-white hover:bg-[#1d4ed8] disabled:opacity-50"
+              >
+                {busyAction === "paper"
+                  ? "Crediting…"
+                  : `Add $${selectedPreset} Paper Margin`}
+              </button>
+
+              <button
+                id="request-devnet-sol-btn"
+                type="button"
+                disabled={busyAction !== null}
+                onClick={async () => {
+                  setBusyAction("sol");
+                  try {
+                    await requestDevnetSolAirdrop();
+                  } finally {
+                    setBusyAction(null);
+                  }
+                }}
+                className="cf-btn h-9 cursor-pointer rounded-md border border-[#303642] bg-[#171a20] px-3 text-xs font-medium text-[#e5e7eb] hover:bg-[#1d2129] disabled:opacity-50"
+              >
+                {busyAction === "sol"
+                  ? "Requesting RPC…"
+                  : "Request 0.5 Devnet SOL"}
+              </button>
+            </div>
           </div>
 
-          {/* 7 Chains */}
-          <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Deposit source chain">
-            {SUPPORTED_DEPOSIT_CHAINS.map((chain) => {
-              const active = selectedChain === chain;
-              return (
-                <button
-                  key={chain}
-                  id={`cashier-chain-${chain}`}
-                  type="button"
-                  onClick={() => setSelectedChain(chain)}
-                  className={`cursor-pointer rounded-lg border px-2.5 py-1.5 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D4FF] ${
-                    active
-                      ? "border-[#00D4FF] bg-[#00D4FF]/15 text-white font-semibold"
-                      : "border-white/10 bg-[#0A0D14] text-slate-400 hover:border-white/25 hover:text-slate-200"
-                  }`}
-                >
-                  {CHAIN_META[chain].label}
-                </button>
-              );
-            })}
+          {/* Settled Round Holdings */}
+          <div className="rounded-md border border-[#22262e] bg-[#0b0c0e] p-3.5">
+            <div className="mb-2 flex items-center justify-between text-xs">
+              <span className="font-medium text-[#9ca3af]">
+                Settled Arena Vault Ledger
+              </span>
+              <a
+                href={`https://solscan.io/account/${devnetProof.accounts.platformFeeAccountAta}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-mono text-[11px] text-[#9ca3af] hover:text-white"
+              >
+                SPL Mint {devnetProof.accounts.splMint.slice(0, 6)}…
+                <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            </div>
+            <div className="grid grid-cols-4 gap-2 font-mono text-xs tabular-nums">
+              <div className="rounded border border-[#22262e] bg-[#111317] p-2">
+                <div className="text-[10px] text-[#6b7280]">NVDAx</div>
+                <div className="mt-0.5 font-medium text-[#f3f4f6]">
+                  {formatShareUnits6(earnedStocks.NVDAx, 3)}
+                </div>
+              </div>
+              <div className="rounded border border-[#22262e] bg-[#111317] p-2">
+                <div className="text-[10px] text-[#6b7280]">SPYx</div>
+                <div className="mt-0.5 font-medium text-[#f3f4f6]">
+                  {formatShareUnits6(earnedStocks.SPYx, 3)}
+                </div>
+              </div>
+              <div className="rounded border border-[#22262e] bg-[#111317] p-2">
+                <div className="text-[10px] text-[#6b7280]">TSLAx</div>
+                <div className="mt-0.5 font-medium text-[#f3f4f6]">
+                  {formatShareUnits6(earnedStocks.TSLAx, 3)}
+                </div>
+              </div>
+              <div className="rounded border border-[#22262e] bg-[#111317] p-2">
+                <div className="text-[10px] text-[#6b7280]">USDC Won</div>
+                <div className="mt-0.5 font-medium text-[#f3f4f6]">
+                  {formatAtomicUsdc(earnedStocks.USDC)}
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-[#0A0D14] px-3 py-2 font-mono text-[11px] text-slate-300 tabular-nums">
-            <span>{activeChainInfo.token}</span>
-            <span className="text-[#00D4FF]">Intent Settlement ~{activeChainInfo.routeSecs}</span>
-          </div>
-
-          <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            <ActionButton
-              id="cashier-apple-pay-btn"
-              variant="glass"
-              size="md"
-              disabled={isDepositing}
-              onClick={() => {
-                void handleFiatOrChainDeposit("fiat");
-              }}
-            >
-              Apple Pay / Google Pay +${selectedAmount} USDC
-            </ActionButton>
-            <ActionButton
-              id="cashier-bridge-deposit-btn"
-              variant="ghost"
-              size="md"
-              disabled={isDepositing}
-              onClick={() => {
-                void handleFiatOrChainDeposit("chain");
-              }}
-            >
-              Bridge ${selectedAmount} from {activeChainInfo.label}
-            </ActionButton>
-          </div>
-        </div>
-
-        {/* Live Confirmation Receipt */}
-        <div aria-live="polite">
+          {/* Honest Receipt Banner (Only links to Solscan when a real signature exists) */}
           {lastCashierReceipt ? (
             <div
               id="cashier-receipt-banner"
-              className="mt-4 rounded-xl border border-[#00F59B]/40 bg-[#00F59B]/10 p-3 font-mono text-xs text-slate-100 tabular-nums"
+              className="rounded-md border border-[#303642] bg-[#171a20] p-3 text-xs"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-semibold text-[#00F59B]">
-                  Credited {lastCashierReceipt.creditedUsdcFormatted} USDC
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium text-[#f3f4f6]">
+                  {lastCashierReceipt.sourceLabel}
                 </span>
-                <span className="text-[11px] text-slate-300">{lastCashierReceipt.sourceLabel}</span>
-              </div>
-              <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
-                <span translate="no">
-                  Tx: {lastCashierReceipt.txSignature.slice(0, 14)}…{lastCashierReceipt.txSignature.slice(-8)}
-                </span>
-                <span translate="no">
-                  Session Key Ready ({MAGICBLOCK_CONSTANTS.sessionKeyProgramId.slice(0, 8)}…)
+                <span className="font-mono font-semibold text-[#34d399] tabular-nums">
+                  {lastCashierReceipt.creditedUsdcFormatted}
                 </span>
               </div>
+              {lastCashierReceipt.txSignature && lastCashierReceipt.solscanUrl ? (
+                <a
+                  href={lastCashierReceipt.solscanUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1.5 inline-flex items-center gap-1 font-mono text-[11px] text-[#93c5fd] hover:underline"
+                >
+                  Solscan Tx: {lastCashierReceipt.txSignature.slice(0, 16)}…
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <div className="mt-1 font-mono text-[11px] text-[#9ca3af]">
+                  Off-chain simulation credit (Session key: {sessionKeyPubkey.slice(0, 8)}…)
+                </div>
+              )}
             </div>
           ) : null}
         </div>
-
-        {/* Earned Stock Vault Snapshot */}
-        <div className="mt-4 border-t border-white/[0.08] pt-4">
-          <div className="mb-2 flex items-center justify-between text-xs">
-            <span className="font-semibold text-slate-200">
-              Earned Stock Vault (RFS #3 · Portable Across All Cartridges)
-            </span>
-            <span translate="no" className="font-mono text-[10px] text-slate-400">
-              Passport: {CARTRIDGE_PROGRAM_IDS.passport.slice(0, 8)}…
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-xl border border-white/10 bg-[#050609]/85 p-2.5 font-mono tabular-nums">
-              <div translate="no" className="text-[11px] text-slate-400">
-                NVDAx
-              </div>
-              <div className="mt-0.5 text-sm font-bold text-[#00F59B]">
-                {formatShareUnits6(earnedStocks.NVDAx, 3)} sh
-              </div>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-[#050609]/85 p-2.5 font-mono tabular-nums">
-              <div translate="no" className="text-[11px] text-slate-400">
-                ANTx
-              </div>
-              <div className="mt-0.5 text-sm font-bold text-[#C4B5FD]">
-                {formatShareUnits6(earnedStocks.ANTx, 3)} sh
-              </div>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-[#050609]/85 p-2.5 font-mono tabular-nums">
-              <div translate="no" className="text-[11px] text-slate-400">
-                SPYx
-              </div>
-              <div className="mt-0.5 text-sm font-bold text-[#00D4FF]">
-                {formatShareUnits6(earnedStocks.SPYx, 3)} sh
-              </div>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-[#050609]/85 p-2.5 font-mono tabular-nums">
-              <div translate="no" className="text-[11px] text-slate-400">
-                Prize USDC
-              </div>
-              <div className="mt-0.5 text-sm font-bold text-[#FFB020]">
-                {formatAtomicUsdc(earnedStocks.USDC)}
-              </div>
-            </div>
-          </div>
-        </div>
-      </GlassCard>
+      </div>
     </div>
   );
 }

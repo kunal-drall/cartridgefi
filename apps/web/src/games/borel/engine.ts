@@ -561,9 +561,9 @@ export function computeBorelSettlement(params: {
   return {
     roundCode: `BLZ-${roundPadded}`,
     vrfProgramId: MAGICBLOCK_CONSTANTS.vrfProgramId,
-    vrfSeedHex: "0x9f4c7e21b8a03d65e1f4c92a7b380d5e6f1a2b3c4d5e6f708192a3b4c5d6e81a",
+    vrfSeedHex: "0xbf045a4c5d10a34e728c51e2d05e1bd82e444fc73e1c2356ba26d0061895d428",
     l1CommitSignature:
-      "4vKp9QmL2xR8wN5tB7yF3cJ6dH1gZ9uQaW4eP2rYv8mK3xLp7qR2vN9wT5bC4yF8",
+      "3Ljspf1XppENsm75dzu7utizmAobbxQCP7L8L4S1kcLUksLN1VR6HzCqbpPVG4orw3xzr5tQSsJ2czFLrGSs9EE9",
     playerRank: playerPod.rank,
     playerScoreBpsFormatted: playerPod.deltaBpsFormatted,
     playerScoreScaled: playerPod.compositeScoreScaled,
@@ -575,6 +575,71 @@ export function computeBorelSettlement(params: {
   };
 }
 
+export function buildLiveBorelQuotes(params: {
+  solUsd: number | null;
+  solChange24hPct: number;
+  nvdaUsd: number | null;
+  nvdaChange24hPct: number;
+  spyUsd: number | null;
+  spyChange24hPct: number;
+  kalshiYesPrice: number | null;
+  kalshiTickerLabel: string;
+}): BorelMarketQuote[] | null {
+  if (!params.solUsd || !params.nvdaUsd || !params.spyUsd) {
+    return null;
+  }
+
+  const makeQuote = (
+    symbol: "SOL-PERP" | "NVDAx" | "SPYx",
+    venue: string,
+    priceUsd: number,
+    changePct: number,
+  ): BorelMarketQuote => {
+    const curr8 = BigInt(Math.max(1, Math.round(priceUsd * 1e8)));
+    // Derive entry price from live 24h open (or 25bps baseline if flat) so scoring reflects real relative market return
+    const openUsd =
+      Math.abs(changePct) > 0.001
+        ? priceUsd / (1 + changePct / 100)
+        : priceUsd * 0.998;
+    const entry8 = BigInt(Math.max(1, Math.round(openUsd * 1e8)));
+    const bpsScaled = ((curr8 - entry8) * 10_000n * FP_SCALE) / entry8;
+    const sign = bpsScaled >= 0n ? "+" : "";
+    const intBps = Number(((curr8 - entry8) * 10_000n) / entry8);
+    return {
+      symbol,
+      venue,
+      price8: curr8,
+      entryPrice8: entry8,
+      velocityBps: intBps,
+      displayPrice: formatPrice8Usd(curr8),
+      deltaBpsFormatted: `${sign}${formatScaledBigInt(bpsScaled, 1)} bps`,
+    };
+  };
+
+  const kalshiMid =
+    params.kalshiYesPrice && params.kalshiYesPrice > 0
+      ? Math.min(0.99, Math.max(0.01, params.kalshiYesPrice))
+      : 0.68;
+  const kalshi8 = BigInt(Math.round(kalshiMid * 1e8));
+  const kalshiEntry8 = BigInt(Math.round(Math.max(0.01, kalshiMid - 0.015) * 1e8));
+  const kalshiCents = Math.round(kalshiMid * 100);
+
+  return [
+    makeQuote("SOL-PERP", "Coinbase / Phoenix", params.solUsd, params.solChange24hPct),
+    makeQuote("NVDAx", "Solana Raydium xStock", params.nvdaUsd, params.nvdaChange24hPct),
+    makeQuote("SPYx", "Solana Raydium xStock", params.spyUsd, params.spyChange24hPct),
+    {
+      symbol: "KALSHI-FED-CUT",
+      venue: `Kalshi (${params.kalshiTickerLabel})`,
+      price8: kalshi8,
+      entryPrice8: kalshiEntry8,
+      velocityBps: 15,
+      displayPrice: `${kalshiCents}¢ YES`,
+      deltaBpsFormatted: `${(kalshiMid * 100).toFixed(1)}% prob`,
+    },
+  ];
+}
+
 export function getClaimAssetReferencePrice8(
   asset: ClaimAssetSymbol,
   quotes: readonly BorelMarketQuote[],
@@ -582,14 +647,14 @@ export function getClaimAssetReferencePrice8(
   if (asset === "NVDAx") {
     const q = quotes.find((item) => item.symbol === "NVDAx");
     return {
-      price8: q?.price8 ?? 14_900_000_000n,
+      price8: q?.price8 ?? 15_600_000_000n,
       mintShort: `${SOLANA_CANONICAL_MINTS.NVDAx.slice(0, 6)}…${SOLANA_CANONICAL_MINTS.NVDAx.slice(-4)}`,
     };
   }
   if (asset === "SPYx") {
     const q = quotes.find((item) => item.symbol === "SPYx");
     return {
-      price8: q?.price8 ?? 59_350_000_000n,
+      price8: q?.price8 ?? 73_500_000_000n,
       mintShort: `${SOLANA_CANONICAL_MINTS.SPYx.slice(0, 6)}…${SOLANA_CANONICAL_MINTS.SPYx.slice(-4)}`,
     };
   }
@@ -601,7 +666,7 @@ export function getClaimAssetReferencePrice8(
   }
   if (asset === "TSLAx") {
     return {
-      price8: 24_800_000_000n,
+      price8: 38_900_000_000n,
       mintShort: `${SOLANA_CANONICAL_MINTS.TSLAx.slice(0, 6)}…${SOLANA_CANONICAL_MINTS.TSLAx.slice(-4)}`,
     };
   }

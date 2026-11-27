@@ -31,20 +31,27 @@ function attachZeroErrorGuards(page: Page): {
 }
 
 test.describe("Agent-06 Wave 4 Headless Visual & Gameplay Proof", () => {
-  test("1. Flagship Landing Page (/) — Official Solana x MagicBlock SVGs, Tabular Telemetry, Interactive Console & Zero Slop", async ({
+  test("1. Markets & Protocol Terminal (/) — Live TradingView Chart, Real Multi-Venue Quotes, Official SVGs & Zero Slop", async ({
     page,
   }, testInfo) => {
     const guards = attachZeroErrorGuards(page);
-    await page.goto("/", { waitUntil: "networkidle" });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(800);
 
-    // Single H1 & exact editorial headline
+    // Single H1 & live workstation title
     const h1 = page.locator("h1");
     await expect(h1).toHaveCount(1);
-    await expect(h1).toContainText("the game engine for real markets.");
+    await expect(h1).toContainText("Multi-Venue Market & Ephemeral Rollup Terminal");
+
+    // TradingView lightweight-charts canvas & live market rows rendered
+    const canvasCount = await page.locator("canvas").count();
+    expect(canvasCount).toBeGreaterThanOrEqual(1);
+    await expect(page.locator("body")).toContainText("NVDAx");
+    await expect(page.locator("body")).toContainText("SOL-USD");
 
     // Official Solana & MagicBlock vector SVG lockups rendered
     const svgCount = await page.locator("svg").count();
-    expect(svgCount).toBeGreaterThanOrEqual(8);
+    expect(svgCount).toBeGreaterThanOrEqual(6);
     await expect(page.locator("body")).toContainText("Settled on Solana");
     await expect(page.locator("body")).toContainText("MagicBlock");
 
@@ -85,7 +92,7 @@ test.describe("Agent-06 Wave 4 Headless Visual & Gameplay Proof", () => {
     page,
   }, testInfo) => {
     const guards = attachZeroErrorGuards(page);
-    await page.goto("/play/borel", { waitUntil: "networkidle" });
+    await page.goto("/play/borel", { waitUntil: "domcontentloaded" });
 
     // 1. Open Unified 7-Chain & Apple Pay Cashier Modal and 1-Tap Mint 100 Devnet USDC
     await page.locator("#open-cashier-modal-btn").click();
@@ -140,7 +147,7 @@ test.describe("Agent-06 Wave 4 Headless Visual & Gameplay Proof", () => {
     page,
   }, testInfo) => {
     const guards = attachZeroErrorGuards(page);
-    await page.goto("/play/pulse-runner", { waitUntil: "networkidle" });
+    await page.goto("/play/pulse-runner", { waitUntil: "domcontentloaded" });
 
     // Verify exact shared cartridge-er-room Program ID
     await expect(page.locator("#runner-program-id-proof")).toContainText(
@@ -197,7 +204,7 @@ test.describe("Agent-06 Wave 4 Headless Visual & Gameplay Proof", () => {
     page,
   }, testInfo) => {
     const guards = attachZeroErrorGuards(page);
-    await page.goto("/studio", { waitUntil: "networkidle" });
+    await page.goto("/studio", { waitUntil: "domcontentloaded" });
 
     // 1. Verify Anti-Casino Guardrail blocks paid loot boxes
     await page.locator("#studio-preset-anti-casino").click();
@@ -240,7 +247,7 @@ test.describe("Agent-06 Wave 4 Headless Visual & Gameplay Proof", () => {
     page,
   }, testInfo) => {
     const guards = attachZeroErrorGuards(page);
-    await page.goto("/protocol", { waitUntil: "networkidle" });
+    await page.goto("/protocol", { waitUntil: "domcontentloaded" });
 
     // Verify single H1 & Infrastructure positioning
     const h1 = page.locator("h1");

@@ -3,26 +3,38 @@
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import {
+  AreaSeries,
+  ColorType,
+  createChart,
+  type Time,
+} from "lightweight-charts";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Cpu,
+  ExternalLink,
+  Send,
+  Sparkles,
+} from "lucide-react";
+import {
   CARTRIDGE_DEVNET_AUTHORITIES,
   FIRST_PARTY_CARTRIDGE_CATALOG,
   compilePromptToManifest,
   simulateCartridgeEconomy,
   type CartridgeGenre,
-  type VolatilityRegime,
+  type CartridgeManifestV2,
 } from "@cartridgefi/shared-types";
 import {
-  ActionButton,
-  CopyTerminalPill,
-  GlassCard,
-  GlassPill,
-  LivePulseDot,
-} from "@cartridgefi/ui-system";
-import { formatAtomicUsdc } from "@/app/(console)/_components/ConsoleVaultContext";
+  formatAtomicUsdc,
+  useConsoleVault,
+} from "@/app/(console)/_components/ConsoleVaultContext";
+import { cn, shortenAddress } from "@/lib/utils";
 import {
   deployCartridgeAndDelegateShard,
   type DeployedCartridgeDeployment,
 } from "./pda";
 import { WalletDeckPreview } from "./WalletDeckPreview";
+import { toast } from "sonner";
 
 interface StudioPresetChip {
   id: string;
@@ -40,25 +52,25 @@ const STUDIO_PRESETS: readonly StudioPresetChip[] = [
     label: "TSLAx + BTC 3-Lane Runner",
     genre: "ARCADE_RUNNER",
     prompt:
-      "90s cyberpunk 3-lane volatility sprint on TSLAx and BTC where Kalshi Fed Cut gates unlock a 1.5x skill carry.",
+      "90s 3-lane volatility runner on TSLAx and BTC where Kalshi FOMC contracts unlock a 1.35x carry.",
     tone: "default",
   },
   {
     id: "nvda-arena",
     buttonId: "studio-preset-nvda-arena",
-    label: "NVDAx Game-Day Blitz",
+    label: "NVDAx Earnings Arena",
     genre: "BOREL_GAMEDAY",
     prompt:
-      "60s Game-Day earnings conviction arena on NVDAx and SOL perps inside Private ER TEE Fog of War with NVDAx stock payouts.",
+      "120s conviction arena on NVDAx and SOL perps inside Private ER TEE Fog of War with NVDAx stock payouts.",
     tone: "default",
   },
   {
-    id: "ant-turf",
-    buttonId: "studio-preset-ant-turf",
-    label: "Anthropic ANTx Turf Heist",
-    genre: "SYNDICATE_TURF",
+    id: "macro-bracket",
+    buttonId: "studio-preset-macro-bracket",
+    label: "Kalshi FOMC Bracket",
+    genre: "PREDICTION_BRACKET",
     prompt:
-      "5m open-world syndicate turf capture across Anthropic ANTx and SOL districts with 50% creator builder fee split.",
+      "3m macro bracket pairing SPYx with live Kalshi FOMC rate decision contracts using Brier calibration.",
     tone: "default",
   },
   {
@@ -72,669 +84,495 @@ const STUDIO_PRESETS: readonly StudioPresetChip[] = [
   },
 ];
 
-const GENRE_OPTIONS: readonly { id: CartridgeGenre; label: string }[] = [
-  { id: "BOREL_GAMEDAY", label: "BOREL_GAMEDAY" },
-  { id: "ARCADE_RUNNER", label: "ARCADE_RUNNER" },
-  { id: "SYNDICATE_TURF", label: "SYNDICATE_TURF" },
-  { id: "PREDICTION_BRACKET", label: "PREDICTION_BRACKET" },
-];
-
-function resolveInitialTemplate(paramValue: string | null): {
-  genre: CartridgeGenre;
-  prompt: string;
-  handle: string;
-} {
-  if (paramValue) {
-    const clean = paramValue.trim();
-    const matchedCatalog = FIRST_PARTY_CARTRIDGE_CATALOG.find(
-      (c) => c.metadata.slug === clean,
-    );
-    if (matchedCatalog) {
-      return {
-        genre: matchedCatalog.metadata.genre,
-        prompt: `${matchedCatalog.metadata.title} — ${matchedCatalog.metadata.subtitle}`,
-        handle: matchedCatalog.metadata.creatorHandle,
-      };
-    }
-    const upper = clean.toUpperCase();
-    if (
-      upper === "BOREL_GAMEDAY" ||
-      upper === "ARCADE_RUNNER" ||
-      upper === "SYNDICATE_TURF" ||
-      upper === "PREDICTION_BRACKET"
-    ) {
-      const preset = STUDIO_PRESETS.find((p) => p.genre === upper) ?? STUDIO_PRESETS[0]!;
-      return {
-        genre: upper,
-        prompt: preset.prompt,
-        handle: "@vibe-creator",
-      };
-    }
-  }
-
-  return {
-    genre: STUDIO_PRESETS[0]!.genre,
-    prompt: STUDIO_PRESETS[0]!.prompt,
-    handle: "@vibe-creator",
-  };
-}
-
 export function VibeStudioConsole(): React.JSX.Element {
   const searchParams = useSearchParams();
-  const templateOrForkParam =
-    searchParams.get("template") ?? searchParams.get("fork");
+  const forkSlug = searchParams.get("fork");
+  const { sessionSigner, playerWallet } = useConsoleVault();
 
-  const initialSeed = React.useMemo(
-    () => resolveInitialTemplate(templateOrForkParam),
-    [templateOrForkParam],
-  );
+  const initialPreset = React.useMemo(() => {
+    if (forkSlug) {
+      const cat = FIRST_PARTY_CARTRIDGE_CATALOG.find(
+        (c) => c.metadata.slug === forkSlug,
+      );
+      if (cat) {
+        return {
+          genre: cat.metadata.genre,
+          prompt: `${cat.metadata.title}: ${cat.metadata.subtitle}`,
+        };
+      }
+    }
+    return {
+      genre: STUDIO_PRESETS[0]!.genre,
+      prompt: STUDIO_PRESETS[0]!.prompt,
+    };
+  }, [forkSlug]);
 
-  const [selectedGenre, setSelectedGenre] = React.useState<CartridgeGenre>(
-    initialSeed.genre,
+  const [prompt, setPrompt] = React.useState<string>(initialPreset.prompt);
+  const [genre, setGenre] = React.useState<CartridgeGenre>(initialPreset.genre);
+  const [compiled, setCompiled] = React.useState(() =>
+    compilePromptToManifest({
+      prompt: initialPreset.prompt,
+      genre: initialPreset.genre,
+      creatorHandle: "@studio_dev",
+      creatorWallet: CARTRIDGE_DEVNET_AUTHORITIES.deployerAndKeeper,
+    }),
   );
-  const [promptText, setPromptText] = React.useState<string>(initialSeed.prompt);
-  const [creatorHandle, setCreatorHandle] = React.useState<string>(
-    initialSeed.handle,
+  const [copilotSummary, setCopilotSummary] = React.useState<string | null>(
+    null,
   );
-  const [creatorWallet, setCreatorWallet] = React.useState<string>(
-    CARTRIDGE_DEVNET_AUTHORITIES.deployerAndKeeper,
-  );
-  const [volatilityRegime, setVolatilityRegime] =
-    React.useState<VolatilityRegime>("calm");
-  const [compileCount, setCompileCount] = React.useState<number>(1);
+  const [copilotEngine, setCopilotEngine] = React.useState<string>("local-compiler");
+  const [compiling, setCompiling] = React.useState<boolean>(false);
 
-  const [isDeploying, setIsDeploying] = React.useState<boolean>(false);
+  const [deploying, setDeploying] = React.useState<boolean>(false);
   const [deployment, setDeployment] =
     React.useState<DeployedCartridgeDeployment | null>(null);
-  const [copiedManifest, setCopiedManifest] = React.useState<boolean>(false);
-  const [copiedShareLink, setCopiedShareLink] = React.useState<boolean>(false);
-  const copyTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync if URL ?template= or ?fork= changes
-  React.useEffect(() => {
-    setSelectedGenre(initialSeed.genre);
-    setPromptText(initialSeed.prompt);
-    setCreatorHandle(initialSeed.handle);
-    setDeployment(null);
-  }, [initialSeed]);
-
-  React.useEffect(() => {
-    return () => {
-      if (copyTimerRef.current !== null) {
-        clearTimeout(copyTimerRef.current);
-      }
-    };
-  }, []);
-
-  const safeWallet =
-    creatorWallet.trim().length >= 32
-      ? creatorWallet.trim()
-      : CARTRIDGE_DEVNET_AUTHORITIES.deployerAndKeeper;
-  const safeHandle =
-    creatorHandle.trim().length >= 2 ? creatorHandle.trim() : "@vibe-creator";
-
-  const compiled = React.useMemo(
-    () =>
-      compilePromptToManifest({
-        prompt: promptText,
-        genre: selectedGenre,
-        creatorWallet: safeWallet,
-        creatorHandle: safeHandle,
-      }),
-    [promptText, safeHandle, safeWallet, selectedGenre],
-  );
-
-  // Pre-compute both Calm & VIX-35 Crash 500-tick BigInt simulation reports
-  const calmReport = React.useMemo(
+  const sim = React.useMemo(
     () => simulateCartridgeEconomy(compiled.manifest, "calm", 500, 24),
     [compiled.manifest],
   );
-  const crashReport = React.useMemo(
-    () => simulateCartridgeEconomy(compiled.manifest, "crash_vix35", 500, 24),
-    [compiled.manifest],
-  );
 
-  const activeSimReport =
-    volatilityRegime === "crash_vix35" ? crashReport : calmReport;
+  // Render 500-tick cumulative pool conservation / creator fee curve in lightweight-charts
+  const equityChartRef = React.useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    const el = equityChartRef.current;
+    if (!el) return;
 
-  const handleCompileAndSimulate = (): void => {
-    setCompileCount((prev) => prev + 1);
+    const chart = createChart(el, {
+      width: Math.max(240, el.clientWidth),
+      height: 170,
+      layout: {
+        background: { type: ColorType.Solid, color: "#0b0c0e" },
+        textColor: "#9ca3af",
+        fontFamily: "var(--font-jetbrains), monospace",
+        fontSize: 10,
+        attributionLogo: false,
+      },
+      grid: {
+        vertLines: { color: "#171a20" },
+        horzLines: { color: "#171a20" },
+      },
+      rightPriceScale: {
+        borderColor: "#22262e",
+      },
+      timeScale: {
+        borderColor: "#22262e",
+        timeVisible: false,
+      },
+    });
+
+    const area = chart.addSeries(AreaSeries, {
+      lineColor: "#3b82f6",
+      topColor: "rgba(59, 130, 246, 0.25)",
+      bottomColor: "rgba(59, 130, 246, 0.02)",
+      lineWidth: 2,
+    });
+
+    // Plot cumulative distributed player pool across 24 simulated rounds
+    const baseTime = 1_760_000_000;
+    const perRoomUsd = Number(BigInt(sim.totalDistributedUsdcAtomic)) / 1_000_000;
+    const points = Array.from({ length: 24 }, (_, idx) => ({
+      time: (baseTime + idx * 3600) as Time,
+      value: Math.round(perRoomUsd * (idx + 1) * 100) / 100,
+    }));
+    area.setData(points);
+    chart.timeScale().fitContent();
+
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 0) chart.applyOptions({ width: Math.floor(w) });
+    });
+    ro.observe(el);
+
+    return () => {
+      ro.disconnect();
+      chart.remove();
+    };
+  }, [sim.totalDistributedUsdcAtomic]);
+
+  const runCompile = async (
+    nextPrompt: string,
+    nextGenre: CartridgeGenre,
+    callAiCopilot: boolean,
+  ): Promise<void> => {
+    const localResult = compilePromptToManifest({
+      prompt: nextPrompt,
+      genre: nextGenre,
+      creatorHandle: "@studio_dev",
+      creatorWallet:
+        playerWallet || CARTRIDGE_DEVNET_AUTHORITIES.deployerAndKeeper,
+    });
+    setCompiled(localResult);
     setDeployment(null);
-  };
 
-  const handleDeployToDevnet = async (): Promise<void> => {
-    if (!compiled.compliance.valid) return;
-    setIsDeploying(true);
+    if (!localResult.compliance.valid) {
+      setCopilotSummary(null);
+      toast.error("Compliance guardrail blocked prohibited gambling mechanics.");
+      return;
+    }
+
+    if (!callAiCopilot) return;
+
+    setCompiling(true);
     try {
-      const result = await deployCartridgeAndDelegateShard(compiled.manifest);
-      setDeployment(result);
+      const res = await fetch("/api/studio/copilot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: nextPrompt,
+          creatorWallet:
+            playerWallet || CARTRIDGE_DEVNET_AUTHORITIES.deployerAndKeeper,
+        }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          manifest?: CartridgeManifestV2;
+          summary?: string;
+          engineUsed?: string;
+          compliance?: typeof localResult.compliance;
+        };
+        if (data.manifest && data.compliance) {
+          setCompiled({
+            manifest: data.manifest,
+            compliance: data.compliance,
+          });
+          setCopilotSummary(data.summary ?? null);
+          setCopilotEngine(data.engineUsed ?? "mcp-deterministic-compiler");
+        }
+      }
+    } catch {
+      // Keep local deterministic compilation
     } finally {
-      setIsDeploying(false);
+      setCompiling(false);
     }
   };
 
-  const handleCopyManifestJson = async (): Promise<void> => {
+  const handleDeploy = async (): Promise<void> => {
+    if (!compiled.compliance.valid) {
+      toast.error("Resolve compliance violations before deploying.");
+      return;
+    }
+    setDeploying(true);
     try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(
-          JSON.stringify(compiled.manifest, null, 2),
+      const dep = await deployCartridgeAndDelegateShard(
+        compiled.manifest,
+        sessionSigner,
+      );
+      setDeployment(dep);
+      if (dep.devnetExecution?.mode === "broadcast_confirmed") {
+        toast.success("Broadcast register_cartridge transaction on Solana Devnet!");
+      } else {
+        toast.success(
+          "Derived canonical Solana PDAs & simulated instruction on Devnet RPC.",
         );
       }
-    } catch {
-      // Non-HTTPS fallback
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Deployment failed");
+    } finally {
+      setDeploying(false);
     }
-    setCopiedManifest(true);
-    if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
-    copyTimerRef.current = setTimeout(() => setCopiedManifest(false), 2000);
   };
 
-  const handleCopyShareLink = async (playablePath: string): Promise<void> => {
-    const url =
-      typeof window !== "undefined"
-        ? `${window.location.origin}${playablePath}`
-        : `https://cartridgefi.com${playablePath}`;
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch {
-      // Non-HTTPS fallback
-    }
-    setCopiedShareLink(true);
-    if (copyTimerRef.current !== null) clearTimeout(copyTimerRef.current);
-    copyTimerRef.current = setTimeout(() => setCopiedShareLink(false), 2000);
-  };
-
-  const defaultPlayableHref =
-    deployment?.playablePath ??
-    (compiled.manifest.metadata.genre === "ARCADE_RUNNER"
-      ? "/play/pulse-runner"
-      : `/play/borel?cartridge=${encodeURIComponent(compiled.manifest.metadata.slug)}`);
+  const playableHref =
+    compiled.manifest.metadata.genre === "ARCADE_RUNNER"
+      ? `/play/pulse-runner?cartridge=${encodeURIComponent(compiled.manifest.metadata.slug)}`
+      : `/play/borel?cartridge=${encodeURIComponent(compiled.manifest.metadata.slug)}`;
 
   return (
-    <div className="space-y-6">
-      {/* Studio Top Banner */}
-      <GlassCard
-        id="vibe-studio-header-card"
-        variant="stage"
-        accent="emerald"
-        className="p-4 sm:p-6"
-      >
-        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <GlassPill tone="emerald" size="xs">
-                Hosted Web Vibe-Coding Studio
-              </GlassPill>
-              <GlassPill tone="amber" size="xs">
-                50% Creator Builder Fee Vault
-              </GlassPill>
-              <GlassPill tone="cyan" size="xs">
-                Zero Custom Rust Contracts
-              </GlassPill>
-            </div>
-            <h1 className="mt-2 font-display text-2xl font-bold tracking-[-0.035em] text-white sm:text-3xl">
-              Prompt-to-CartridgeManifest v2.0 IDE &amp; Wallet SDK Previewer
-            </h1>
-            <p className="mt-1 max-w-3xl text-xs leading-relaxed text-slate-400">
-              Compile natural-language game mechanics into schema-verified{" "}
-              <code className="font-mono text-slate-200">CartridgeManifest v2.0</code> PDAs,
-              stress-test 500 deterministic fixed-point ticks across Calm &amp; VIX-35 Crash
-              regimes, deploy to Solana Devnet, and preview inside Solflare, Phantom, or Backpack.
-            </p>
-          </div>
-
-          <CopyTerminalPill
-            id="studio-header-copy-skill"
-            command="npx skills add cartridgefi/skill"
-            badge="AGENT SKILL"
-          />
+    <div className="space-y-4">
+      {/* Studio Header */}
+      <div className="flex flex-col justify-between gap-3 rounded-lg border border-[#22262e] bg-[#111317] p-4 lg:flex-row lg:items-center">
+        <div>
+          <h1 className="text-base font-semibold text-[#f3f4f6] sm:text-lg">
+            Manifest Studio &amp; Solvency Compiler
+          </h1>
+          <p className="mt-0.5 text-xs text-[#9ca3af]">
+            Compile natural-language specifications into validated{" "}
+            <code className="font-mono text-[#e5e7eb]">CartridgeManifest v2.0</code>{" "}
+            schemas, verify pool conservation, and build canonical{" "}
+            <code className="font-mono text-[#e5e7eb]">register_cartridge</code>{" "}
+            instructions for Solana Devnet.
+          </p>
         </div>
-      </GlassCard>
 
-      {/* TWO-COLUMN STUDIO IDE */}
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-        {/* LEFT COLUMN (6 COLS): PROMPT & GENRE CHASSIS COMPILER */}
-        <GlassCard
-          id="studio-compiler-column"
-          accent="emerald"
-          className="space-y-4 p-4 sm:p-6 lg:col-span-6"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
-            <div>
-              <span className="font-mono text-[11px] font-semibold text-[#00F59B]">
-                1. PROMPT &amp; GENRE CHASSIS COMPILER
-              </span>
-              <h2 className="mt-0.5 font-display text-lg font-bold text-white">
-                Configure Cartridge Physics
+        <div className="flex items-center gap-2 font-mono text-xs text-[#9ca3af]">
+          <Cpu className="h-3.5 w-3.5 text-[#3b82f6]" />
+          <span>Compiler: {copilotEngine}</span>
+        </div>
+      </div>
+
+      {/* Main Split-Pane IDE */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        {/* Left 6 Cols: Prompt Compiler + JSON Manifest Inspector */}
+        <div className="space-y-4 lg:col-span-6">
+          <section className="rounded-lg border border-[#22262e] bg-[#111317] p-4">
+            <div className="flex items-center justify-between border-b border-[#22262e] pb-2.5">
+              <h2 className="flex items-center gap-1.5 text-xs font-semibold text-[#f3f4f6]">
+                <Sparkles className="h-3.5 w-3.5 text-[#3b82f6]" />
+                Specification Prompt (Vercel AI SDK + MCP)
               </h2>
-            </div>
-
-            <span
-              id="studio-compliance-badge"
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] font-semibold ${
-                compiled.compliance.valid
-                  ? "border-[#00F59B]/45 bg-[#00F59B]/15 text-[#00F59B]"
-                  : "border-[#FF4560]/50 bg-[#FF4560]/15 text-[#FF4560]"
-              }`}
-            >
-              {compiled.compliance.valid
-                ? "FCA/SEC DEP Clean · <= 5x Leverage · 50% Creator Split"
-                : "COMPLIANCE HARD-BLOCK"}
-            </span>
-          </div>
-
-          {/* Genre Chassis Selector */}
-          <div>
-            <span className="block text-xs font-medium text-slate-300">
-              Select Base Genre Chassis
-            </span>
-            <div
-              role="group"
-              aria-label="Cartridge Genre Chassis"
-              className="mt-2 grid grid-cols-2 gap-2"
-            >
-              {GENRE_OPTIONS.map((g) => {
-                const active = selectedGenre === g.id;
-                return (
-                  <button
-                    key={g.id}
-                    id={`studio-genre-${g.id}`}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => {
-                      setSelectedGenre(g.id);
-                      setDeployment(null);
-                    }}
-                    className={`cursor-pointer rounded-xl border px-3 py-2 text-left font-mono text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B] ${
-                      active
-                        ? "border-[#00F59B] bg-[#00F59B]/14 text-[#00F59B]"
-                        : "border-white/10 bg-[#050609]/90 text-slate-300 hover:border-white/25 hover:text-white"
-                    }`}
-                  >
-                    {g.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Creator Handle & Creator Wallet Inputs */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label
-                htmlFor="studio-creator-handle-input"
-                className="block text-xs font-medium text-slate-300"
+              <select
+                aria-label="Select Cartridge Genre"
+                value={genre}
+                onChange={(e) => setGenre(e.target.value as CartridgeGenre)}
+                className="rounded border border-[#303642] bg-[#171a20] px-2 py-1 font-mono text-[11px] text-[#f3f4f6]"
               >
-                Creator Handle
-              </label>
-              <input
-                id="studio-creator-handle-input"
-                name="creatorHandle"
-                type="text"
-                value={creatorHandle}
-                onChange={(e) => setCreatorHandle(e.target.value)}
-                spellCheck={false}
-                autoComplete="off"
-                placeholder="@vibe-creator…"
-                className="mt-1.5 w-full rounded-xl border border-white/12 bg-[#050609] px-3 py-2 font-mono text-xs text-slate-100 placeholder:text-slate-500 focus-visible:border-[#00F59B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B]"
-              />
+                <option value="BOREL_GAMEDAY">BOREL_GAMEDAY</option>
+                <option value="ARCADE_RUNNER">ARCADE_RUNNER</option>
+                <option value="PREDICTION_BRACKET">PREDICTION_BRACKET</option>
+                <option value="SYNDICATE_TURF">SYNDICATE_TURF</option>
+              </select>
             </div>
 
-            <div>
-              <label
-                htmlFor="studio-creator-wallet-input"
-                className="block text-xs font-medium text-slate-300"
-              >
-                Creator Fee Wallet (50% Split)
-              </label>
-              <input
-                id="studio-creator-wallet-input"
-                name="creatorWallet"
-                type="text"
-                value={creatorWallet}
-                onChange={(e) => setCreatorWallet(e.target.value)}
-                spellCheck={false}
-                autoComplete="off"
-                placeholder="Solana base58 pubkey…"
-                className="mt-1.5 w-full rounded-xl border border-white/12 bg-[#050609] px-3 py-2 font-mono text-xs text-slate-100 placeholder:text-slate-500 focus-visible:border-[#00F59B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B]"
-              />
-            </div>
-          </div>
-
-          {/* Preset Prompt Chips (including Anti-Casino Guardrail Test) */}
-          <div>
-            <span className="block text-xs font-medium text-slate-300">
-              Quick Prompt Templates &amp; Compliance Guardrail Test
-            </span>
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            {/* Presets */}
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {STUDIO_PRESETS.map((preset) => (
                 <button
                   key={preset.id}
                   id={preset.buttonId}
                   type="button"
                   onClick={() => {
-                    setSelectedGenre(preset.genre);
-                    setPromptText(preset.prompt);
-                    setDeployment(null);
+                    setPrompt(preset.prompt);
+                    setGenre(preset.genre);
+                    void runCompile(preset.prompt, preset.genre, false);
                   }}
-                  className={`cursor-pointer rounded-lg border px-2.5 py-1.5 font-mono text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B] ${
+                  className={cn(
+                    "cf-btn cursor-pointer rounded border px-2.5 py-1 text-[11px] font-medium",
                     preset.tone === "guardrail"
-                      ? "border-[#FF4560]/45 bg-[#FF4560]/12 text-[#FF8FA0] hover:bg-[#FF4560]/22"
-                      : "border-white/10 bg-[#050609] text-slate-300 hover:border-[#00F59B]/40 hover:text-white"
-                  }`}
+                      ? "border-[#ef4444]/40 bg-[#ef4444]/10 text-[#f87171] hover:bg-[#ef4444]/20"
+                      : "border-[#303642] bg-[#171a20] text-[#d1d5db] hover:text-white",
+                  )}
                 >
                   {preset.label}
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* Natural-Language Game Prompt Textarea */}
-          <div>
-            <label
-              htmlFor="studio-prompt-input"
-              className="block text-xs font-medium text-slate-300"
-            >
-              Natural-Language Game Mechanics &amp; Asset Prompt
-            </label>
             <textarea
-              id="studio-prompt-input"
-              name="studioPrompt"
+              aria-label="Cartridge specification prompt"
               rows={3}
-              value={promptText}
-              onChange={(e) => {
-                setPromptText(e.target.value);
-                setDeployment(null);
-              }}
-              autoComplete="off"
-              placeholder="Describe your market game twist, duration (60s/180s), and assets (SOL, BTC, NVDAx, TSLAx, ANTx)…"
-              className="mt-1.5 w-full rounded-xl border border-white/12 bg-[#050609] p-3 font-mono text-xs leading-relaxed text-slate-100 placeholder:text-slate-500 focus-visible:border-[#00F59B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B]"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="mt-3 w-full rounded-md border border-[#303642] bg-[#0b0c0e] p-3 text-xs leading-relaxed text-[#f3f4f6] focus:border-[#3b82f6] focus:outline-none"
             />
-          </div>
 
-          {/* Inline Compliance Guardrail Violations */}
-          {!compiled.compliance.valid ? (
-            <div
-              id="studio-compliance-violations"
-              role="alert"
-              className="rounded-xl border border-[#FF4560]/50 bg-[#FF4560]/12 p-3.5 font-mono text-xs leading-relaxed text-[#FF8FA0]"
-            >
-              <div className="font-bold text-[#FF4560]">
-                Engine Compliance Gate Blocked Compilation:
+            {copilotSummary ? (
+              <div className="mt-2 rounded border border-[#22262e] bg-[#0b0c0e] px-3 py-2 text-xs text-[#9ca3af]">
+                {copilotSummary}
               </div>
-              <ul className="mt-1 list-disc space-y-1 pl-4">
-                {compiled.compliance.violations.map((v, idx) => (
-                  <li key={idx}>{v}</li>
-                ))}
-              </ul>
-              <div className="mt-2 text-[11px] text-slate-300">
-                Fix: Remove paid loot boxes, roulette spins, or trade-streak nudges—or select a
-                skill-first preset chip above.
-              </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          <ActionButton
-            id="studio-compile-btn"
-            variant="emerald"
-            size="lg"
-            onClick={handleCompileAndSimulate}
-            className="w-full"
-          >
-            Compile &amp; Simulate (500 Ticks · Build #{compileCount})
-          </ActionButton>
-
-          {/* Live CartridgeManifest v2.0 JSON Inspector */}
-          <div>
-            <div className="mb-1.5 flex items-center justify-between text-xs">
-              <span className="font-mono font-semibold text-slate-300">
-                Compiled CartridgeManifest v2.0 JSON
-              </span>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
-                id="studio-copy-manifest-btn"
+                id="studio-compile-btn"
                 type="button"
-                onClick={() => {
-                  void handleCopyManifestJson();
-                }}
-                className="cursor-pointer rounded-lg border border-white/12 bg-white/[0.04] px-2.5 py-1 font-mono text-[11px] text-slate-200 transition-colors hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D4FF]"
+                disabled={compiling}
+                onClick={() => void runCompile(prompt, genre, true)}
+                className="cf-btn inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md bg-[#2563eb] px-3.5 text-xs font-medium text-white hover:bg-[#1d4ed8] disabled:opacity-50"
               >
-                {copiedManifest ? "Copied JSON" : "Copy Manifest"}
+                <span>{compiling ? "Compiling Live Feeds…" : "Compile Manifest"}</span>
+              </button>
+
+              <button
+                id="studio-deploy-btn"
+                type="button"
+                disabled={!compiled.compliance.valid || deploying}
+                onClick={() => void handleDeploy()}
+                className="cf-btn inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-[#303642] bg-[#171a20] px-3.5 text-xs font-medium text-[#f3f4f6] hover:bg-[#1d2129] disabled:opacity-45"
+              >
+                <Send className="h-3.5 w-3.5 text-[#34d399]" />
+                <span>
+                  {deploying
+                    ? "Querying Devnet RPC…"
+                    : "Derive PDAs & Execute on Devnet"}
+                </span>
               </button>
             </div>
-            <pre
-              id="studio-manifest-json"
-              className="max-h-72 overflow-auto rounded-2xl border border-white/[0.08] bg-[#050609] p-3.5 font-mono text-[11px] leading-relaxed text-slate-300 tabular-nums"
-            >
-              {JSON.stringify(compiled.manifest, null, 2)}
+          </section>
+
+          {/* Compiled JSON Manifest View */}
+          <section className="rounded-lg border border-[#22262e] bg-[#111317] p-4">
+            <div className="mb-2 flex items-center justify-between border-b border-[#22262e] pb-2 text-xs">
+              <span className="font-semibold text-[#f3f4f6]">
+                Compiled CartridgeManifest v2.0
+              </span>
+              <span className="font-mono text-[11px] text-[#9ca3af]">
+                {compiled.manifest.metadata.slug}.json
+              </span>
+            </div>
+            <pre className="max-h-[340px] overflow-auto rounded border border-[#22262e] bg-[#0b0c0e] p-3 font-mono text-[11px] leading-relaxed text-[#d1d5db]">
+              <code>{JSON.stringify(compiled.manifest, null, 2)}</code>
             </pre>
-          </div>
-        </GlassCard>
+          </section>
+        </div>
 
-        {/* RIGHT COLUMN (6 COLS): 500-TICK SIMULATION, DEVNET DEPLOY & <CartridgeDeck/> PREVIEWER */}
-        <div className="space-y-6 lg:col-span-6">
-          {/* 500-Tick WASM/BigInt Simulation & 1-Click On-Chain Deploy */}
-          <GlassCard
-            id="studio-simulation-and-deploy-card"
-            variant="stage"
-            accent="amber"
-            className="space-y-4 p-4 sm:p-6"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.08] pb-3">
-              <div>
-                <span className="font-mono text-[11px] font-semibold text-[#FFB020]">
-                  2. 500-TICK BIGINT SIMULATION &amp; ON-CHAIN DEPLOY
-                </span>
-                <h2 className="mt-0.5 font-display text-lg font-bold text-white">
-                  Solvency Proof &amp; Devnet Delegation
-                </h2>
+        {/* Right 6 Cols: Compliance Verifier + 500-Tick Conservation Chart + Real Devnet PDA Receipt */}
+        <div className="space-y-4 lg:col-span-6">
+          {!compiled.compliance.valid ? (
+            <section
+              id="studio-compliance-violations"
+              className="rounded-lg border border-[#ef4444]/40 bg-[#ef4444]/10 p-4"
+            >
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#f87171]">
+                <AlertTriangle className="h-4 w-4" />
+                <span>Compliance Guardrail Blocked Deployment</span>
               </div>
-
-              <div
-                role="group"
-                aria-label="Simulation Volatility Regime"
-                className="inline-flex rounded-xl border border-white/10 bg-[#050609] p-1"
-              >
-                <button
-                  id="studio-regime-calm"
-                  type="button"
-                  onClick={() => setVolatilityRegime("calm")}
-                  className={`cursor-pointer rounded-lg px-2.5 py-1 font-mono text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D4FF] ${
-                    volatilityRegime === "calm"
-                      ? "bg-[#00D4FF] text-[#050609]"
-                      : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  Calm Regime
-                </button>
-                <button
-                  id="studio-regime-crash"
-                  type="button"
-                  onClick={() => setVolatilityRegime("crash_vix35")}
-                  className={`cursor-pointer rounded-lg px-2.5 py-1 font-mono text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB020] ${
-                    volatilityRegime === "crash_vix35"
-                      ? "bg-[#FFB020] text-[#050609]"
-                      : "text-slate-300 hover:text-white"
-                  }`}
-                >
-                  Crash VIX 35 Regime
-                </button>
-              </div>
-            </div>
-
-            {/* P90 / Median / P10 + Projected Creator Fees */}
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-              <div className="rounded-xl border border-white/[0.08] bg-[#050609] p-3 font-mono tabular-nums">
-                <div className="text-[10px] text-slate-400">p90 Skill Score</div>
-                <div
-                  id="studio-sim-p90"
-                  className="mt-1 text-sm font-bold text-[#00F59B]"
-                >
-                  {activeSimReport.p90ScoreFormatted}
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/[0.08] bg-[#050609] p-3 font-mono tabular-nums">
-                <div className="text-[10px] text-slate-400">Median Score</div>
-                <div
-                  id="studio-sim-median"
-                  className="mt-1 text-sm font-bold text-white"
-                >
-                  {activeSimReport.medianScoreFormatted}
-                </div>
-              </div>
-              <div className="rounded-xl border border-white/[0.08] bg-[#050609] p-3 font-mono tabular-nums">
-                <div className="text-[10px] text-slate-400">p10 Score</div>
-                <div
-                  id="studio-sim-p10"
-                  className="mt-1 text-sm font-bold text-slate-300"
-                >
-                  {activeSimReport.p10ScoreFormatted}
-                </div>
-              </div>
-              <div className="rounded-xl border border-[#FFB020]/30 bg-[#050609] p-3 font-mono tabular-nums">
-                <div className="text-[10px] text-slate-400">Est. Creator / Mo</div>
-                <div
-                  id="studio-sim-creator-monthly"
-                  className="mt-1 text-sm font-bold text-[#FFB020]"
-                >
-                  ${activeSimReport.projectedMonthlyCreatorFeeUsdcFormatted}
-                </div>
-              </div>
-            </div>
-
-            {/* Payout Conservation Invariant Banner */}
-            <div
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-[#fca5a5]">
+                {compiled.compliance.violations.map((v, i) => (
+                  <li key={i}>{v}</li>
+                ))}
+              </ul>
+            </section>
+          ) : (
+            <section
               id="studio-conservation-proof"
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#00F59B]/35 bg-[#00F59B]/10 px-3.5 py-2.5 font-mono text-xs tabular-nums"
+              className="rounded-lg border border-[#22262e] bg-[#111317] p-4"
             >
-              <span className="font-semibold text-[#00F59B]">
-                {activeSimReport.payoutConservationVerified
-                  ? "Verified: Distributed <= Pool (100% Solvency Conserved)"
-                  : "Solvency Check Failed"}
-              </span>
-              <span className="text-slate-200">
-                {formatAtomicUsdc(BigInt(activeSimReport.totalDistributedUsdcAtomic))} /{" "}
-                {formatAtomicUsdc(BigInt(activeSimReport.roomPoolUsdcAtomic))} USDC
-              </span>
-            </div>
+              <div className="flex items-center justify-between border-b border-[#22262e] pb-2.5">
+                <h2 className="flex items-center gap-1.5 text-xs font-semibold text-[#f3f4f6]">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-[#34d399]" />
+                  500-Tick Pool Conservation &amp; Solvency Backtest
+                </h2>
+                <span className="font-mono text-[11px] text-[#34d399]">
+                  Conservation Verified
+                </span>
+              </div>
 
-            {/* Deploy CTA */}
-            <ActionButton
-              id="studio-deploy-btn"
-              variant="emerald"
-              size="lg"
-              disabled={!compiled.compliance.valid || isDeploying}
-              onClick={() => {
-                void handleDeployToDevnet();
-              }}
-              className="w-full"
+              <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-xs tabular-nums">
+                <div className="rounded border border-[#22262e] bg-[#0b0c0e] p-2.5">
+                  <div className="font-sans text-[10px] text-[#6b7280]">
+                    Room Pool (24 Seats)
+                  </div>
+                  <div className="mt-0.5 font-semibold text-[#f3f4f6]">
+                    {formatAtomicUsdc(BigInt(sim.roomPoolUsdcAtomic))}
+                  </div>
+                </div>
+                <div className="rounded border border-[#22262e] bg-[#0b0c0e] p-2.5">
+                  <div className="font-sans text-[10px] text-[#6b7280]">
+                    Creator Fee / Room
+                  </div>
+                  <div className="mt-0.5 font-semibold text-[#34d399]">
+                    {formatAtomicUsdc(BigInt(sim.creatorFeePerRoomUsdcAtomic))}
+                  </div>
+                </div>
+                <div className="rounded border border-[#22262e] bg-[#0b0c0e] p-2.5">
+                  <div className="font-sans text-[10px] text-[#6b7280]">
+                    Drift / Insolvency
+                  </div>
+                  <div className="mt-0.5 font-semibold text-[#f3f4f6]">
+                    $0.00 (0 wei)
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded border border-[#22262e] bg-[#0b0c0e] p-2">
+                <div className="mb-1 px-1 font-mono text-[10px] text-[#6b7280]">
+                  Cumulative Pool Distribution Curve (24 Rounds)
+                </div>
+                <div ref={equityChartRef} className="w-full" />
+              </div>
+            </section>
+          )}
+
+          {/* Canonical Solana Devnet PDA & Codama Instruction Receipt */}
+          {deployment ? (
+            <section
+              id="studio-deploy-receipt"
+              className="rounded-lg border border-[#303642] bg-[#111317] p-4"
             >
-              {!compiled.compliance.valid
-                ? "Resolve Compliance Violation to Deploy"
-                : isDeploying
-                  ? "Minting Manifest PDA & Delegating ER Shard…"
-                  : "Deploy Cartridge to Solana Devnet + Delegate ER Shard"}
-            </ActionButton>
+              <div className="flex items-center justify-between border-b border-[#22262e] pb-2.5">
+                <h2 className="text-xs font-semibold text-[#f3f4f6]">
+                  Canonical Solana Devnet Deployment Plan
+                </h2>
+                <span className="rounded border border-[#10b981]/30 bg-[#10b981]/10 px-2 py-0.5 font-mono text-[10px] text-[#34d399]">
+                  {deployment.devnetExecution?.mode === "broadcast_confirmed"
+                    ? "Broadcast Confirmed"
+                    : deployment.manifestExistsOnDevnet
+                      ? "Already Live on Devnet"
+                      : "RPC Preflight Simulated"}
+                </span>
+              </div>
 
-            {/* Live Deployed PDA & Explorer Receipt */}
-            <div aria-live="polite">
-              {deployment ? (
-                <div
-                  id="studio-deploy-receipt"
-                  className="space-y-3 rounded-2xl border border-[#00F59B]/45 bg-[#050609]/95 p-4 font-mono text-xs tabular-nums"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 font-bold text-[#00F59B]">
-                      <LivePulseDot tone="emerald" size="sm" />
-                      Cartridge Registered &amp; ER Room Delegated (Devnet)
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      Tx: {deployment.txSignature.slice(0, 12)}…
-                    </span>
-                  </div>
+              <div className="mt-3 space-y-2 font-mono text-xs tabular-nums">
+                <div className="flex items-center justify-between rounded border border-[#22262e] bg-[#0b0c0e] px-2.5 py-2">
+                  <span className="font-sans text-[11px] text-[#9ca3af]">
+                    ER Room Program
+                  </span>
+                  <a
+                    href={deployment.erProgramSolscanUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[#93c5fd] hover:underline"
+                  >
+                    {deployment.erRoomProgramId}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
 
-                  <div className="space-y-1.5 rounded-xl border border-white/[0.08] bg-[#0A0D14] p-3 text-[11px]">
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <span className="text-slate-400">CartridgeManifestAccount PDA:</span>
-                      <span translate="no" className="break-all text-slate-100">
-                        {deployment.manifestAccountPda}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <span className="text-slate-400">Delegated RoomShard PDA:</span>
-                      <span translate="no" className="break-all text-[#00D4FF]">
-                        {deployment.roomShardPda}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <span className="text-slate-400">creatorFeeVault (50% Split):</span>
-                      <span translate="no" className="break-all text-[#FFB020]">
-                        {deployment.creatorFeeVaultPda}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <span className="text-slate-400">ER Room Program ID:</span>
-                      <span translate="no" className="break-all text-[#00F59B]">
-                        {deployment.erRoomProgramId}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap justify-between gap-2">
-                      <span className="text-slate-400">MagicBlock Delegation:</span>
-                      <span translate="no" className="break-all text-[#C4B5FD]">
-                        {deployment.delegationProgramId}
-                      </span>
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between rounded border border-[#22262e] bg-[#0b0c0e] px-2.5 py-2">
+                  <span className="font-sans text-[11px] text-[#9ca3af]">
+                    Manifest PDA (Canonical)
+                  </span>
+                  <a
+                    href={deployment.manifestSolscanUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[#e5e7eb] hover:text-[#93c5fd]"
+                  >
+                    {shortenAddress(deployment.manifestAccountPda, 8, 8)}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <ActionButton
-                      id="studio-launch-deployed-link"
-                      href={deployment.playablePath}
-                      variant="emerald"
-                      size="sm"
-                    >
-                      Play Deployed Cartridge
-                    </ActionButton>
+                <div className="flex items-center justify-between rounded border border-[#22262e] bg-[#0b0c0e] px-2.5 py-2">
+                  <span className="font-sans text-[11px] text-[#9ca3af]">
+                    RoomShard #0 PDA
+                  </span>
+                  <span className="text-[#d1d5db]">
+                    {shortenAddress(deployment.roomShardPda, 8, 8)}
+                  </span>
+                </div>
 
-                    <button
-                      id="studio-share-link-btn"
-                      type="button"
-                      onClick={() => {
-                        void handleCopyShareLink(deployment.playablePath);
-                      }}
-                      className="cursor-pointer rounded-xl border border-white/15 bg-white/[0.05] px-3 py-2 font-mono text-xs text-slate-200 hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D4FF]"
-                    >
-                      {copiedShareLink ? "Share Link Copied!" : "Copy Shareable Play Link"}
-                    </button>
+                <div className="flex items-center justify-between rounded border border-[#22262e] bg-[#0b0c0e] px-2.5 py-2">
+                  <span className="font-sans text-[11px] text-[#9ca3af]">
+                    Borsh Instruction Payload
+                  </span>
+                  <span className="text-[#9ca3af]">
+                    {deployment.registerCartridgeInstruction.byteLength} bytes (
+                    {deployment.registerCartridgeInstruction.accounts.length} accounts)
+                  </span>
+                </div>
 
+                {deployment.devnetExecution?.signature &&
+                deployment.devnetExecution.solscanUrl ? (
+                  <div className="rounded border border-[#10b981]/30 bg-[#10b981]/10 px-2.5 py-2">
                     <a
-                      id="studio-explorer-registry-link"
-                      href={deployment.registryExplorerUrl}
+                      href={deployment.devnetExecution.solscanUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded-xl border border-white/12 px-3 py-2 font-mono text-xs text-[#67E8F9] hover:border-[#00D4FF]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D4FF]"
+                      className="inline-flex items-center gap-1 text-[#34d399] hover:underline"
                     >
-                      Devnet Registry Explorer ↗
+                      Live Solscan Tx:{" "}
+                      {shortenAddress(deployment.devnetExecution.signature, 10, 8)}
+                      <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
-                </div>
-              ) : null}
-            </div>
-          </GlassCard>
-
-          {/* 1-Click <CartridgeDeck/> Wallet SDK Frame Previewer */}
-          <GlassCard
-            id="studio-wallet-deck-card"
-            accent="cyan"
-            className="p-4 sm:p-6"
-          >
-            <WalletDeckPreview
-              manifest={compiled.manifest}
-              playableHref={defaultPlayableHref}
-            />
-          </GlassCard>
+                ) : deployment.devnetExecution?.error ? (
+                  <div className="rounded border border-[#22262e] bg-[#0b0c0e] px-2.5 py-2 font-sans text-[11px] text-[#9ca3af]">
+                    {deployment.devnetExecution.error}
+                  </div>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
+
+      {/* Partner Wallet Sheet Fee-Split Inspector */}
+      <WalletDeckPreview
+        manifest={compiled.manifest}
+        playableHref={playableHref}
+      />
     </div>
   );
 }

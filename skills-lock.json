@@ -1,6 +1,20 @@
 {
   "version": 2,
   "skills": {
+    "ai-sdk": {
+      "source": "vercel/ai",
+      "commit": "c39dedf99de495531017b7805dd7a99209798828",
+      "sourceType": "github",
+      "skillPath": "skills/ai-sdk/SKILL.md",
+      "computedHash": "59cd2dc82c5458f2819992fc3d27204ed16edfc9170870c6f8f04c44bac17772"
+    },
+    "building-components": {
+      "source": "vercel/components.build",
+      "commit": "0861fbcfe4f78c50eaafc202f5fb7661d641ddff",
+      "sourceType": "github",
+      "skillPath": "skills/building-components/SKILL.md",
+      "computedHash": "16fd7cdf98f3d4d85ccb987407d9963a054ea4f65c4ae45bd38fa6e567820f5e"
+    },
     "dflow-crypto-trading": {
       "source": "dflowprotocol/dflow-skills",
       "commit": "596ff3f5049bfb0b34592d38208d053238f8dfc7",
@@ -15,6 +29,13 @@
       "skillPath": "skills/dflow-sponsored-swaps/SKILL.md",
       "computedHash": "0db795af45f7f0345dade229332656519bbc5a77eff5dc102607108f2581e817"
     },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "commit": "64eb3deb9a5fbfa041faf783e0bc3fd635872e9c",
+      "sourceType": "github",
+      "skillPath": "skills/emil-design-eng/SKILL.md",
+      "computedHash": "e1b377ccde1d32743d1d3f7d8626629deb8055c9114d180c184697928cc66cc6"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "commit": "57217cf86ba38148a57af9e90d14a4c049558330",
@@ -28,6 +49,13 @@
       "sourceType": "github",
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "83485963700bcf11d5bf78118facb301676b69d918fee2e45a95e7f1a2840f6c"
+    },
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "commit": "2fc5e1459efbbf06d92c7306517c286bf12490cf",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/impeccable/SKILL.md",
+      "computedHash": "ba5494cb853df34dc3284176083f954829717c42474107d5d01934b2f43930b4"
     },
     "integrating-jupiter": {
       "source": "jup-ag/agent-skills",
@@ -70,6 +98,13 @@
       "sourceType": "github",
       "skillPath": "skills/playwright-cli/SKILL.md",
       "computedHash": "54c3f1e47b2566ecc3a2c1515823f77f4609edfe8029351924311dafc0d2ba66"
+    },
+    "shadcn": {
+      "source": "shadcn-ui/ui",
+      "commit": "0e5b2e621a9ee4cf6a604bbe6c5c0d5b70561eb4",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "388962d16c7a4f13aaeee0d8f128e50a87df8553d42ef7988c39c0e1c74a40e8"
     },
     "solana-dev": {
       "source": "solana-foundation/solana-dev-skill",

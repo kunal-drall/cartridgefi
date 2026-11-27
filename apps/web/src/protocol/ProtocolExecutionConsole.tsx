@@ -1,16 +1,22 @@
 "use client";
 
 import * as React from "react";
-import { USDC_UNIT } from "@cartridgefi/shared-types";
 import {
-  ActionButton,
-  GlassCard,
-  GlassPill,
-  LivePulseDot,
-  MagicBlockLockup,
-  SolanaLockup,
-} from "@cartridgefi/ui-system";
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  RefreshCw,
+} from "lucide-react";
+import { USDC_UNIT } from "@cartridgefi/shared-types";
 import devnetProof from "@/data/devnet-proof.json";
+import type {
+  DecodedOnchainManifest,
+  DecodedOnchainShard,
+  DecodedOnchainVault,
+  RecentOnchainSignature,
+} from "@/app/api/protocol-telemetry/route";
+import { cn, formatRelativeTime, shortenAddress } from "@/lib/utils";
+import { toast } from "sonner";
 
 type ProofCategoryFilter =
   | "all"
@@ -18,19 +24,45 @@ type ProofCategoryFilter =
   | "private_payments_and_fees"
   | "l1_settlement";
 
-interface RpcEndpointProbe {
-  id: string;
-  label: string;
-  role: string;
-  endpoint: string;
-  latencyMs: number | null;
-  detail: string;
-  healthy: boolean;
-}
-
-interface LiveProgramOnChainState {
-  executable: boolean;
-  lamports: bigint;
+interface TelemetryResponse {
+  ok: boolean;
+  fetchedAtIso?: string;
+  probes: {
+    solanaDevnet: { latencyMs: number | null; slot: number | null };
+    magicblockRouter: {
+      latencyMs: number | null;
+      routeCount: number | null;
+      routes?: Array<{ fqdn: string; identity?: string; blockTimeMs?: number }>;
+    };
+    magicblockPublicEr: {
+      latencyMs: number | null;
+      version: string | null;
+      pythLazerOracleActive?: boolean;
+      pythLazerOracleOwner?: string | null;
+    };
+    magicblockPrivateTee: { latencyMs: number | null; identity: string | null };
+  };
+  programStates: Record<
+    string,
+    { executable: boolean; lamports: string; accountCount?: number }
+  >;
+  accountCounts?: Record<string, number>;
+  liveFeeBalanceUnits: string;
+  liveShardStatus: string;
+  onchainAccounts?: {
+    engineConfig?: {
+      pubkey: string;
+      adminMultisig: string;
+      platformFeeAccount: string;
+      privateBetaMode: boolean;
+      paused: boolean;
+    } | null;
+    manifests: DecodedOnchainManifest[];
+    roomShards: DecodedOnchainShard[];
+    roomVaults: DecodedOnchainVault[];
+    passportAccountCount: number;
+  };
+  recentSignatures?: RecentOnchainSignature[];
 }
 
 function formatMicroUnits(rawUnitsStr: string): string {
@@ -44,39 +76,23 @@ function formatMicroUnits(rawUnitsStr: string): string {
   }
 }
 
-function formatLamportsSol(lamports: bigint): string {
-  const whole = lamports / 1_000_000_000n;
-  const frac = ((lamports % 1_000_000_000n) / 1_000_000n)
-    .toString()
-    .padStart(3, "0");
-  return `${whole.toString()}.${frac} SOL`;
-}
-
-function shortAddress(addr: string, head = 6, tail = 6): string {
-  if (addr.length <= head + tail + 3) return addr;
-  return `${addr.slice(0, head)}…${addr.slice(-tail)}`;
-}
-
-function solscanAccountHref(addr: string): string {
-  return `https://solscan.io/account/${addr}?cluster=devnet`;
-}
-
-interface ProtocolTelemetryApiResponse {
-  ok: boolean;
-  probes: {
-    solanaDevnet: { latencyMs: number | null; slot: number | null };
-    magicblockRouter: { latencyMs: number | null; routeCount: number | null };
-    magicblockPublicEr: { latencyMs: number | null; version: string | null };
-    magicblockPrivateTee: { latencyMs: number | null; identity: string | null };
-  };
-  programStates: Record<string, { executable: boolean; lamports: string }>;
-  liveFeeBalanceUnits: string;
-  liveShardStatus: string;
+function formatLamportsSol(lamportsStr: string | undefined, fallbackSol: string): string {
+  if (!lamportsStr) return `${fallbackSol} SOL`;
+  try {
+    const lamports = BigInt(lamportsStr);
+    const whole = lamports / 1_000_000_000n;
+    const frac = ((lamports % 1_000_000_000n) / 1_000_000n)
+      .toString()
+      .padStart(3, "0");
+    return `${whole}.${frac} SOL`;
+  } catch {
+    return `${fallbackSol} SOL`;
+  }
 }
 
 const FILTER_TABS: readonly { id: ProofCategoryFilter; label: string }[] = [
-  { id: "all", label: "All Proofs" },
-  { id: "delegation_and_vrf", label: "Delegations & VRF" },
+  { id: "all", label: "All Transactions" },
+  { id: "delegation_and_vrf", label: "ER Delegations & VRF" },
   { id: "private_payments_and_fees", label: "Private eSPL & Fees" },
   { id: "l1_settlement", label: "L1 Vault Settlement" },
 ];
@@ -84,660 +100,544 @@ const FILTER_TABS: readonly { id: ProofCategoryFilter; label: string }[] = [
 export function ProtocolExecutionConsole(): React.JSX.Element {
   const [categoryFilter, setCategoryFilter] =
     React.useState<ProofCategoryFilter>("all");
-  const [copiedKey, setCopiedKey] = React.useState<string | null>(null);
   const [probing, setProbing] = React.useState<boolean>(false);
-  const [liveFeeBalanceUnits, setLiveFeeBalanceUnits] = React.useState<string>(
-    devnetProof.metrics.platformFeeAccountFinalBalanceUnits,
+  const [telemetry, setTelemetry] = React.useState<TelemetryResponse | null>(
+    null,
   );
-  const [liveShardDelegated, setLiveShardDelegated] = React.useState<string>(
-    "Settled & Restored to L1",
-  );
-  const [programStates, setProgramStates] = React.useState<
-    Record<string, LiveProgramOnChainState>
-  >({});
-  const [probes, setProbes] = React.useState<readonly RpcEndpointProbe[]>([
-    {
-      id: "solana-devnet",
-      label: "Solana Devnet L1",
-      role: "Canonical Base Settlement & Vault Escrow",
-      endpoint: devnetProof.clusters.solanaDevnetRpc,
-      latencyMs: null,
-      detail: "Ready to probe slot",
-      healthy: true,
-    },
-    {
-      id: "mb-router",
-      label: "MagicBlock Router",
-      role: "Delegation Discovery & Account Routing",
-      endpoint: devnetProof.clusters.magicblockRouterRpc,
-      latencyMs: null,
-      detail: "getRoutes active",
-      healthy: true,
-    },
-    {
-      id: "mb-public-er",
-      label: "MagicBlock Public ER (US)",
-      role: "10ms Session Updates & VRF Callback",
-      endpoint: devnetProof.clusters.magicblockPublicErRpc,
-      latencyMs: null,
-      detail: `Validator ${shortAddress(devnetProof.clusters.magicblockPublicErValidator)}`,
-      healthy: true,
-    },
-    {
-      id: "mb-private-tee",
-      label: "MagicBlock Private ER (TEE)",
-      role: "Intel TDX Encrypted eSPL & Permissions",
-      endpoint: devnetProof.clusters.magicblockPrivateTeeRpc,
-      latencyMs: null,
-      detail: `Validator ${shortAddress(devnetProof.clusters.magicblockPrivateTeeValidator)}`,
-      healthy: true,
-    },
-  ]);
 
-  const runLiveRpcInspection = React.useCallback(async (): Promise<void> => {
+  const runProbe = React.useCallback(async () => {
     setProbing(true);
     try {
       const res = await fetch("/api/protocol-telemetry", { cache: "no-store" });
-      if (!res.ok) return;
-      const data = (await res.json()) as ProtocolTelemetryApiResponse;
-      if (!data.ok) return;
-
-      setProbes([
-        {
-          id: "solana-devnet",
-          label: "Solana Devnet L1",
-          role: "Canonical Base Settlement & Vault Escrow",
-          endpoint: devnetProof.clusters.solanaDevnetRpc,
-          latencyMs: data.probes.solanaDevnet.latencyMs,
-          detail:
-            data.probes.solanaDevnet.slot !== null
-              ? `Confirmed Slot #${new Intl.NumberFormat("en-US").format(data.probes.solanaDevnet.slot)}`
-              : "Cached Devnet Snapshot",
-          healthy: true,
-        },
-        {
-          id: "mb-router",
-          label: "MagicBlock Router",
-          role: "Delegation Discovery & Account Routing",
-          endpoint: devnetProof.clusters.magicblockRouterRpc,
-          latencyMs: data.probes.magicblockRouter.latencyMs,
-          detail:
-            data.probes.magicblockRouter.routeCount !== null
-              ? `${data.probes.magicblockRouter.routeCount} Regional ER Validators Online`
-              : "Router Verified via Proof Snapshot",
-          healthy: true,
-        },
-        {
-          id: "mb-public-er",
-          label: "MagicBlock Public ER (US)",
-          role: "10ms Session Updates & VRF Callback",
-          endpoint: devnetProof.clusters.magicblockPublicErRpc,
-          latencyMs: data.probes.magicblockPublicEr.latencyMs,
-          detail: data.probes.magicblockPublicEr.version
-            ? `Validator v${data.probes.magicblockPublicEr.version} · 10ms Block`
-            : `Validator ${shortAddress(devnetProof.clusters.magicblockPublicErValidator)}`,
-          healthy: true,
-        },
-        {
-          id: "mb-private-tee",
-          label: "MagicBlock Private ER (TEE)",
-          role: "Intel TDX Encrypted eSPL & Permissions",
-          endpoint: devnetProof.clusters.magicblockPrivateTeeRpc,
-          latencyMs: data.probes.magicblockPrivateTee.latencyMs,
-          detail: data.probes.magicblockPrivateTee.identity
-            ? `TDX Identity ${shortAddress(data.probes.magicblockPrivateTee.identity)}`
-            : `TDX ${shortAddress(devnetProof.clusters.magicblockPrivateTeeValidator)}`,
-          healthy: true,
-        },
-      ]);
-
-      const nextPrograms: Record<string, LiveProgramOnChainState> = {};
-      for (const [pk, state] of Object.entries(data.programStates)) {
-        nextPrograms[pk] = {
-          executable: state.executable,
-          lamports: BigInt(state.lamports),
-        };
+      if (res.ok) {
+        const json = (await res.json()) as TelemetryResponse;
+        setTelemetry(json);
       }
-      setProgramStates(nextPrograms);
-      setLiveFeeBalanceUnits(data.liveFeeBalanceUnits);
-      setLiveShardDelegated(data.liveShardStatus);
     } catch {
-      // Retain static verified Devnet proof snapshot if offline
+      // Keep previous state
     } finally {
       setProbing(false);
     }
   }, []);
 
   React.useEffect(() => {
-    void runLiveRpcInspection();
-  }, [runLiveRpcInspection]);
+    void runProbe();
+    const id = window.setInterval(() => {
+      void runProbe();
+    }, 15_000);
+    return () => window.clearInterval(id);
+  }, [runProbe]);
 
-  const handleCopy = (key: string, value: string): void => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      void navigator.clipboard.writeText(value);
+  const copyText = async (val: string, label: string): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(val);
+      toast.success(`Copied ${label}`);
+    } catch {
+      // Ignore
     }
-    setCopiedKey(key);
-    setTimeout(() => {
-      setCopiedKey((prev) => (prev === key ? null : prev));
-    }, 1600);
   };
 
-  const programEntries = [
+  const filteredProofTxs = React.useMemo(() => {
+    if (categoryFilter === "all") return devnetProof.transactions;
+    return devnetProof.transactions.filter(
+      (tx) => tx.category === categoryFilter,
+    );
+  }, [categoryFilter]);
+
+  const feeUnits =
+    telemetry?.liveFeeBalanceUnits ??
+    devnetProof.metrics.platformFeeAccountFinalBalanceUnits;
+
+  const programsList = [
     {
       name: "cartridge_er_room",
-      role: "Delegated ER/PER Arena Shards, Session Keys, Permissions & VRF",
-      ...devnetProof.programs.cartridgeErRoom,
+      role: "Delegated ER / TEE State & VRF Callback",
+      id: devnetProof.programs.cartridgeErRoom.programId,
+      bytes: devnetProof.programs.cartridgeErRoom.binaryBytes,
+      minRentSol: devnetProof.programs.cartridgeErRoom.minRentSol,
     },
     {
       name: "cartridge_vault_router",
-      role: "Non-Custodial Escrow, Harmonic Shapley Math & 50/50 Fee Split",
-      ...devnetProof.programs.cartridgeVaultRouter,
+      role: "Non-Custodial SPL Escrow & Fee Splitter",
+      id: devnetProof.programs.cartridgeVaultRouter.programId,
+      bytes: devnetProof.programs.cartridgeVaultRouter.binaryBytes,
+      minRentSol: devnetProof.programs.cartridgeVaultRouter.minRentSol,
     },
     {
       name: "cartridge_registry",
-      role: "EngineConfig, Canonical platformFeeAccount Binding & Manifests",
-      ...devnetProof.programs.cartridgeRegistry,
+      role: "Parameterized CartridgeManifest v2 Registry",
+      id: devnetProof.programs.cartridgeRegistry.programId,
+      bytes: devnetProof.programs.cartridgeRegistry.binaryBytes,
+      minRentSol: devnetProof.programs.cartridgeRegistry.minRentSol,
     },
     {
       name: "cartridge_passport",
-      role: "Cross-Game Market ELO, Sharpe/Brier & Earned Stock Accounting",
-      ...devnetProof.programs.cartridgePassport,
+      role: "Cross-Arena Market ELO & Eligibility",
+      id: devnetProof.programs.cartridgePassport.programId,
+      bytes: devnetProof.programs.cartridgePassport.binaryBytes,
+      minRentSol: devnetProof.programs.cartridgePassport.minRentSol,
     },
-  ] as const;
-
-  const filteredTransactions = React.useMemo(
-    () =>
-      categoryFilter === "all"
-        ? devnetProof.transactions
-        : devnetProof.transactions.filter(
-            (tx) => tx.category === categoryFilter,
-          ),
-    [categoryFilter],
-  );
+  ];
 
   return (
-    <div id="protocol-execution-console" className="space-y-6">
-      {/* 1. PROTOCOL COMMAND HEADER */}
-      <GlassCard
-        id="protocol-command-header"
-        variant="stage"
-        accent="emerald"
-        className="p-5 sm:p-6"
-      >
-        <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
-          <div className="min-w-0 max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <GlassPill tone="emerald" size="xs">
-                Infra + DeFi + Privacy · {devnetProof.protocolVersion}
-              </GlassPill>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-[#050609]/85 px-2.5 py-0.5 font-mono text-[11px] text-slate-300">
-                <SolanaLockup size="sm" clearspace={false} className="px-1" />
-                <span>x</span>
-                <MagicBlockLockup
-                  size="sm"
-                  clearspace={false}
-                  className="px-1"
-                />
-              </span>
-              <span className="font-mono text-[11px] text-[#00F59B] tabular-nums">
-                {devnetProof.executionMode}
-              </span>
-            </div>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-col justify-between gap-3 rounded-lg border border-[#22262e] bg-[#111317] p-4 lg:flex-row lg:items-center">
+        <div>
+          <h1 className="text-base font-semibold text-[#f3f4f6] sm:text-lg">
+            Protocol Inspector &amp; Live Execution Console
+          </h1>
+          <p className="mt-0.5 text-xs text-[#9ca3af]">
+            Direct Solana Devnet (
+            <code className="font-mono text-[#d1d5db]">getProgramAccounts</code>,{" "}
+            <code className="font-mono text-[#d1d5db]">getMultipleAccounts</code>,{" "}
+            <code className="font-mono text-[#d1d5db]">getSignaturesForAddress</code>
+            ) and MagicBlock Ephemeral Rollup / Intel TDX state inspector.
+          </p>
+        </div>
 
-            <h1
-              id="protocol-console-heading"
-              className="mt-3 font-display text-2xl font-bold tracking-[-0.035em] text-white sm:text-4xl text-balance"
-            >
-              Protocol Inspector &amp; Live Execution Console
-            </h1>
-            <p className="mt-2.5 text-sm leading-relaxed text-slate-400 sm:text-base">
-              Real-time verification surface for MagicBlock engineers and
-              protocol auditors. Inspects our 4 deployed Solana Devnet Anchor
-              programs, MagicBlock Delegation &amp; VRF state, Intel TDX Private
-              ER eSPL transfers, and canonical{" "}
-              <code translate="no" className="font-mono text-slate-200">
-                platformFeeAccount
-              </code>{" "}
-              settlements.
-            </p>
+        <button
+          id="protocol-reprobe-btn"
+          type="button"
+          onClick={() => void runProbe()}
+          disabled={probing}
+          className="cf-btn inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-[#303642] bg-[#171a20] px-3 text-xs font-medium text-[#e5e7eb] hover:bg-[#1d2129] disabled:opacity-50"
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5", probing ? "animate-spin" : "")} />
+          <span>{probing ? "Querying RPCs…" : "Refresh Live RPC State"}</span>
+        </button>
+      </div>
+
+      {/* 4-Endpoint Cluster Probe Strip */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border border-[#22262e] bg-[#111317] p-3.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium text-[#e5e7eb]">Solana Devnet L1</span>
+            <span className="font-mono text-[11px] text-[#34d399] tabular-nums">
+              {telemetry?.probes.solanaDevnet.latencyMs
+                ? `${telemetry.probes.solanaDevnet.latencyMs}ms`
+                : "Connected"}
+            </span>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              id="protocol-reprobe-rpc-btn"
-              type="button"
-              onClick={() => void runLiveRpcInspection()}
-              disabled={probing}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#00D4FF]/40 bg-[#00D4FF]/12 px-3.5 py-2 font-mono text-xs font-semibold text-[#67E8F9] transition-colors hover:border-[#00D4FF]/70 hover:bg-[#00D4FF]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D4FF] disabled:opacity-60"
-            >
-              <LivePulseDot tone="cyan" size="sm" />
-              <span>{probing ? "Probing Devnet & ER…" : "Re-Probe Live RPC"}</span>
-            </button>
-
-            <ActionButton
-              id="protocol-open-harness-001-btn"
-              href="/play/borel"
-              variant="emerald"
-              size="md"
-            >
-              Reference Harness #001 (Borel)
-            </ActionButton>
+          <div className="mt-1.5 font-mono text-sm font-semibold text-[#f3f4f6] tabular-nums">
+            {telemetry?.probes.solanaDevnet.slot
+              ? `Slot ${telemetry.probes.solanaDevnet.slot.toLocaleString()}`
+              : "Confirmed"}
+          </div>
+          <div className="mt-1 truncate font-mono text-[11px] text-[#6b7280]">
+            {devnetProof.clusters.solanaDevnetRpc}
           </div>
         </div>
 
-        {/* Top KPI Telemetry Bar */}
-        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <div className="rounded-xl border border-white/[0.08] bg-[#050609]/90 p-3.5">
-            <div className="font-mono text-[11px] text-slate-400">
-              Deployed Anchor Programs
-            </div>
-            <div
-              id="protocol-kpi-programs"
-              className="mt-1 font-mono text-xl font-bold text-white tabular-nums"
-            >
-              4 / 4 Live
-            </div>
-            <div className="mt-0.5 font-mono text-[11px] text-[#00F59B] tabular-nums">
-              1,179,104 B · opt-level=&ldquo;z&rdquo;
-            </div>
+        <div className="rounded-lg border border-[#22262e] bg-[#111317] p-3.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium text-[#e5e7eb]">MagicBlock Router</span>
+            <span className="font-mono text-[11px] text-[#34d399] tabular-nums">
+              {telemetry?.probes.magicblockRouter.latencyMs
+                ? `${telemetry.probes.magicblockRouter.latencyMs}ms`
+                : "Connected"}
+            </span>
           </div>
-
-          <div className="rounded-xl border border-white/[0.08] bg-[#050609]/90 p-3.5">
-            <div className="font-mono text-[11px] text-slate-400">
-              ER Session State Updates + VRF
-            </div>
-            <div
-              id="protocol-kpi-session-updates"
-              className="mt-1 font-mono text-xl font-bold text-[#00D4FF] tabular-nums"
-            >
-              {devnetProof.metrics.erSessionStateUpdatesCount} Updates · VRF OK
-            </div>
-            <div
-              translate="no"
-              className="mt-0.5 truncate font-mono text-[11px] text-slate-400 tabular-nums"
-            >
-              Seed {devnetProof.metrics.vrfSeedHex.slice(0, 16)}…
-            </div>
+          <div className="mt-1.5 font-mono text-sm font-semibold text-[#f3f4f6] tabular-nums">
+            {telemetry?.probes.magicblockRouter.routeCount
+              ? `${telemetry.probes.magicblockRouter.routeCount} Active ER Nodes`
+              : "ER Routing Active"}
           </div>
-
-          <div className="rounded-xl border border-white/[0.08] bg-[#050609]/90 p-3.5">
-            <div className="font-mono text-[11px] text-slate-400">
-              Private eSPL Transfers (TEE)
-            </div>
-            <div
-              id="protocol-kpi-private-transfers"
-              className="mt-1 font-mono text-xl font-bold text-[#C4B5FD] tabular-nums"
-            >
-              {devnetProof.metrics.privateTransfersCount} Shielded Txs
-            </div>
-            <div className="mt-0.5 font-mono text-[11px] text-slate-400 tabular-nums">
-              {devnetProof.metrics.relayerFeePaidTransfersCount}x @{" "}
-              {devnetProof.metrics.relayerPlatformFeeBps} bps Fee + In-TEE
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-[#00F59B]/25 bg-[#050609]/90 p-3.5">
-            <div className="font-mono text-[11px] text-slate-400">
-              platformFeeAccount Balance
-            </div>
-            <div
-              id="protocol-kpi-fee-balance"
-              className="mt-1 font-mono text-xl font-bold text-[#00F59B] tabular-nums"
-            >
-              {formatMicroUnits(liveFeeBalanceUnits)} USDC
-            </div>
-            <div
-              translate="no"
-              className="mt-0.5 truncate font-mono text-[11px] text-slate-400 tabular-nums"
-            >
-              ATA {shortAddress(devnetProof.accounts.platformFeeAccountAta, 6, 6)}
-            </div>
+          <div className="mt-1 truncate font-mono text-[11px] text-[#6b7280]">
+            {devnetProof.clusters.magicblockRouterRpc}
           </div>
         </div>
-      </GlassCard>
 
-      {/* 2. LIVE ER / TEE / L1 RPC LATENCY MATRIX */}
-      <section aria-labelledby="protocol-rpc-heading" className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2
-            id="protocol-rpc-heading"
-            className="font-display text-lg font-bold text-white"
-          >
-            1. Live Cluster &amp; Enclave RPC Telemetry
+        <div className="rounded-lg border border-[#22262e] bg-[#111317] p-3.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium text-[#e5e7eb]">Public ER + Oracle</span>
+            <span className="font-mono text-[11px] text-[#34d399] tabular-nums">
+              {telemetry?.probes.magicblockPublicEr.latencyMs
+                ? `${telemetry.probes.magicblockPublicEr.latencyMs}ms`
+                : "Connected"}
+            </span>
+          </div>
+          <div className="mt-1.5 font-mono text-sm font-semibold text-[#f3f4f6] tabular-nums">
+            {telemetry?.probes.magicblockPublicEr.pythLazerOracleActive
+              ? "Pyth Lazer Feed Live"
+              : `Core ${telemetry?.probes.magicblockPublicEr.version ?? "Active"}`}
+          </div>
+          <div className="mt-1 truncate font-mono text-[11px] text-[#6b7280]">
+            {devnetProof.clusters.magicblockPublicErRpc}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-[#22262e] bg-[#111317] p-3.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-medium text-[#e5e7eb]">Private ER (TDX TEE)</span>
+            <span className="font-mono text-[11px] text-[#34d399] tabular-nums">
+              {telemetry?.probes.magicblockPrivateTee.latencyMs
+                ? `${telemetry.probes.magicblockPrivateTee.latencyMs}ms`
+                : "Connected"}
+            </span>
+          </div>
+          <div className="mt-1.5 font-mono text-sm font-semibold text-[#f3f4f6] tabular-nums">
+            {shortenAddress(
+              telemetry?.probes.magicblockPrivateTee.identity ??
+                devnetProof.clusters.magicblockPrivateTeeValidator,
+              6,
+              6,
+            )}
+          </div>
+          <div className="mt-1 truncate font-mono text-[11px] text-[#6b7280]">
+            {devnetProof.clusters.magicblockPrivateTeeRpc}
+          </div>
+        </div>
+      </div>
+
+      {/* Deployed Solana Devnet Programs Table */}
+      <section className="rounded-lg border border-[#22262e] bg-[#111317] overflow-hidden">
+        <div className="flex items-center justify-between border-b border-[#22262e] px-4 py-2.5">
+          <h2 className="text-xs font-semibold text-[#f3f4f6]">
+            Deployed Solana Devnet Programs
           </h2>
-          <span className="font-mono text-xs text-slate-400 tabular-nums">
-            Shard Status: <strong className="text-[#00F59B]">{liveShardDelegated}</strong>
+          <span className="font-mono text-[11px] text-[#6b7280]">
+            BPFLoaderUpgradeab1e
           </span>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {probes.map((probe) => (
-            <GlassCard key={probe.id} className="p-4">
-              <div className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 font-mono text-xs font-semibold text-white">
-                  <LivePulseDot
-                    tone={probe.id.includes("tee") ? "violet" : "emerald"}
-                    size="sm"
-                  />
-                  {probe.label}
-                </span>
-                <span className="rounded-md border border-white/10 bg-[#050609] px-2 py-0.5 font-mono text-xs font-bold text-[#00F59B] tabular-nums">
-                  {probe.latencyMs !== null ? `${probe.latencyMs}ms` : "LIVE"}
-                </span>
-              </div>
-              <div className="mt-1.5 text-xs text-slate-400">{probe.role}</div>
-              <div
-                translate="no"
-                className="mt-2.5 truncate rounded-lg border border-white/[0.06] bg-[#050609]/80 px-2.5 py-1.5 font-mono text-[11px] text-slate-300"
-              >
-                {probe.endpoint}
-              </div>
-              <div className="mt-2 font-mono text-[11px] text-slate-400 tabular-nums">
-                {probe.detail}
-              </div>
-            </GlassCard>
-          ))}
-        </div>
-      </section>
-
-      {/* 3. DEPLOYED DEVNET PROGRAMS & MAGICBLOCK INFRASTRUCTURE */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <GlassCard className="p-5 lg:col-span-7">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-display text-lg font-bold text-white">
-              2. Deployed Solana Devnet Program IDs
-            </h2>
-            <GlassPill tone="cyan" size="xs">
-              100% Keypair · IDL · Codama Parity
-            </GlassPill>
-          </div>
-
-          <div className="mt-4 space-y-2.5">
-            {programEntries.map((prog) => {
-              const liveState = programStates[prog.programId];
-              return (
-                <div
-                  key={prog.programId}
-                  className="rounded-xl border border-white/[0.08] bg-[#050609]/90 p-3.5"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-md bg-white/[0.07] px-2 py-0.5 font-mono text-[11px] font-bold text-[#00F59B] tabular-nums">
-                        P{prog.priority}
-                      </span>
-                      <span
-                        translate="no"
-                        className="font-mono text-sm font-bold text-white"
-                      >
-                        {prog.name}
-                      </span>
-                      <span className="rounded-full border border-[#00F59B]/30 bg-[#00F59B]/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-[#00F59B]">
-                        {liveState?.executable === false
-                          ? "UNVERIFIED"
-                          : "EXECUTABLE"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(prog.name, prog.programId)}
-                        className="cursor-pointer rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 font-mono text-[11px] text-slate-300 transition-colors hover:border-white/25 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B]"
-                      >
-                        {copiedKey === prog.name ? "Copied" : "Copy ID"}
-                      </button>
-                      <a
-                        href={prog.solscanUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-lg border border-[#00D4FF]/30 bg-[#00D4FF]/10 px-2.5 py-1 font-mono text-[11px] font-semibold text-[#67E8F9] transition-colors hover:border-[#00D4FF]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D4FF]"
-                      >
-                        Solscan -&gt;
-                      </a>
-                    </div>
-                  </div>
-
-                  <div
-                    translate="no"
-                    className="mt-2 break-all font-mono text-xs text-slate-200"
-                  >
-                    {prog.programId}
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-                    <span>{prog.role}</span>
-                    <span className="font-mono text-[11px] text-slate-300 tabular-nums">
-                      {new Intl.NumberFormat("en-US").format(prog.binaryBytes)} B
-                      ·{" "}
-                      {liveState
-                        ? formatLamportsSol(liveState.lamports)
-                        : `${prog.minRentSol} SOL`}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </GlassCard>
-
-        {/* Relayer & platformFeeAccount Submission Registry */}
-        <GlassCard accent="emerald" className="flex flex-col justify-between p-5 lg:col-span-5">
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-display text-lg font-bold text-white">
-                3. Relayer &amp; Fee Account Registry
-              </h2>
-              <GlassPill tone="emerald" size="xs">
-                Canonical SPL ATA
-              </GlassPill>
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-slate-400">
-              Exact addresses registered in{" "}
-              <code translate="no" className="font-mono text-slate-200">
-                EngineConfig
-              </code>{" "}
-              and MagicBlock eSPL private transfers (
-              <code translate="no" className="font-mono text-slate-200">
-                SPLxh1LV…
-              </code>
-              ).{" "}
-              <code translate="no" className="font-mono text-slate-200">
-                platformFeeAccount
-              </code>{" "}
-              is an initialized canonical Associated Token Account for the
-              transferred SPL mint.
-            </p>
-
-            <div className="mt-4 space-y-2.5">
-              {[
-                {
-                  key: "relayer-wallet",
-                  label: "Relayer / App Authority Wallet",
-                  address: devnetProof.accounts.relayerWallet,
-                  badge: "TEE + L1 Signer",
-                },
-                {
-                  key: "platform-fee-ata",
-                  label: "platformFeeAccount (Canonical SPL ATA)",
-                  address: devnetProof.accounts.platformFeeAccountAta,
-                  badge: `${formatMicroUnits(liveFeeBalanceUnits)} USDC`,
-                },
-                {
-                  key: "platform-fee-owner",
-                  label: "platformFeeAccount Treasury Owner",
-                  address: devnetProof.accounts.platformFeeOwner,
-                  badge: "ATA Owner",
-                },
-                {
-                  key: "spl-mint",
-                  label: "Devnet SPL Settlement Mint (6 Decimals)",
-                  address: devnetProof.accounts.splMint,
-                  badge: "Vault + eSPL Mint",
-                },
-                {
-                  key: "delegation-prog",
-                  label: "MagicBlock Delegation Program",
-                  address: devnetProof.programs.magicblockDelegation,
-                  badge: "DELeGGvX…",
-                },
-                {
-                  key: "espl-prog",
-                  label: "MagicBlock Ephemeral SPL Token Program",
-                  address: devnetProof.programs.magicblockEsplToken,
-                  badge: "SPLxh1LV…",
-                },
-              ].map((item) => (
-                <div
-                  key={item.key}
-                  className="rounded-xl border border-white/[0.08] bg-[#050609]/90 p-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-slate-300">
-                      {item.label}
-                    </span>
-                    <span className="font-mono text-[10px] font-semibold text-[#00F59B] tabular-nums">
-                      {item.badge}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 flex items-center justify-between gap-2">
-                    <a
-                      href={solscanAccountHref(item.address)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      translate="no"
-                      className="min-w-0 truncate font-mono text-xs text-[#67E8F9] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D4FF]"
-                    >
-                      {item.address}
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(item.key, item.address)}
-                      className="shrink-0 cursor-pointer rounded-md border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] text-slate-300 hover:border-white/25 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B]"
-                    >
-                      {copiedKey === item.key ? "Copied" : "Copy"}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-4 rounded-xl border border-[#00F59B]/25 bg-[#00F59B]/[0.06] p-3 font-mono text-[11px] text-slate-200 tabular-nums">
-            <div className="flex items-center justify-between">
-              <span>Arena Protocol Fee Inflow:</span>
-              <span className="font-bold text-[#00F59B]">
-                +{formatMicroUnits(devnetProof.metrics.arenaPlatformFeeUnits)} USDC
-              </span>
-            </div>
-            <div className="mt-1 flex items-center justify-between">
-              <span>3x Private Relayer Fee Inflow (100 bps):</span>
-              <span className="font-bold text-[#00F59B]">
-                +{formatMicroUnits(devnetProof.metrics.privateRelayerFeeUnits)} USDC
-              </span>
-            </div>
-          </div>
-        </GlassCard>
-      </div>
-
-      {/* 4. VERIFIED ON-CHAIN TRANSACTION PROOF LEDGER */}
-      <GlassCard id="protocol-proof-ledger" className="p-5">
-        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="font-display text-lg font-bold text-white">
-              4. Live Solscan Devnet &amp; Ephemeral Rollup Proof Ledger (
-              {filteredTransactions.length} Transactions)
-            </h2>
-            <p className="mt-1 text-xs text-slate-400">
-              Verified UTC:{" "}
-              <span className="font-mono text-slate-300 tabular-nums">
-                {devnetProof.verifiedAtUtc}
-              </span>{" "}
-              · Re-run anytime via{" "}
-              <code translate="no" className="font-mono text-[#00F59B]">
-                pnpm prove:blitz
-              </code>
-            </p>
-          </div>
-
-          <div
-            role="group"
-            aria-label="Filter transaction proof category"
-            className="flex flex-wrap gap-1.5"
-          >
-            {FILTER_TABS.map((tab) => {
-              const active = categoryFilter === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  id={`protocol-filter-${tab.id}`}
-                  type="button"
-                  onClick={() => setCategoryFilter(tab.id)}
-                  className={`cursor-pointer rounded-xl border px-3 py-1.5 font-mono text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B] ${
-                    active
-                      ? "border-[#00F59B] bg-[#00F59B]/15 text-[#00F59B]"
-                      : "border-white/10 bg-[#050609]/80 text-slate-300 hover:border-white/25 hover:text-white"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[680px] border-collapse text-left">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-xs">
             <thead>
-              <tr className="border-b border-white/10 font-mono text-[11px] uppercase tracking-wider text-slate-400">
-                <th className="py-2.5 pr-3">Lifecycle Step</th>
-                <th className="px-3 py-2.5">Execution Layer</th>
-                <th className="px-3 py-2.5">Signature</th>
-                <th className="py-2.5 pl-3">Verification Details</th>
+              <tr className="border-b border-[#22262e] bg-[#0e1014] text-[11px] font-medium text-[#6b7280]">
+                <th className="px-4 py-2">Program</th>
+                <th className="px-3 py-2">Program ID</th>
+                <th className="px-3 py-2">Role</th>
+                <th className="px-3 py-2 text-right">Live PDAs</th>
+                <th className="px-4 py-2 text-right">Executable Rent</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.06] text-xs">
-              {filteredTransactions.map((tx) => {
-                const layerTone =
-                  tx.layer === "Solana Devnet L1"
-                    ? "border-[#00F59B]/30 bg-[#00F59B]/10 text-[#00F59B]"
-                    : tx.layer.includes("TEE")
-                      ? "border-[#8B5CF6]/40 bg-[#8B5CF6]/15 text-[#C4B5FD]"
-                      : "border-[#00D4FF]/35 bg-[#00D4FF]/12 text-[#67E8F9]";
+            <tbody className="divide-y divide-[#22262e]">
+              {programsList.map((prog) => {
+                const st = telemetry?.programStates?.[prog.id];
+                const count =
+                  telemetry?.accountCounts?.[prog.id] ?? st?.accountCount;
                 return (
-                  <tr
-                    key={`${tx.step}-${tx.signature}`}
-                    className="transition-colors hover:bg-white/[0.02]"
-                  >
-                    <td className="py-3 pr-3 font-medium text-slate-100">
-                      {tx.step}
+                  <tr key={prog.id} className="cf-row-hover">
+                    <td className="px-4 py-2.5 font-mono font-semibold text-[#f3f4f6]">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-[#34d399]" />
+                        <span>{prog.name}</span>
+                      </div>
                     </td>
-                    <td className="px-3 py-3">
-                      <span
-                        className={`inline-block rounded-full border px-2.5 py-0.5 font-mono text-[10px] font-semibold ${layerTone}`}
-                      >
-                        {tx.layer}
-                      </span>
+                    <td className="px-3 py-2.5 font-mono text-[#93c5fd]">
+                      <div className="flex items-center gap-1.5">
+                        <a
+                          href={`https://solscan.io/account/${prog.id}?cluster=devnet`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          {prog.id}
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => void copyText(prog.id, prog.name)}
+                          className="cursor-pointer text-[#6b7280] hover:text-white"
+                          aria-label={`Copy ${prog.name} Program ID`}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
                     </td>
-                    <td className="px-3 py-3">
-                      <a
-                        href={tx.solscanUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        translate="no"
-                        className="inline-flex items-center gap-1 font-mono text-xs text-[#67E8F9] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00D4FF]"
-                      >
-                        <span>{shortAddress(tx.signature, 8, 8)}</span>
-                        <span aria-hidden="true">-&gt;</span>
-                      </a>
+                    <td className="px-3 py-2.5 text-[#9ca3af]">{prog.role}</td>
+                    <td className="px-3 py-2.5 text-right font-mono text-[#e5e7eb] tabular-nums">
+                      {typeof count === "number" ? count : "—"}
                     </td>
-                    <td className="py-3 pl-3 text-slate-400">{tx.notes}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-[#9ca3af] tabular-nums">
+                      {formatLamportsSol(st?.lamports, prog.minRentSol)}
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-      </GlassCard>
+      </section>
+
+      {/* Canonical Fee Accounts & Decoded On-Chain Accounts */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        {/* Canonical Fee ATA + Relayer + System Constants */}
+        <section className="rounded-lg border border-[#22262e] bg-[#111317] p-4 lg:col-span-5">
+          <h2 className="border-b border-[#22262e] pb-2.5 text-xs font-semibold text-[#f3f4f6]">
+            Canonical Accounts &amp; Fee Routing
+          </h2>
+
+          <div className="mt-3 space-y-2.5 font-mono text-xs tabular-nums">
+            <div className="rounded border border-[#22262e] bg-[#0b0c0e] p-3">
+              <div className="flex items-center justify-between font-sans text-[11px] text-[#9ca3af]">
+                <span>Canonical platformFeeAccount (SPL ATA)</span>
+                <span className="font-mono font-semibold text-[#34d399]">
+                  {formatMicroUnits(feeUnits)} SPL
+                </span>
+              </div>
+              <a
+                href={`https://solscan.io/account/${devnetProof.accounts.platformFeeAccountAta}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center gap-1 break-all text-[11px] text-[#93c5fd] hover:underline"
+              >
+                {devnetProof.accounts.platformFeeAccountAta}
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
+            </div>
+
+            <div className="rounded border border-[#22262e] bg-[#0b0c0e] p-3">
+              <div className="font-sans text-[11px] text-[#9ca3af]">
+                Relayer &amp; Settlement Authority Wallet
+              </div>
+              <a
+                href={`https://solscan.io/account/${devnetProof.accounts.relayerWallet}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center gap-1 break-all text-[11px] text-[#e5e7eb] hover:text-[#93c5fd]"
+              >
+                {devnetProof.accounts.relayerWallet}
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
+            </div>
+
+            <div className="rounded border border-[#22262e] bg-[#0b0c0e] p-3">
+              <div className="flex items-center justify-between font-sans text-[11px] text-[#9ca3af]">
+                <span>Settled ArenaShard PDA</span>
+                <span className="text-[#34d399]">
+                  {telemetry?.liveShardStatus ?? "Restored to Solana L1"}
+                </span>
+              </div>
+              <a
+                href={`https://solscan.io/account/${devnetProof.accounts.settledRoomShardPda}?cluster=devnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center gap-1 break-all text-[11px] text-[#e5e7eb] hover:text-[#93c5fd]"
+              >
+                {devnetProof.accounts.settledRoomShardPda}
+                <ExternalLink className="h-3 w-3 shrink-0" />
+              </a>
+            </div>
+
+            <div className="grid grid-cols-1 gap-1.5 rounded border border-[#22262e] bg-[#0b0c0e] p-3 text-[11px]">
+              <div className="flex items-center justify-between">
+                <span className="font-sans text-[#6b7280]">Delegation Program</span>
+                <span className="text-[#d1d5db]">
+                  {shortenAddress(devnetProof.programs.magicblockDelegation, 6, 6)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-sans text-[#6b7280]">TEE Permission</span>
+                <span className="text-[#d1d5db]">
+                  {shortenAddress(devnetProof.programs.magicblockPermission, 6, 6)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-sans text-[#6b7280]">MagicBlock VRF</span>
+                <span className="text-[#d1d5db]">
+                  {shortenAddress(devnetProof.programs.magicblockVrf, 6, 6)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Live Borsh-Decoded On-Chain Manifests & Shards */}
+        <section className="rounded-lg border border-[#22262e] bg-[#111317] p-4 lg:col-span-7">
+          <div className="flex items-center justify-between border-b border-[#22262e] pb-2.5">
+            <h2 className="text-xs font-semibold text-[#f3f4f6]">
+              Live Borsh-Decoded Program Accounts (Devnet RPC)
+            </h2>
+            <span className="font-mono text-[11px] text-[#6b7280]">
+              @cartridgefi/codama-clients
+            </span>
+          </div>
+
+          <div className="mt-3 space-y-3 text-xs">
+            {/* Registered Manifests */}
+            <div>
+              <div className="mb-1.5 text-[11px] font-medium text-[#9ca3af]">
+                Registered CartridgeManifest PDAs ({telemetry?.onchainAccounts?.manifests.length ?? 2})
+              </div>
+              <div className="space-y-1.5 font-mono text-[11px] tabular-nums">
+                {(telemetry?.onchainAccounts?.manifests ?? []).map((m) => (
+                  <div
+                    key={m.pubkey}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded border border-[#22262e] bg-[#0b0c0e] px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <a
+                        href={`https://solscan.io/account/${m.pubkey}?cluster=devnet`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold text-[#93c5fd] hover:underline"
+                      >
+                        {shortenAddress(m.pubkey, 8, 8)}
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                      <div className="mt-0.5 truncate text-[10px] text-[#9ca3af]">
+                        {m.manifestUri || "On-chain CartridgeManifest v2"}
+                      </div>
+                    </div>
+                    <div className="text-right text-[10px] text-[#d1d5db]">
+                      <div>
+                        {m.durationSecs}s | Fog {(m.fogOfWarBps / 100).toFixed(0)}%
+                      </div>
+                      <div className="text-[#6b7280]">
+                        Creator Split {(m.creatorShareBps / 100).toFixed(0)}% | Rooms: {m.totalRoomsCreated}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {!telemetry?.onchainAccounts?.manifests.length ? (
+                  <div className="rounded border border-[#22262e] bg-[#0b0c0e] px-3 py-2 text-[#9ca3af]">
+                    {devnetProof.accounts.referenceHarness001ManifestPda} &amp;{" "}
+                    {shortenAddress(devnetProof.accounts.referenceHarness002ManifestPda, 6, 6)}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Decoded RoomShards */}
+            <div>
+              <div className="mb-1.5 text-[11px] font-medium text-[#9ca3af]">
+                On-Chain RoomShard Accounts ({telemetry?.onchainAccounts?.roomShards.length ?? 1})
+              </div>
+              <div className="space-y-1.5 font-mono text-[11px] tabular-nums">
+                {(telemetry?.onchainAccounts?.roomShards ?? []).slice(0, 4).map((s) => (
+                  <div
+                    key={s.pubkey}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded border border-[#22262e] bg-[#0b0c0e] px-3 py-2"
+                  >
+                    <div>
+                      <a
+                        href={`https://solscan.io/account/${s.pubkey}?cluster=devnet`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-semibold text-[#f3f4f6] hover:text-[#93c5fd]"
+                      >
+                        Shard #{s.shardIndex} ({shortenAddress(s.pubkey, 6, 6)})
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                      <div className="mt-0.5 text-[10px] text-[#6b7280]">
+                        VRF: {s.vrfFulfilled ? shortenAddress(s.vrfSeedHex, 10, 6) : "Pending"}
+                      </div>
+                    </div>
+                    <div className="text-right text-[10px]">
+                      <div className="text-[#34d399]">
+                        Pool {formatMicroUnits(s.roomPoolUsdc)} SPL
+                      </div>
+                      <div className="text-[#9ca3af]">
+                        {s.playerCount} Players | {s.delegatedToMagicBlock ? "Delegated ER" : "Settled L1"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Recent Signatures from RPC */}
+            {telemetry?.recentSignatures && telemetry.recentSignatures.length > 0 ? (
+              <div>
+                <div className="mb-1.5 text-[11px] font-medium text-[#9ca3af]">
+                  Latest Live RPC Signatures (
+                  <code className="font-mono text-[#d1d5db]">getSignaturesForAddress</code>)
+                </div>
+                <div className="grid grid-cols-1 gap-1 sm:grid-cols-2 font-mono text-[11px] tabular-nums">
+                  {telemetry.recentSignatures.slice(0, 4).map((sig) => (
+                    <a
+                      key={sig.signature}
+                      href={`https://solscan.io/tx/${sig.signature}?cluster=devnet`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between rounded border border-[#22262e] bg-[#0b0c0e] px-2.5 py-1.5 text-[#93c5fd] hover:border-[#303642]"
+                    >
+                      <span>{shortenAddress(sig.signature, 6, 6)}</span>
+                      <span className="text-[10px] text-[#6b7280]">
+                        {sig.blockTime ? formatRelativeTime(sig.blockTime) : `Slot ${sig.slot}`}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      </div>
+
+      {/* Filterable 33-Transaction Verified Devnet Execution Ledger */}
+      <section
+        id="protocol-proof-ledger"
+        className="rounded-lg border border-[#22262e] bg-[#111317] overflow-hidden"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#22262e] px-4 py-3">
+          <div>
+            <h2 className="text-xs font-semibold text-[#f3f4f6]">
+              Verified On-Chain Execution Ledger ({filteredProofTxs.length} Transactions)
+            </h2>
+            <p className="mt-0.5 text-[11px] text-[#9ca3af]">
+              End-to-end Devnet L1, MagicBlock Ephemeral Rollup, VRF callback, and eSPL private fee transfers.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1">
+            {FILTER_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                id={`protocol-filter-${tab.id}`}
+                type="button"
+                onClick={() => setCategoryFilter(tab.id)}
+                className={cn(
+                  "cf-btn cursor-pointer rounded border px-2.5 py-1 text-xs font-medium",
+                  categoryFilter === tab.id
+                    ? "border-[#3b82f6] bg-[#2563eb]/20 text-white"
+                    : "border-[#303642] bg-[#171a20] text-[#9ca3af] hover:text-white",
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-left text-xs">
+            <thead>
+              <tr className="border-b border-[#22262e] bg-[#0e1014] text-[11px] font-medium text-[#6b7280]">
+                <th className="px-4 py-2">Execution Step</th>
+                <th className="px-3 py-2">Layer</th>
+                <th className="px-3 py-2">Signature</th>
+                <th className="px-4 py-2">Details</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#22262e]">
+              {filteredProofTxs.map((tx) => (
+                <tr key={tx.signature} className="cf-row-hover">
+                  <td className="px-4 py-2.5 font-medium text-[#f3f4f6]">
+                    {tx.step}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-[11px] text-[#9ca3af]">
+                    {tx.layer}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono tabular-nums">
+                    <a
+                      href={tx.solscanUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[#93c5fd] hover:underline"
+                    >
+                      {shortenAddress(tx.signature, 8, 8)}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </td>
+                  <td className="px-4 py-2.5 text-[#9ca3af]">{tx.notes}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

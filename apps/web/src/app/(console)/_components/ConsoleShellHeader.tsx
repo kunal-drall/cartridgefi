@@ -3,54 +3,50 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CARTRIDGE_PROGRAM_IDS } from "@cartridgefi/shared-types";
-import {
-  CartridgeFiLogo,
-  GlassPill,
-  LivePulseDot,
-  MagicBlockLogoMark,
-} from "@cartridgefi/ui-system";
+import { Wallet } from "lucide-react";
+import { CartridgeFiLogo } from "@cartridgefi/ui-system";
+import { cn, shortenAddress } from "@/lib/utils";
 import {
   formatAtomicUsdc,
-  formatEloInteger,
-  formatShareUnits6,
+  formatSolLamports,
   useConsoleVault,
 } from "./ConsoleVaultContext";
 
-const CONSOLE_TABS: readonly {
+const WORKSPACE_TABS: readonly {
   id: string;
   href: string;
-  shortCode: string;
   label: string;
   mobileLabel: string;
 }[] = [
   {
-    id: "console-tab-protocol",
-    href: "/protocol",
-    shortCode: "RPC",
-    label: "Protocol Inspector & Live Execution Console",
-    mobileLabel: "Protocol",
+    id: "console-tab-markets",
+    href: "/",
+    label: "Markets",
+    mobileLabel: "Markets",
   },
   {
     id: "console-tab-borel",
     href: "/play/borel",
-    shortCode: "#001",
-    label: "Reference Harness #001 (Protocol Integration Demo)",
-    mobileLabel: "#001 Harness",
+    label: "Borel Arena",
+    mobileLabel: "Borel",
   },
   {
     id: "console-tab-pulse-runner",
     href: "/play/pulse-runner",
-    shortCode: "#002",
-    label: "Reference Harness #002: Pulse Runner",
-    mobileLabel: "#002 Runner",
+    label: "Pulse Runner",
+    mobileLabel: "Runner",
   },
   {
     id: "console-tab-studio",
     href: "/studio",
-    shortCode: "IDE",
-    label: "Vibe Studio & Wallet SDK",
+    label: "Manifest Studio",
     mobileLabel: "Studio",
+  },
+  {
+    id: "console-tab-protocol",
+    href: "/protocol",
+    label: "Protocol Explorer",
+    mobileLabel: "Protocol",
   },
 ];
 
@@ -58,118 +54,158 @@ export function ConsoleShellHeader(): React.JSX.Element {
   const pathname = usePathname();
   const {
     cashUsdcAtomic,
-    earnedStocks,
-    marketEloScaled,
-    sessionKeyActive,
+    onchainSolLamports,
+    playerWallet,
+    connectedBrowserWalletName,
     openCashier,
   } = useConsoleVault();
 
-  const totalStockUnits = earnedStocks.NVDAx + earnedStocks.ANTx + earnedStocks.SPYx + earnedStocks.TSLAx;
+  const [devnetSlot, setDevnetSlot] = React.useState<number | null>(null);
+  const [devnetLatency, setDevnetLatency] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    let active = true;
+    const poll = async (): Promise<void> => {
+      try {
+        const res = await fetch("/api/protocol-telemetry");
+        if (!res.ok || !active) return;
+        const json = (await res.json()) as {
+          probes?: {
+            solanaDevnet?: { slot?: number | null; latencyMs?: number | null };
+          };
+        };
+        if (!active) return;
+        setDevnetSlot(json.probes?.solanaDevnet?.slot ?? null);
+        setDevnetLatency(json.probes?.solanaDevnet?.latencyMs ?? null);
+      } catch {
+        // Silent retry on next interval
+      }
+    };
+    void poll();
+    const id = window.setInterval(() => {
+      void poll();
+    }, 15_000);
+    return () => {
+      active = false;
+      window.clearInterval(id);
+    };
+  }, []);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#050609]/88 backdrop-blur-2xl">
-      <div className="mx-auto max-w-[1440px] px-3 py-2.5 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          {/* Brand Logo -> Landing */}
-          <div className="flex items-center gap-3">
-            <Link
-              id="console-home-logo-link"
-              href="/"
-              aria-label="Return to CartridgeFi Landing Page"
-              className="rounded-xl p-1 transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B]"
-            >
-              <CartridgeFiLogo size="sm" showTag />
-            </Link>
+    <header className="sticky top-0 z-40 border-b border-[#22262e] bg-[#0b0c0e]">
+      <div className="mx-auto flex h-12 max-w-[1600px] items-center justify-between gap-3 px-4">
+        <div className="flex items-center gap-5 min-w-0">
+          <Link
+            id="console-home-logo-link"
+            href="/"
+            aria-label="CartridgeFi Markets Home"
+            className="shrink-0 rounded py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3b82f6]"
+          >
+            <CartridgeFiLogo size="sm" showTag />
+          </Link>
 
-            {/* Live MagicBlock Private ER Latency Pill */}
-            <GlassPill
-              id="console-per-latency-pill"
-              tone="violet"
-              size="xs"
-              className="hidden xl:inline-flex font-mono tabular-nums"
-            >
-              <MagicBlockLogoMark size={12} illuminated />
-              <span>10ms PER · {CARTRIDGE_PROGRAM_IDS.erRoom.slice(0, 8)}…</span>
-            </GlassPill>
-
-            {/* Session Key Zero-Popup Status Badge */}
-            <GlassPill
-              id="console-session-key-badge"
-              tone={sessionKeyActive ? "emerald" : "amber"}
-              size="xs"
-              className="hidden lg:inline-flex font-mono tabular-nums"
-            >
-              <LivePulseDot tone={sessionKeyActive ? "emerald" : "amber"} size="sm" />
-              <span>0 Popups · Kora Gasless</span>
-            </GlassPill>
-          </div>
-
-          {/* Unified Cash & Earned Stock Vault Balance Pill */}
-          <div className="flex items-center gap-2">
-            <span
-              id="console-passport-elo-pill"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-[#0A0D14] px-2.5 py-1.5 font-mono text-xs text-slate-200 tabular-nums"
-            >
-              <span className="text-slate-400">ELO</span>
-              <span className="font-bold text-[#00D4FF]">
-                {formatEloInteger(marketEloScaled)}
-              </span>
-            </span>
-
-            <button
-              id="console-vault-cashier-btn"
-              type="button"
-              onClick={openCashier}
-              className="cf-glass inline-flex cursor-pointer items-center gap-2 rounded-xl px-3 py-1.5 font-mono text-xs font-semibold text-white tabular-nums touch-manipulation transition-colors hover:border-[#00F59B]/45 hover:bg-[#151B2B]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B]"
-            >
-              <LivePulseDot tone="emerald" size="sm" />
-              <span>{formatAtomicUsdc(cashUsdcAtomic)}</span>
-              <span className="hidden md:inline text-slate-400">·</span>
-              <span className="hidden md:inline text-[#00F59B]">
-                +{formatShareUnits6(totalStockUnits, 2)} xStocks
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* 1-Click Cartridge Switcher Bar */}
-        <nav
-          aria-label="Console Cartridge Switcher"
-          className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-2"
-        >
-          <div className="grid w-full grid-cols-2 gap-1.5 sm:grid-cols-4 lg:flex lg:w-auto lg:flex-wrap lg:gap-2">
-            {CONSOLE_TABS.map((tab) => {
+          {/* Desktop Navigation Tabs */}
+          <nav
+            aria-label="Workspace Navigation"
+            className="hidden md:flex items-center gap-1"
+          >
+            {WORKSPACE_TABS.map((tab) => {
               const isActive =
-                pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+                tab.href === "/"
+                  ? pathname === "/"
+                  : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
               return (
                 <Link
                   key={tab.id}
                   id={tab.id}
                   href={tab.href}
                   aria-current={isActive ? "page" : undefined}
-                  className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-2.5 py-2 text-center text-[11px] font-semibold touch-manipulation transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00F59B] sm:px-3.5 sm:text-xs ${
+                  className={cn(
+                    "cf-btn rounded-md px-2.5 py-1.5 text-xs font-medium",
                     isActive
-                      ? "border-[#00F59B]/55 bg-[#00F59B]/14 text-white shadow-[inset_0_1px_0_0_rgba(0,245,155,0.28)]"
-                      : "border-white/10 bg-[#0A0D14]/85 text-slate-300 hover:border-white/22 hover:text-white"
-                  }`}
+                      ? "bg-[#171a20] text-[#f3f4f6] border border-[#303642]"
+                      : "text-[#9ca3af] border border-transparent hover:bg-[#171a20]/60 hover:text-[#e5e7eb]",
+                  )}
                 >
-                  {isActive ? <LivePulseDot tone="emerald" size="sm" /> : null}
-                  <span className="truncate lg:hidden">{tab.mobileLabel}</span>
-                  <span className="hidden lg:inline">{tab.label}</span>
+                  {tab.label}
                 </Link>
               );
             })}
-          </div>
+          </nav>
+        </div>
 
-          {/* Mobile / Compact Telemetry Strip */}
-          <div className="flex w-full items-center justify-between gap-2 font-mono text-[10px] text-slate-400 tabular-nums lg:hidden">
-            <span translate="no">
-              10ms PER · {CARTRIDGE_PROGRAM_IDS.erRoom.slice(0, 8)}…
+        {/* Right Live Network Readout & Wallet / Margin Control */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/protocol"
+            className="hidden xl:inline-flex items-center gap-2 rounded-md border border-[#22262e] bg-[#111317] px-2.5 py-1 font-mono text-[11px] text-[#9ca3af] hover:border-[#303642] hover:text-[#e5e7eb] tabular-nums"
+          >
+            <span
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                devnetSlot !== null ? "bg-[#10b981]" : "bg-[#f59e0b]",
+              )}
+            />
+            <span>
+              {devnetSlot !== null
+                ? `Slot ${devnetSlot.toLocaleString()}`
+                : "Devnet RPC"}
             </span>
-            <span className="text-[#00F59B]">0 Popups · Kora Gasless</span>
-          </div>
-        </nav>
+            {devnetLatency !== null ? (
+              <span className="text-[#6b7280]">{devnetLatency}ms</span>
+            ) : null}
+          </Link>
+
+          <button
+            id="console-vault-cashier-btn"
+            type="button"
+            onClick={openCashier}
+            className="cf-btn inline-flex cursor-pointer items-center gap-2 rounded-md border border-[#303642] bg-[#171a20] px-2.5 py-1.5 font-mono text-xs font-medium text-[#f3f4f6] hover:bg-[#1d2129] active:scale-[0.97] tabular-nums"
+          >
+            <Wallet className="h-3.5 w-3.5 text-[#3b82f6]" />
+            <span>{formatAtomicUsdc(cashUsdcAtomic)}</span>
+            <span className="hidden sm:inline border-l border-[#303642] pl-2 text-[#9ca3af]">
+              {onchainSolLamports > 0n
+                ? formatSolLamports(onchainSolLamports)
+                : playerWallet
+                  ? shortenAddress(playerWallet, 4, 4)
+                  : "Session Key"}
+            </span>
+            {connectedBrowserWalletName ? (
+              <span className="hidden lg:inline rounded bg-[#2563eb]/20 px-1.5 py-0.5 font-sans text-[10px] text-[#93c5fd]">
+                {connectedBrowserWalletName}
+              </span>
+            ) : null}
+          </button>
+        </div>
       </div>
+
+      {/* Compact Mobile Workspace Tab Strip */}
+      <nav
+        aria-label="Mobile Workspace Navigation"
+        className="flex items-center gap-1 overflow-x-auto border-t border-[#22262e] bg-[#0e1014] px-3 py-1.5 md:hidden"
+      >
+        {WORKSPACE_TABS.map((tab) => {
+          const isActive =
+            tab.href === "/"
+              ? pathname === "/"
+              : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+          return (
+            <Link
+              key={`mob-${tab.id}`}
+              href={tab.href}
+              className={cn(
+                "shrink-0 rounded px-2.5 py-1 text-xs font-medium",
+                isActive
+                  ? "bg-[#2563eb] text-white"
+                  : "text-[#9ca3af] hover:text-white",
+              )}
+            >
+              {tab.mobileLabel}
+            </Link>
+          );
+        })}
+      </nav>
     </header>
   );
 }

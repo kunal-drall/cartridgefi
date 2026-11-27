@@ -10,19 +10,19 @@ export default function ConsoleLayout({
 }): React.JSX.Element {
   return (
     <ConsoleVaultProvider>
-      <div className="min-h-screen bg-[#050609] text-slate-50">
+      <div className="min-h-screen bg-[#0b0c0e] text-[#f3f4f6]">
         <a
           href="#console-main-stage"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-[#00F59B] focus:px-4 focus:py-2 focus:font-mono focus:text-xs focus:font-bold focus:text-[#050609]"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-[#2563eb] focus:px-3 focus:py-1.5 focus:text-xs focus:font-medium focus:text-white"
         >
-          Skip to Console Stage
+          Skip to main workspace
         </a>
 
         <ConsoleShellHeader />
 
         <main
           id="console-main-stage"
-          className="mx-auto max-w-[1440px] px-3 pb-16 pt-4 sm:px-6 sm:pt-6"
+          className="mx-auto max-w-[1600px] px-4 pb-12 pt-4"
         >
           {children}
         </main>

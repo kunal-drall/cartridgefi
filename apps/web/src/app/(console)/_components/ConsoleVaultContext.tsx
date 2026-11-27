@@ -1,22 +1,28 @@
 "use client";
 
 import * as React from "react";
+import type { KeyPairSigner } from "@solana/kit";
 import {
   FP_SCALE,
   USDC_UNIT,
   formatScaledBigInt,
   type ClaimAssetSymbol,
 } from "@cartridgefi/shared-types";
+import {
+  detectBrowserSolanaWallets,
+  fetchWalletDevnetBalances,
+  getOrCreateBrowserSessionSigner,
+  type DetectedBrowserWallet,
+} from "@/lib/solana-wallet";
+import { toast } from "sonner";
 
-export type ConsoleAuthMethod = "passkey" | "apple" | "google" | "solana-wallet";
+export type ConsoleAuthMethod = "solana-wallet" | "session-keypair";
 
 export interface EarnedStockHoldings {
-  /** 6-decimal fractional share units (`1_000_000n` = `1.000000` share). */
   NVDAx: bigint;
   ANTx: bigint;
   SPYx: bigint;
   TSLAx: bigint;
-  /** 6-decimal atomic USDC claimed directly as cash prizes. */
   USDC: bigint;
 }
 
@@ -24,60 +30,70 @@ export interface CashierReceipt {
   id: string;
   sourceLabel: string;
   creditedUsdcFormatted: string;
-  txSignature: string;
+  txSignature: string | null;
+  solscanUrl: string | null;
   sessionKeyPubkey: string;
+  isPaperCredit: boolean;
 }
 
 export interface ConsoleVaultContextValue {
+  /** Paper / simulation trading margin (6-decimal USDC units), explicitly separated from on-chain balances */
   cashUsdcAtomic: bigint;
+  /** Real live Solana Devnet lamports read via getBalance */
+  onchainSolLamports: bigint;
+  /** Real live Solana Devnet SPL token balance read via getTokenAccountsByOwner */
+  onchainSplAtomic: bigint;
   earnedStocks: EarnedStockHoldings;
   marketEloScaled: bigint;
   matchesPlayed: number;
   winsCount: number;
   sessionKeyActive: boolean;
   sessionKeyPubkey: string;
+  sessionSigner: KeyPairSigner | null;
   playerWallet: string;
+  connectedBrowserWalletName: string | null;
+  detectedWallets: DetectedBrowserWallet[];
   authMethod: ConsoleAuthMethod;
   isCashierOpen: boolean;
   lastCashierReceipt: CashierReceipt | null;
   openCashier: () => void;
   closeCashier: () => void;
   setAuthMethod: (method: ConsoleAuthMethod) => void;
+  connectBrowserWallet: (walletId?: string) => Promise<void>;
+  rotateSessionKeypair: () => Promise<void>;
+  refreshOnchainBalances: () => Promise<void>;
   mintDevnetUsdc: (amountUsdcWhole?: number) => Promise<CashierReceipt>;
-  depositToUnifiedCash: (sourceLabel: string, amountUsdcWhole: number) => Promise<CashierReceipt>;
+  requestDevnetSolAirdrop: () => Promise<CashierReceipt>;
+  depositToUnifiedCash: (
+    sourceLabel: string,
+    amountUsdcWhole: number,
+  ) => Promise<CashierReceipt>;
   creditEarnedVaultPrize: (
     asset: ClaimAssetSymbol,
     usdcValueAtomic: bigint,
     referencePrice8: bigint,
-  ) => { creditedLabel: string; txSignature: string };
+  ) => { creditedLabel: string; txSignature: string | null };
   recordRoundElo: (nextEloScaled: bigint, isPodiumWin: boolean) => void;
 }
 
-const DEFAULT_PLAYER_WALLET = "BrL8xQm9vP4kT2nW7yC5fJ3dH6gZ1uQaR8eM4sV2pXnK";
-const DEFAULT_SESSION_PUBKEY = "SesK9xVq7mR2pL8wT4nB6yF3cJ5dH1gZ8uQaW4eP2rYv";
-
-const SESSION_KEY_ROTATION: readonly string[] = [
-  "SesK9xVq7mR2pL8wT4nB6yF3cJ5dH1gZ8uQaW4eP2rYv",
-  "SesK4mNp8vQ3rW9xL2tC7yF5bJ1dH6gZ3uQaE8sK5wXz",
-  "SesK7pQr2xM9vL4nW8tB3yF6cJ9dH2gZ5uQaT1mR7vLp",
-  "SesK2wLm6qP9vR4xN7tC8yF1bJ4dH9gZ6uQaK3nW8xQr",
-];
-
-const DETERMINISTIC_SIGS: readonly string[] = [
-  "5xKm9QpL2vR8wN4tB7yF3cJ6dH1gZ9uQaW4eP2rYv8mK3xLp7qR2vN9wT5bC4yF8",
-  "4pQr7LmK9vW3xN8tC2yF6bJ5dH4gZ2uQaE9sK6wXz3nM8vQr4pL7xN2wT9bC5yF1",
-  "3wLm8QpR4vK7xN2tB9yF5cJ8dH3gZ7uQaT2mR9vLp6xK4wQr8pN3vL7tB2cF9yJ5",
-  "2nQr6LmP8vR4xK9tC5yF2bJ7dH8gZ4uQaK5nW3xQr9mL2vQp7rN4xK8tB6cF3yJ9",
-];
-
-export function formatAtomicUsdc(atomic: bigint, includeDollar: boolean = true): string {
+export function formatAtomicUsdc(
+  atomic: bigint,
+  includeDollar: boolean = true,
+): string {
   const neg = atomic < 0n;
   const abs = neg ? -atomic : atomic;
   const whole = abs / USDC_UNIT;
   const cents = ((abs % USDC_UNIT) / 10_000n).toString().padStart(2, "0");
   const formattedWhole = new Intl.NumberFormat("en-US").format(whole);
   const prefix = neg ? "-" : "";
-  return includeDollar ? `${prefix}$${formattedWhole}.${cents}` : `${prefix}${formattedWhole}.${cents}`;
+  return includeDollar
+    ? `${prefix}$${formattedWhole}.${cents}`
+    : `${prefix}${formattedWhole}.${cents}`;
+}
+
+export function formatSolLamports(lamports: bigint): string {
+  const sol = Number(lamports) / 1e9;
+  return `${sol.toFixed(4)} SOL`;
 }
 
 export function formatShareUnits6(units: bigint, decimals: number = 3): string {
@@ -90,32 +106,123 @@ export function formatEloInteger(eloScaled: bigint): string {
   return new Intl.NumberFormat("en-US").format(whole);
 }
 
-const ConsoleVaultContext = React.createContext<ConsoleVaultContextValue | null>(null);
+const ConsoleVaultContext =
+  React.createContext<ConsoleVaultContextValue | null>(null);
 
 export function ConsoleVaultProvider({
   children,
 }: {
   children: React.ReactNode;
 }): React.JSX.Element {
-  const [cashUsdcAtomic, setCashUsdcAtomic] = React.useState<bigint>(250_000_000n);
+  // Honest initial state: 0 matches played, 0 earned stocks until real rounds settle
+  const [cashUsdcAtomic, setCashUsdcAtomic] =
+    React.useState<bigint>(100_000_000n);
+  const [onchainSolLamports, setOnchainSolLamports] =
+    React.useState<bigint>(0n);
+  const [onchainSplAtomic, setOnchainSplAtomic] = React.useState<bigint>(0n);
   const [earnedStocks, setEarnedStocks] = React.useState<EarnedStockHoldings>({
-    NVDAx: 1_850_000n, // 1.850 sh
-    ANTx: 2_400_000n, // 2.400 sh
-    SPYx: 720_000n, // 0.720 sh
+    NVDAx: 0n,
+    ANTx: 0n,
+    SPYx: 0n,
     TSLAx: 0n,
-    USDC: 142_500_000n, // $142.50 USDC
+    USDC: 0n,
   });
-  const [marketEloScaled, setMarketEloScaled] = React.useState<bigint>(1_482_000_000_000n);
-  const [matchesPlayed, setMatchesPlayed] = React.useState<number>(18);
-  const [winsCount, setWinsCount] = React.useState<number>(11);
-  const [sessionKeyActive, setSessionKeyActive] = React.useState<boolean>(true);
-  const [sessionKeyPubkey, setSessionKeyPubkey] =
-    React.useState<string>(DEFAULT_SESSION_PUBKEY);
-  const [authMethod, setAuthMethod] = React.useState<ConsoleAuthMethod>("passkey");
+  const [marketEloScaled, setMarketEloScaled] =
+    React.useState<bigint>(1_200_000_000_000n);
+  const [matchesPlayed, setMatchesPlayed] = React.useState<number>(0);
+  const [winsCount, setWinsCount] = React.useState<number>(0);
+
+  const [sessionSigner, setSessionSigner] =
+    React.useState<KeyPairSigner | null>(null);
+  const [sessionKeyPubkey, setSessionKeyPubkey] = React.useState<string>("");
+  const [browserWalletAddress, setBrowserWalletAddress] =
+    React.useState<string | null>(null);
+  const [connectedBrowserWalletName, setConnectedBrowserWalletName] =
+    React.useState<string | null>(null);
+  const [detectedWallets, setDetectedWallets] = React.useState<
+    DetectedBrowserWallet[]
+  >([]);
+  const [authMethod, setAuthMethod] =
+    React.useState<ConsoleAuthMethod>("session-keypair");
   const [isCashierOpen, setIsCashierOpen] = React.useState<boolean>(false);
   const [lastCashierReceipt, setLastCashierReceipt] =
     React.useState<CashierReceipt | null>(null);
+
   const actionCounterRef = React.useRef<number>(0);
+  const activeWallet = browserWalletAddress ?? sessionKeyPubkey;
+
+  // Boot real Ed25519 WebCrypto Session Signer & discover browser Solana wallets
+  React.useEffect(() => {
+    let mounted = true;
+    setDetectedWallets(detectBrowserSolanaWallets());
+
+    void getOrCreateBrowserSessionSigner(false).then(async (signer) => {
+      if (!mounted) return;
+      setSessionSigner(signer);
+      setSessionKeyPubkey(signer.address);
+      const balances = await fetchWalletDevnetBalances(signer.address);
+      if (!mounted) return;
+      setOnchainSolLamports(balances.lamports);
+      setOnchainSplAtomic(balances.splAtomic);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const refreshOnchainBalances = React.useCallback(async () => {
+    if (!activeWallet) return;
+    const balances = await fetchWalletDevnetBalances(activeWallet);
+    setOnchainSolLamports(balances.lamports);
+    setOnchainSplAtomic(balances.splAtomic);
+  }, [activeWallet]);
+
+  const connectBrowserWallet = React.useCallback(async (walletId?: string) => {
+    const list = detectBrowserSolanaWallets();
+    setDetectedWallets(list);
+    const target = walletId
+      ? list.find((w) => w.id === walletId) ?? list[0]
+      : list[0];
+
+    if (!target) {
+      toast.error("No browser Solana wallet detected (install Phantom, Solflare, or Backpack). Using Ed25519 session signer.");
+      return;
+    }
+
+    try {
+      const resp = await target.provider.connect();
+      const pubkey =
+        resp?.publicKey?.toBase58() ?? target.provider.publicKey?.toBase58();
+      if (pubkey) {
+        setBrowserWalletAddress(pubkey);
+        setConnectedBrowserWalletName(target.name);
+        setAuthMethod("solana-wallet");
+        const balances = await fetchWalletDevnetBalances(pubkey);
+        setOnchainSolLamports(balances.lamports);
+        setOnchainSplAtomic(balances.splAtomic);
+        toast.success(`Connected ${target.name} (${pubkey.slice(0, 4)}…${pubkey.slice(-4)})`);
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Wallet connection rejected",
+      );
+    }
+  }, []);
+
+  const rotateSessionKeypair = React.useCallback(async () => {
+    const signer = await getOrCreateBrowserSessionSigner(true);
+    setSessionSigner(signer);
+    setSessionKeyPubkey(signer.address);
+    if (!browserWalletAddress) {
+      const balances = await fetchWalletDevnetBalances(signer.address);
+      setOnchainSolLamports(balances.lamports);
+      setOnchainSplAtomic(balances.splAtomic);
+    }
+    toast.success(
+      `Generated fresh Ed25519 session signer (${signer.address.slice(0, 6)}…)`,
+    );
+  }, [browserWalletAddress]);
 
   const openCashier = React.useCallback(() => {
     setIsCashierOpen(true);
@@ -130,81 +237,154 @@ export function ConsoleVaultProvider({
       const idx = actionCounterRef.current;
       actionCounterRef.current += 1;
 
-      const safeWhole = Math.max(10, Math.min(1000, Math.trunc(amountUsdcWhole)));
+      const safeWhole = Math.max(
+        10,
+        Math.min(1000, Math.trunc(amountUsdcWhole)),
+      );
       const deltaAtomic = BigInt(safeWhole) * USDC_UNIT;
-      let remoteSig: string | null = null;
+      let realSig: string | null = null;
+      let solscanUrl: string | null = null;
+      let isPaperCredit = true;
 
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 350);
         const res = await fetch("/api/cashier/faucet", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            wallet: DEFAULT_PLAYER_WALLET,
+            wallet: activeWallet,
             amountUsdcAtomic: deltaAtomic.toString(),
+            requestDevnetSol: false,
           }),
-          signal: controller.signal,
         });
-        clearTimeout(timer);
         if (res.ok) {
-          const payload = (await res.json()) as { txSignature?: string };
-          if (typeof payload.txSignature === "string" && payload.txSignature.length >= 16) {
-            remoteSig = payload.txSignature;
+          const payload = (await res.json()) as {
+            txSignature?: string | null;
+            solscanTxUrl?: string | null;
+            onchainLamports?: string;
+            onchainSplAtomic?: string;
+            status?: string;
+          };
+          if (payload.txSignature) {
+            realSig = payload.txSignature;
+            solscanUrl = payload.solscanTxUrl ?? null;
+            isPaperCredit = false;
+          }
+          if (payload.onchainLamports) {
+            setOnchainSolLamports(BigInt(payload.onchainLamports));
+          }
+          if (payload.onchainSplAtomic) {
+            setOnchainSplAtomic(BigInt(payload.onchainSplAtomic));
           }
         }
       } catch {
-        // Deterministic local fallback when running standalone without core-api
+        // Offline paper margin credit
       }
 
-      const nextSessionKey =
-        SESSION_KEY_ROTATION[idx % SESSION_KEY_ROTATION.length] ?? DEFAULT_SESSION_PUBKEY;
-      const txSignature =
-        remoteSig ?? DETERMINISTIC_SIGS[idx % DETERMINISTIC_SIGS.length]!;
-
       setCashUsdcAtomic((prev) => prev + deltaAtomic);
-      setSessionKeyActive(true);
-      setSessionKeyPubkey(nextSessionKey);
 
       const receipt: CashierReceipt = {
-        id: `faucet-${idx + 1}`,
-        sourceLabel: "Devnet USDC Faucet + Kora Session Init",
+        id: `credit-${idx + 1}`,
+        sourceLabel: isPaperCredit
+          ? "Paper Simulation Margin Credit"
+          : "Solana Devnet Relayer Credit",
         creditedUsdcFormatted: formatAtomicUsdc(deltaAtomic),
-        txSignature,
-        sessionKeyPubkey: nextSessionKey,
+        txSignature: realSig,
+        solscanUrl,
+        sessionKeyPubkey,
+        isPaperCredit,
       };
       setLastCashierReceipt(receipt);
+      toast.success(`Added ${formatAtomicUsdc(deltaAtomic)} paper trading margin`);
       return receipt;
     },
-    [],
+    [activeWallet, sessionKeyPubkey],
   );
 
+  const requestDevnetSolAirdrop = React.useCallback(async (): Promise<CashierReceipt> => {
+    const idx = actionCounterRef.current;
+    actionCounterRef.current += 1;
+    let realSig: string | null = null;
+    let solscanUrl: string | null = null;
+    let airdropErr: string | null = null;
+
+    try {
+      const res = await fetch("/api/cashier/faucet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wallet: activeWallet,
+          requestDevnetSol: true,
+        }),
+      });
+      const payload = (await res.json()) as {
+        txSignature?: string | null;
+        solscanTxUrl?: string | null;
+        onchainLamports?: string;
+        airdropError?: string | null;
+      };
+      realSig = payload.txSignature ?? null;
+      solscanUrl = payload.solscanTxUrl ?? null;
+      airdropErr = payload.airdropError ?? null;
+      if (payload.onchainLamports) {
+        setOnchainSolLamports(BigInt(payload.onchainLamports));
+      }
+    } catch (err) {
+      airdropErr = err instanceof Error ? err.message : "Devnet RPC error";
+    }
+
+    if (realSig) {
+      toast.success("0.5 Devnet SOL airdrop submitted on Solana Devnet");
+    } else {
+      toast.warning(
+        airdropErr
+          ? `Solana Devnet faucet rate-limited: ${airdropErr}`
+          : "Solana Devnet public faucet rate-limited; use faucet.solana.com for live SOL.",
+      );
+    }
+
+    const receipt: CashierReceipt = {
+      id: `airdrop-${idx + 1}`,
+      sourceLabel: realSig
+        ? "Solana Devnet 0.5 SOL Airdrop"
+        : `Devnet Faucet Rate-Limited (${airdropErr ?? "429"})`,
+      creditedUsdcFormatted: realSig ? "0.5000 SOL" : "0.0000 SOL",
+      txSignature: realSig,
+      solscanUrl,
+      sessionKeyPubkey,
+      isPaperCredit: !realSig,
+    };
+    setLastCashierReceipt(receipt);
+    return receipt;
+  }, [activeWallet, sessionKeyPubkey]);
+
   const depositToUnifiedCash = React.useCallback(
-    async (sourceLabel: string, amountUsdcWhole: number): Promise<CashierReceipt> => {
+    async (
+      sourceLabel: string,
+      amountUsdcWhole: number,
+    ): Promise<CashierReceipt> => {
       const idx = actionCounterRef.current;
       actionCounterRef.current += 1;
 
-      const safeWhole = Math.max(10, Math.min(2500, Math.trunc(amountUsdcWhole)));
+      const safeWhole = Math.max(
+        10,
+        Math.min(2500, Math.trunc(amountUsdcWhole)),
+      );
       const deltaAtomic = BigInt(safeWhole) * USDC_UNIT;
-      const nextSessionKey =
-        SESSION_KEY_ROTATION[idx % SESSION_KEY_ROTATION.length] ?? DEFAULT_SESSION_PUBKEY;
-      const txSignature = DETERMINISTIC_SIGS[idx % DETERMINISTIC_SIGS.length]!;
-
       setCashUsdcAtomic((prev) => prev + deltaAtomic);
-      setSessionKeyActive(true);
-      setSessionKeyPubkey(nextSessionKey);
 
       const receipt: CashierReceipt = {
         id: `deposit-${idx + 1}`,
-        sourceLabel,
+        sourceLabel: `${sourceLabel} (Paper Simulation)`,
         creditedUsdcFormatted: formatAtomicUsdc(deltaAtomic),
-        txSignature,
-        sessionKeyPubkey: nextSessionKey,
+        txSignature: null,
+        solscanUrl: null,
+        sessionKeyPubkey,
+        isPaperCredit: true,
       };
       setLastCashierReceipt(receipt);
       return receipt;
     },
-    [],
+    [sessionKeyPubkey],
   );
 
   const creditEarnedVaultPrize = React.useCallback(
@@ -212,11 +392,7 @@ export function ConsoleVaultProvider({
       asset: ClaimAssetSymbol,
       usdcValueAtomic: bigint,
       referencePrice8: bigint,
-    ): { creditedLabel: string; txSignature: string } => {
-      const idx = actionCounterRef.current;
-      actionCounterRef.current += 1;
-      const txSignature = DETERMINISTIC_SIGS[idx % DETERMINISTIC_SIGS.length]!;
-
+    ): { creditedLabel: string; txSignature: string | null } => {
       if (asset === "USDC" || referencePrice8 <= 0n) {
         setCashUsdcAtomic((prev) => prev + usdcValueAtomic);
         setEarnedStocks((prev) => ({
@@ -225,11 +401,10 @@ export function ConsoleVaultProvider({
         }));
         return {
           creditedLabel: `${formatAtomicUsdc(usdcValueAtomic)} USDC`,
-          txSignature,
+          txSignature: null,
         };
       }
 
-      // usdcValueAtomic is 10^6, referencePrice8 is 10^8 => shareUnits6 = (usdcValueAtomic * 10^8) / referencePrice8
       const shareUnits6 = (usdcValueAtomic * 100_000_000n) / referencePrice8;
       const nonZeroUnits = shareUnits6 > 0n ? shareUnits6 : 10_000n;
 
@@ -239,8 +414,8 @@ export function ConsoleVaultProvider({
       }));
 
       return {
-        creditedLabel: `+${formatShareUnits6(nonZeroUnits, 3)} ${asset} (${formatAtomicUsdc(usdcValueAtomic)})`,
-        txSignature,
+        creditedLabel: `+${formatShareUnits6(nonZeroUnits, 4)} ${asset} (${formatAtomicUsdc(usdcValueAtomic)})`,
+        txSignature: null,
       };
     },
     [],
@@ -260,38 +435,56 @@ export function ConsoleVaultProvider({
   const value = React.useMemo<ConsoleVaultContextValue>(
     () => ({
       cashUsdcAtomic,
+      onchainSolLamports,
+      onchainSplAtomic,
       earnedStocks,
       marketEloScaled,
       matchesPlayed,
       winsCount,
-      sessionKeyActive,
+      sessionKeyActive: Boolean(sessionKeyPubkey),
       sessionKeyPubkey,
-      playerWallet: DEFAULT_PLAYER_WALLET,
+      sessionSigner,
+      playerWallet: activeWallet,
+      connectedBrowserWalletName,
+      detectedWallets,
       authMethod,
       isCashierOpen,
       lastCashierReceipt,
       openCashier,
       closeCashier,
       setAuthMethod,
+      connectBrowserWallet,
+      rotateSessionKeypair,
+      refreshOnchainBalances,
       mintDevnetUsdc,
+      requestDevnetSolAirdrop,
       depositToUnifiedCash,
       creditEarnedVaultPrize,
       recordRoundElo,
     }),
     [
       cashUsdcAtomic,
+      onchainSolLamports,
+      onchainSplAtomic,
       earnedStocks,
       marketEloScaled,
       matchesPlayed,
       winsCount,
-      sessionKeyActive,
       sessionKeyPubkey,
+      sessionSigner,
+      activeWallet,
+      connectedBrowserWalletName,
+      detectedWallets,
       authMethod,
       isCashierOpen,
       lastCashierReceipt,
       openCashier,
       closeCashier,
+      connectBrowserWallet,
+      rotateSessionKeypair,
+      refreshOnchainBalances,
       mintDevnetUsdc,
+      requestDevnetSolAirdrop,
       depositToUnifiedCash,
       creditEarnedVaultPrize,
       recordRoundElo,
@@ -308,7 +501,9 @@ export function ConsoleVaultProvider({
 export function useConsoleVault(): ConsoleVaultContextValue {
   const ctx = React.useContext(ConsoleVaultContext);
   if (!ctx) {
-    throw new Error("useConsoleVault must be used within a ConsoleVaultProvider");
+    throw new Error(
+      "useConsoleVault must be used within a ConsoleVaultProvider",
+    );
   }
   return ctx;
 }

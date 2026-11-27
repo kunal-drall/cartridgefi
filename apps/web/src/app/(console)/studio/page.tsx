@@ -3,22 +3,22 @@ import type { Metadata } from "next";
 import { VibeStudioConsole } from "@/studio/VibeStudioConsole";
 
 export const metadata: Metadata = {
-  title: "Vibe Studio & Wallet SDK — Prompt-to-CartridgeManifest v2.0 IDE",
+  title: "Manifest Studio & Solvency Compiler",
   description:
-    "Compile natural-language market games into CartridgeManifest v2.0 PDAs, simulate 500 market ticks, deploy to Solana Devnet, and preview inside Solflare, Phantom, or Backpack with a 50% creator fee split.",
+    "Compile CartridgeManifest v2 specifications with Vercel AI SDK and MCP tools, verify 500-tick pool conservation, and execute register_cartridge on Solana Devnet.",
 };
 
-function VibeStudioFallback(): React.JSX.Element {
+function StudioFallback(): React.JSX.Element {
   return (
-    <div className="cf-glass rounded-2xl p-6 font-mono text-xs text-slate-300">
-      Loading CartridgeFi Vibe Studio Compiler…
+    <div className="rounded-lg border border-[#22262e] bg-[#111317] p-6 font-mono text-xs text-[#9ca3af]">
+      Loading Manifest Studio…
     </div>
   );
 }
 
-export default function VibeStudioPage(): React.JSX.Element {
+export default function StudioPage(): React.JSX.Element {
   return (
-    <React.Suspense fallback={<VibeStudioFallback />}>
+    <React.Suspense fallback={<StudioFallback />}>
       <VibeStudioConsole />
     </React.Suspense>
   );

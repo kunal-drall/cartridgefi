@@ -35,7 +35,7 @@ function drawRoundedRect(
 }
 
 /**
- * Renders a crisp 1200x630 high-contrast Market ELO Receipt Card on HTML5 Canvas.
+ * Renders a crisp 1200x630 institutional settlement receipt on HTML5 Canvas.
  */
 export function renderBorelEloReceiptCanvas(
   canvas: HTMLCanvasElement,
@@ -48,151 +48,125 @@ export function renderBorelEloReceiptCanvas(
     return "";
   }
 
-  // 1. Void background
-  ctx.fillStyle = "#050609";
+  ctx.fillStyle = "#0b0c0e";
   ctx.fillRect(0, 0, 1200, 630);
 
-  // Subtle precision grid lines
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.035)";
-  ctx.lineWidth = 1;
-  for (let gx = 60; gx < 1200; gx += 60) {
-    ctx.beginPath();
-    ctx.moveTo(gx, 0);
-    ctx.lineTo(gx, 630);
-    ctx.stroke();
-  }
-  for (let gy = 60; gy < 630; gy += 60) {
-    ctx.beginPath();
-    ctx.moveTo(0, gy);
-    ctx.lineTo(1200, gy);
-    ctx.stroke();
-  }
-
-  // 2. Main anodized hardware frame
-  drawRoundedRect(ctx, 36, 32, 1128, 566, 28);
-  ctx.fillStyle = "#0A0D14";
+  drawRoundedRect(ctx, 36, 32, 1128, 566, 12);
+  ctx.fillStyle = "#111317";
   ctx.fill();
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+  ctx.strokeStyle = "#22262e";
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Top emerald specular bar
-  ctx.fillStyle = "#00F59B";
-  ctx.fillRect(68, 32, 1064, 4);
+  // Top cobalt bar
+  ctx.fillStyle = "#2563eb";
+  ctx.fillRect(36, 32, 1128, 4);
 
-  // 3. Header row
-  ctx.fillStyle = "#00F59B";
-  ctx.font = "700 18px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.fillText("CARTRIDGEFI ENGINE // CARTRIDGE #001: BOREL", 76, 88);
+  // Header
+  ctx.fillStyle = "#f3f4f6";
+  ctx.font = "600 18px system-ui, -apple-system, sans-serif";
+  ctx.fillText("CartridgeFi Settlement Receipt — Borel Arena (#001)", 72, 86);
 
-  ctx.fillStyle = "#94A3B8";
-  ctx.font = "600 16px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillStyle = "#9ca3af";
+  ctx.font = "500 15px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "right";
-  ctx.fillText(`ROUND #${data.roundCode} · ${data.sessionModeLabel}`, 1124, 88);
+  ctx.fillText(`${data.roundCode} | ${data.sessionModeLabel}`, 1128, 86);
   ctx.textAlign = "left";
 
-  // Header divider
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.strokeStyle = "#22262e";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(76, 112);
-  ctx.lineTo(1124, 112);
+  ctx.moveTo(72, 110);
+  ctx.lineTo(1128, 110);
   ctx.stroke();
 
-  // 4. Primary Title & Rank Badge
-  ctx.fillStyle = "#F8FAFC";
-  ctx.font = "800 50px system-ui, -apple-system, sans-serif";
-  ctx.fillText("VERIFIED MARKET ELO RECEIPT", 76, 178);
+  // Headline
+  ctx.fillStyle = "#f3f4f6";
+  ctx.font = "700 42px system-ui, -apple-system, sans-serif";
+  ctx.fillText("Round Settlement Summary", 72, 174);
 
-  drawRoundedRect(ctx, 900, 134, 224, 56, 14);
-  ctx.fillStyle = data.rank === 1 ? "rgba(0, 245, 155, 0.14)" : "rgba(0, 212, 255, 0.14)";
+  drawRoundedRect(ctx, 920, 134, 208, 52, 8);
+  ctx.fillStyle = data.rank === 1 ? "rgba(16, 185, 129, 0.14)" : "#171a20";
   ctx.fill();
-  ctx.strokeStyle = data.rank === 1 ? "#00F59B" : "#00D4FF";
+  ctx.strokeStyle = data.rank === 1 ? "#10b981" : "#303642";
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  ctx.fillStyle = data.rank === 1 ? "#00F59B" : "#00D4FF";
-  ctx.font = "700 22px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillStyle = data.rank === 1 ? "#34d399" : "#e5e7eb";
+  ctx.font = "600 20px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.textAlign = "center";
-  ctx.fillText(`PODIUM RANK #${data.rank}`, 1012, 170);
+  ctx.fillText(`Rank #${data.rank} of 4`, 1024, 167);
   ctx.textAlign = "left";
 
-  // 5. Three Telemetry Wells
   const boxes = [
     {
-      x: 76,
-      w: 332,
-      label: "DIRECTION-NEUTRAL SKILL (S_REL)",
+      x: 72,
+      w: 336,
+      label: "Relative Return Score",
       value: data.skillScoreFormatted,
-      sub: "Kalshi 1.35x Carry Calibrated",
-      accent: "#00F59B",
+      sub: "Direction-neutral benchmark adjusted",
+      accent: "#34d399",
     },
     {
-      x: 434,
-      w: 332,
-      label: "PORTABLE MARKET ELO RATING",
-      value: `${data.nextEloFormatted} ELO`,
+      x: 432,
+      w: 336,
+      label: "Passport ELO Rating",
+      value: `${data.nextEloFormatted}`,
       sub: `${data.prevEloFormatted} -> ${data.nextEloFormatted} (${data.deltaEloFormatted})`,
-      accent: "#00D4FF",
+      accent: "#f3f4f6",
     },
     {
       x: 792,
-      w: 332,
-      label: "EARNED STOCK VAULT PAYOUT",
+      w: 336,
+      label: "Vault Settlement",
       value: data.payoutSummary,
-      sub: `Passport Owner: ${data.playerWalletShort}`,
-      accent: "#FFB020",
+      sub: `Account: ${data.playerWalletShort}`,
+      accent: "#93c5fd",
     },
   ];
 
   for (const b of boxes) {
-    drawRoundedRect(ctx, b.x, 224, b.w, 196, 20);
-    ctx.fillStyle = "#050609";
+    drawRoundedRect(ctx, b.x, 224, b.w, 192, 10);
+    ctx.fillStyle = "#0b0c0e";
     ctx.fill();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+    ctx.strokeStyle = "#22262e";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    ctx.fillStyle = "#94A3B8";
-    ctx.font = "600 13px ui-monospace, SFMono-Regular, Menlo, monospace";
-    ctx.fillText(b.label, b.x + 22, 264);
+    ctx.fillStyle = "#9ca3af";
+    ctx.font = "500 14px system-ui, -apple-system, sans-serif";
+    ctx.fillText(b.label, b.x + 22, 262);
 
     ctx.fillStyle = b.accent;
-    ctx.font = "700 34px ui-monospace, SFMono-Regular, Menlo, monospace";
-    ctx.fillText(b.value.slice(0, 18), b.x + 22, 326);
+    ctx.font = "600 32px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(b.value.slice(0, 18), b.x + 22, 322);
 
-    ctx.fillStyle = "#CBD5E1";
-    ctx.font = "500 14px ui-monospace, SFMono-Regular, Menlo, monospace";
-    ctx.fillText(b.sub.slice(0, 36), b.x + 22, 376);
+    ctx.fillStyle = "#6b7280";
+    ctx.font = "500 13px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(b.sub.slice(0, 38), b.x + 22, 372);
   }
 
-  // 6. Cryptographic Attestation Strip
-  drawRoundedRect(ctx, 76, 452, 1048, 110, 16);
-  ctx.fillStyle = "rgba(17, 21, 32, 0.9)";
+  drawRoundedRect(ctx, 72, 450, 1056, 112, 10);
+  ctx.fillStyle = "#0b0c0e";
   ctx.fill();
-  ctx.strokeStyle = "rgba(139, 92, 246, 0.35)";
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = "#22262e";
+  ctx.lineWidth = 1;
   ctx.stroke();
 
-  ctx.fillStyle = "#C4B5FD";
-  ctx.font = "600 14px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillStyle = "#d1d5db";
+  ctx.font = "500 14px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillText(
-    `MAGICBLOCK PRIVATE ER TEE (${data.teeProgramId.slice(0, 12)}…) · ZERO COPY-TRADE LEAKAGE`,
-    100,
+    `ER Room Program: ${data.erRoomProgramId}  |  TEE Program: ${data.teeProgramId}`,
+    96,
     488,
   );
 
-  ctx.fillStyle = "#94A3B8";
+  ctx.fillStyle = "#9ca3af";
   ctx.font = "500 13px ui-monospace, SFMono-Regular, Menlo, monospace";
   ctx.fillText(
-    `ER Room Program: ${data.erRoomProgramId}   |   VRF Proof Seed: ${data.vrfSeedShort}`,
-    100,
-    518,
-  );
-  ctx.fillText(
-    "Settled Atomically on Solana L1 via Magic Actions · Kora Gasless Paymaster · 100% Fixed-Point i128 Math",
-    100,
-    544,
+    `Verified VRF Seed Reference: ${data.vrfSeedShort}  |  Fixed-Point 10^9 Settlement`,
+    96,
+    522,
   );
 
   try {

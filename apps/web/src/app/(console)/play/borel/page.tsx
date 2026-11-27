@@ -3,15 +3,15 @@ import type { Metadata } from "next";
 import { BorelArenaConsole } from "@/games/borel/BorelArenaConsole";
 
 export const metadata: Metadata = {
-  title: "Play BOREL (#001) — Game-Day & Blind Conviction Blitz Arena",
+  title: "Borel Conviction Arena (#001)",
   description:
-    "Play Borel (#001), CartridgeFi's flagship multiplayer Game-Day & Blind Conviction Blitz arena on Solana and MagicBlock Private ER TEEs with zero wallet popups.",
+    "Multi-asset conviction terminal on Solana and MagicBlock Private ER TEE with live TradingView charts, Kalshi event contracts, and tokenized equity settlement.",
 };
 
 function BorelArenaFallback(): React.JSX.Element {
   return (
-    <div className="cf-glass rounded-2xl p-6 font-mono text-xs text-slate-300">
-      Initializing Borel Private ER Pod…
+    <div className="rounded-lg border border-[#22262e] bg-[#111317] p-6 font-mono text-xs text-[#9ca3af]">
+      Loading Borel Conviction Arena…
     </div>
   );
 }

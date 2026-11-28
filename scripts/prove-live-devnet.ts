@@ -1425,6 +1425,7 @@ async function appMain(base: string): Promise<void> {
   for (const p of players) {
     let j = await api("/api/borel/join", { method: "POST", body: { mode: "BLITZ_3M", stake: "DEVNET", sessionPubkey: p.session.address } });
     must(j, `${p.label} join`);
+    console.log(`  ${new Date().toISOString()} ${p.label} joined ${String(j.roomId)}`);
     if (roomId && j.roomId !== roomId) throw new Error("Players landed in different rooms; rerun earlier in the lobby");
     roomId = String(j.roomId);
     lockAt = Number(j.lockAt);
@@ -1451,14 +1452,38 @@ async function appMain(base: string): Promise<void> {
       `${p.label} lock`,
     );
     keep(`${p.label} lock`, l.receipt);
+    console.log(`  ${new Date().toISOString()} ${p.label} lock confirmed`);
     stancesSigs.push((l.receipt as AppReceipt).signature);
     console.log(`  ${p.label} on-chain entry prices: ${JSON.stringify((l.hand as { market: string; entryPriceE9: string }[]).map((x) => `${x.market}=${x.entryPriceE9}`))}`);
   }
 
-  // 3. Privacy while sealed: a stranger (and no token) cannot read the stance or the submit_stance instruction.
+  // 3. Lobby read: no rival rows, no score or hand. Started now, checked after the pivots, so a slow read
+  //    cannot push the pivots past 00:00.
+  const privacy: string[] = [];
+  const publicRoomRead = api(`/api/borel/room?roomId=${roomId}`);
+  // 4. Pivot once each, once the room is live (cartridge_er_room rejects pivots before start_ts).
+  while (Date.now() < startsAt + 2_000) await sleep(1000);
+  for (const p of players) {
+    console.log(`  ${new Date().toISOString()} ${p.label} pivot request (room live ${new Date(startsAt).toISOString()} → ${new Date(endsAt).toISOString()})`);
+    const pv = must(
+      await api("/api/borel/pivot", {
+        method: "POST",
+        body: { roomId, sessionPubkey: p.session.address, pivot: p.pivot, auth: await signedAuth(p.session, "pivot", roomId, p.pivot) },
+      }),
+      `${p.label} pivot`,
+    );
+    keep(`${p.label} pivot`, pv.receipt);
+  }
+  const publicRoom = must(await publicRoomRead, "public room read");
+  const leaked = (publicRoom.rows as { scoreE9?: string; hand?: unknown }[]).filter((r) => r.scoreE9 !== undefined || r.hand !== undefined);
+  privacy.push(`GET /api/borel/room (unauthenticated) in the lobby: ${(publicRoom.rows as unknown[]).length} rival rows returned, ${leaked.length} with score or hand`);
+  if ((publicRoom.rows as unknown[]).length > 0 && publicRoom.phase === "LOBBY") throw new Error("Room API returned rival rows in the lobby");
+  if (leaked.length > 0) throw new Error("Room API leaked a score or hand before settle");
+
+  // 5. Privacy while sealed (stances stay private until settle): a stranger (and no token) cannot read the stance
+  //    or the submit_stance instruction. Runs after the pivots so a slow TEE read cannot push them past 00:00.
   const stranger = await generateKeyPairSigner();
   const strangerUrl = `${MAGICBLOCK_TEE_RPC}?token=${await teeToken(stranger)}`;
-  const privacy: string[] = [];
   for (const sig of stancesSigs) {
     for (const [who, url] of [["stranger token", strangerUrl], ["no token", MAGICBLOCK_TEE_RPC]] as const) {
       const tx = await rpcCall<{ transaction: { message: { instructions: unknown[] } }; meta: { logMessages: string[] } } | null>(url, "getTransaction", [
@@ -1473,25 +1498,7 @@ async function appMain(base: string): Promise<void> {
   }
   const strangerSigs = await rpcCall<{ signature: string }[]>(strangerUrl, "getSignaturesForAddress", [roomShard, { limit: 50 }]);
   privacy.push(`getSignaturesForAddress(RoomShard) as stranger: ${strangerSigs.length} signature(s), sealed stance txs hidden: ${stancesSigs.every((s) => !strangerSigs.some((x) => x.signature === s))}`);
-  const publicRoom = must(await api(`/api/borel/room?roomId=${roomId}`), "public room read");
-  const leaked = (publicRoom.rows as { scoreE9?: string; hand?: unknown }[]).filter((r) => r.scoreE9 !== undefined || r.hand !== undefined);
-  privacy.push(`GET /api/borel/room (unauthenticated) in the lobby: ${(publicRoom.rows as unknown[]).length} rival rows returned, ${leaked.length} with score or hand`);
-  if ((publicRoom.rows as unknown[]).length > 0 && publicRoom.phase === "LOBBY") throw new Error("Room API returned rival rows in the lobby");
-  if (leaked.length > 0) throw new Error("Room API leaked a score or hand before settle");
   for (const line of privacy) console.log(`  privacy: ${line}`);
-
-  // 4. Pivot once each, once the room is live (cartridge_er_room rejects pivots before start_ts).
-  while (Date.now() < startsAt + 2_000) await sleep(1000);
-  for (const p of players) {
-    const pv = must(
-      await api("/api/borel/pivot", {
-        method: "POST",
-        body: { roomId, sessionPubkey: p.session.address, pivot: p.pivot, auth: await signedAuth(p.session, "pivot", roomId, p.pivot) },
-      }),
-      `${p.label} pivot`,
-    );
-    keep(`${p.label} pivot`, pv.receipt);
-  }
   const a = players[0];
   const authA = await signedAuth(a.session, "room", roomId, {});
   // Room-read auth travels in headers, never the URL.
@@ -1506,7 +1513,7 @@ async function appMain(base: string): Promise<void> {
   if (rowsA.some((r) => !r.isYou && (r.scoreE9 !== undefined || r.hand !== undefined || r.pivotUsed))) throw new Error("Rival score/hand/pivot leaked before settle");
   privacy.push(`Signed GET as Player A while sealed: own score only; ${rowsA.filter((r) => !r.isYou).length} rival rows with rank only (no score, hand or pivotUsed)`);
 
-  // 5. Settle after 00:00 (VRF, unseal, evaluate, undelegate, commit).
+  // 6. Settle after 00:00 (VRF, unseal, evaluate, undelegate, commit).
   while (Date.now() < endsAt + 2_000) await sleep(1000);
   let settled: Record<string, unknown> | null = null;
   for (let attempt = 0; attempt < 6 && !settled; attempt++) {

@@ -271,7 +271,7 @@ async function main(): Promise<void> {
   const record = (step: string, layer: "L1" | "ER", signature: string) => {
     const url = layer === "L1" ? solscanTx(signature) : solscanTx(signature, erFqdn);
     receipts.push({ step, layer, signature, url });
-    console.log(`  ${layer} ${step}\n     ${url}`);
+    console.log(`  ${new Date().toISOString()} ${layer} ${step}\n     ${url}`);
   };
 
   const chain: StakeChain = {
@@ -319,7 +319,7 @@ async function main(): Promise<void> {
   const eventId = new Uint8Array(createHash("sha256").update(`${roomId}:shard:0`).digest());
   const [roomShard] = await cartridgeErRoom.findRoomShardPda({ eventId, shardIndex: 0 });
   // The sealed entry must land before start_ts, so leave room for setup (room, joins, vault, stakes, ER joins).
-  const startTs = (await chainUnixTs(DEVNET_RPC)) + 150n;
+  const startTs = (await chainUnixTs(DEVNET_RPC)) + 240n;
   const endTs = startTs + BigInt(DURATION_SECS);
   const unsealTs = startTs + (BigInt(DURATION_SECS) * 7500n) / 10_000n;
   const uri = new Uint8Array(96);
